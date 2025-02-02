@@ -439,7 +439,6 @@ public:
     void DumpStatistics(class IGameFont& font, class IPerformanceAlert* alert) override;
     ref_shader getShader(int id);
     IRenderVisual* getVisual(int id) override;
-    IRender_Target* getTarget() override;
 
     // Main
     void add_Visual(u32 context_id, IRenderable* root, IRenderVisual* V, Fmatrix& m) override; // add visual leaf	(no culling performed at all)
@@ -495,6 +494,8 @@ public:
 
     void BeforeWorldRender() override; //--#SM+#-- +SecondVP+ Procedure is called before world render and post-effects
     void AfterWorldRender() override;  //--#SM+#-- +SecondVP+ Procedure is called after world render and before UI
+
+    void SetPostProcessParams(const SPPInfo& ppi) override;
 
 #ifdef USE_OGL
     RenderContext GetCurrentContext() const override;
