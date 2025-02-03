@@ -503,9 +503,9 @@ public:
 #endif
 
     // Render mode
-    void rmNear(CBackend& cmd_list) override;
-    void rmFar(CBackend& cmd_list) override;
-    void rmNormal(CBackend& cmd_list) override;
+    void rmNear(CBackend& cmd_list);
+    void rmFar(CBackend& cmd_list);
+    void rmNormal(CBackend& cmd_list);
 
     // Constructor/destructor/loader
     CRender();

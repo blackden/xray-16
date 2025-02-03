@@ -115,8 +115,6 @@ public:
     virtual ~IRender_ObjectSpecific(){};
 };
 
-class CBackend; // TODO: the real command list interface should be defined here
-
 enum class DeviceState
 {
     Normal = 0,
@@ -340,11 +338,6 @@ public:
 
     virtual void Screenshot(ScreenshotMode mode = SM_NORMAL, pcstr name = nullptr) = 0;
     virtual void SetPostProcessParams(const SPPInfo& ppi) = 0;
-
-    // Render mode
-    virtual void rmNear(CBackend& cmd_list) = 0;
-    virtual void rmFar(CBackend& cmd_list) = 0;
-    virtual void rmNormal(CBackend& cmd_list) = 0;
 
     // Constructor/destructor
     virtual ~IRender() {}
