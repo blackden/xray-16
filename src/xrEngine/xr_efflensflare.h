@@ -9,6 +9,11 @@ class ENGINE_API CInifile;
 class ENGINE_API CEnvDescriptorMixer;
 class ENGINE_API CEnvironment;
 
+namespace xray::render::RENDER_NAMESPACE
+{
+class dxLensFlareRender;
+}
+
 class ENGINE_API CLensFlareDescriptor
 {
 public:
@@ -63,7 +68,7 @@ public:
 
 class ENGINE_API CLensFlare
 {
-    friend class dxLensFlareRender;
+    friend class xray::render::RENDER_NAMESPACE::dxLensFlareRender;
 
 public:
     enum

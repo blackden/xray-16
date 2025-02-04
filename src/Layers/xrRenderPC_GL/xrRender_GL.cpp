@@ -4,6 +4,8 @@
 #include "Layers/xrRender/dxDebugRender.h"
 #include "Layers/xrRender/D3DUtils.h"
 
+namespace xray::render::RENDER_NAMESPACE
+{
 constexpr pcstr RENDERER_R2_MODE   = "renderer_r2";   // id 2
 constexpr pcstr RENDERER_R2_5_MODE = "renderer_r2.5"; // id 3
 constexpr pcstr RENDERER_R3_MODE   = "renderer_r3";   // id 4
@@ -107,11 +109,12 @@ public:
         }
     }
 } static s_rgl_module;
+} // namespace xray::render::RENDER_NAMESPACE
 
 extern "C"
 {
 XR_EXPORT RendererModule* GetRendererModule()
 {
-    return &s_rgl_module;
+    return &xray::render::RENDER_NAMESPACE::s_rgl_module;
 }
 }

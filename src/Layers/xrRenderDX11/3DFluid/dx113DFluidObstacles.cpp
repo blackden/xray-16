@@ -12,7 +12,11 @@
 #ifdef  DEBUG
 #include "Layers/xrRender/dxDebugRender.h"
 #endif
+*/
 
+namespace xray::render::RENDER_NAMESPACE
+{
+/*
 static void draw_obb        ( const Fmatrix &matrix, const u32 &color )
 {
     Fvector                         aabb[8];
@@ -412,3 +416,4 @@ void dx113DFluidObstacles::RenderDynamicOOBB(
 
     m_pGrid->DrawSlices();
 }
+} // namespace xray::render::RENDER_NAMESPACE

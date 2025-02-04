@@ -7,6 +7,8 @@
 #include <DirectXMath.h>
 #include <DirectXPackedVector.h>
 
+namespace xray::render::RENDER_NAMESPACE
+{
 using namespace DirectX;
 
 struct VsInput
@@ -566,3 +568,4 @@ void dx113DFluidRenderer::PrepareCBuffer(const dx113DFluidData &FluidData, u32 R
     RCache.set_c(strRTWidth, (float)RTWidth);
     RCache.set_c(strRTHeight, (float)RTHeight);
 }
+} // namespace xray::render::RENDER_NAMESPACE

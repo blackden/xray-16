@@ -5,6 +5,8 @@
 #include "dx113DFluidData.h"
 #include "dx113DFluidGrid.h"
 
+namespace xray::render::RENDER_NAMESPACE
+{
 namespace
 {
 shared_str strImpulseSize("size");
@@ -155,3 +157,4 @@ void dx113DFluidEmitters::ApplyVelocity(const CEmitter& Emitter)
 
     m_pGrid->DrawSlices();
 }
+} // namespace xray::render::RENDER_NAMESPACE

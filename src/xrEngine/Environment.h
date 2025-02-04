@@ -26,6 +26,11 @@ struct SThunderboltDesc;
 struct SThunderboltCollection;
 class CLensFlareDescriptor;
 
+namespace xray::render::RENDER_NAMESPACE
+{
+class dxEnvironmentRender;
+}
+
 #define DAY_LENGTH 86400.f
 
 // t-defs
@@ -226,7 +231,8 @@ public:
 
 class ENGINE_API CEnvironment : public xray::editor::ide_tool
 {
-    friend class dxEnvironmentRender;
+    friend class xray::render::RENDER_NAMESPACE::dxEnvironmentRender;
+
     struct str_pred
     {
         bool operator()(const shared_str& x, const shared_str& y) const { return xr_strcmp(x, y) < 0; }

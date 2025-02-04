@@ -8,15 +8,20 @@
 
 #include "xrCDB/xr_collide_defs.h"
 
+#include "Include/xrRender/FactoryPtr.h"
+#include "Include/xrRender/RainRender.h"
+
 // refs
 class ENGINE_API IRender_DetailModel;
 
-#include "Include/xrRender/FactoryPtr.h"
-#include "Include/xrRender/RainRender.h"
-//
+namespace xray::render::RENDER_NAMESPACE
+{
+class dxRainRender;
+}
+
 class ENGINE_API CEffect_Rain
 {
-    friend class dxRainRender;
+    friend class xray::render::RENDER_NAMESPACE::dxRainRender;
 
 private:
     struct Item
