@@ -2,7 +2,15 @@
 #include "UITabControl.h"
 #include "UITabButton.h"
 
-bool operator==(const CUITabButton* btn, const shared_str& id) { return (btn->m_btn_id == id); }
+bool operator==(const CUITabButton* btn, const shared_str& id)
+{
+    R_ASSERT2_CURE(btn, "The btn pointer should never be nullptr.\n"
+                        "It's either because of wrong usage or UB (yay!)",
+    {
+        return id.empty();
+    });
+    return btn->m_btn_id == id;
+}
 
 CUITabControl::CUITabControl() : CUIWindow("CUITabControl")
 {
