@@ -39,8 +39,6 @@ class ENGINE_API ide final :
     public pureFrame,
     public pureAppActivate,
     public pureAppDeactivate,
-    public pureAppStart,
-    public pureAppEnd,
     public IInputReceiver
 {
     friend class ide_tool;
@@ -78,9 +76,6 @@ public:
 
     void OnAppActivate() override;
     void OnAppDeactivate() override;
-
-    void OnAppStart() override;
-    void OnAppEnd() override;
 
     void IR_OnActivate() override;
     void IR_OnDeactivate() override;
