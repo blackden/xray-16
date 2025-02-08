@@ -89,7 +89,6 @@ CMainMenu::CMainMenu()
     m_Flags.zero();
     m_startDialog = NULL;
     m_screenshotFrame = u32(-1);
-    g_pGamePersistent->m_pMainMenu = this;
     if (Device.b_is_Ready)
         OnDeviceCreate();
     g_btnHint = NULL;
@@ -148,8 +147,6 @@ CMainMenu::~CMainMenu()
     xr_delete(g_statHint);
 
     xr_delete(m_startDialog);
-
-    g_pGamePersistent->m_pMainMenu = nullptr;
 
     xr_delete(m_account_mngr);
     xr_delete(m_login_mngr);
