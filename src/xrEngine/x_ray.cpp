@@ -400,6 +400,8 @@ int CApplication::Run()
             case SDL_WINDOWEVENT:
             {
                 const auto window = SDL_GetWindowFromID(event.window.windowID);
+                if (!window)
+                    continue;
 
                 switch (event.window.event)
                 {
