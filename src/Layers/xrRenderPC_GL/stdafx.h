@@ -18,6 +18,13 @@
 #include <SDL_opengl.h>
 #include <SDL_opengl_glext.h>
 
+#define R_GL 0
+#define R_R1 1
+#define R_R2 2
+#define R_R3 3
+#define R_R4 4
+#define RENDER R_GL
+
 #include "Layers/xrRenderGL/CommonTypes.h"
 
 #include "Layers/xrRenderGL/glHW.h"
@@ -30,13 +37,6 @@
 
 #include "Layers/xrRender/Blender.h"
 #include "Layers/xrRender/Blender_CLSID.h"
-
-#define R_GL 0
-#define R_R1 1
-#define R_R2 2
-#define R_R3 3
-#define R_R4 4
-#define RENDER R_GL
 
 #include "Common/_d3d_extensions.h"
 

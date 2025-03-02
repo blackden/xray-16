@@ -14,14 +14,22 @@
 // refs
 class ENGINE_API IRender_DetailModel;
 
-namespace xray::render::RENDER_NAMESPACE
+namespace xray::render
+{
+namespace render_r4
 {
 class dxRainRender;
 }
+namespace render_gl
+{
+class dxRainRender;
+}
+} // namespace xray::render
 
 class ENGINE_API CEffect_Rain
 {
-    friend class xray::render::RENDER_NAMESPACE::dxRainRender;
+    friend class xray::render::render_r4::dxRainRender;
+    friend class xray::render::render_gl::dxRainRender;
 
 private:
     struct Item

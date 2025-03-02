@@ -35,6 +35,13 @@
 
 #include <tracy/TracyD3D11.hpp>
 
+#define R_GL 0
+#define R_R1 1
+#define R_R2 2
+#define R_R3 3
+#define R_R4 4
+#define RENDER R_R4
+
 #include "Layers/xrRenderDX11/CommonTypes.h"
 
 #include "Layers/xrRenderDX11/dx11HW.h"
@@ -46,13 +53,6 @@
 
 #include "Layers/xrRender/Blender.h"
 #include "Layers/xrRender/Blender_CLSID.h"
-
-#define R_GL 0
-#define R_R1 1
-#define R_R2 2
-#define R_R3 3
-#define R_R4 4
-#define RENDER R_R4
 
 #include "Common/_d3d_extensions.h"
 
