@@ -1,8 +1,11 @@
 #include "stdafx.h"
+
 #include "Layers/xrRender/dxRenderFactory.h"
 #include "Layers/xrRender/dxUIRender.h"
 #include "Layers/xrRender/dxDebugRender.h"
 #include "Layers/xrRender/D3DUtils.h"
+
+#include "Include/xrRender/xrRender.h"
 
 namespace xray::render::RENDER_NAMESPACE
 {
@@ -109,12 +112,9 @@ public:
         }
     }
 } static s_rgl_module;
-} // namespace xray::render::RENDER_NAMESPACE
 
-extern "C"
+RendererModule* GetRendererModule()
 {
-XR_EXPORT RendererModule* GetRendererModule()
-{
-    return &xray::render::RENDER_NAMESPACE::s_rgl_module;
+    return &s_rgl_module;
 }
-}
+} // namespace xray::render::RENDER_NAMESPACE

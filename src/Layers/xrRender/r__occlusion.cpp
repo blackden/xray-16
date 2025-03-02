@@ -5,11 +5,11 @@
 
 namespace xray::render::RENDER_NAMESPACE
 {
-R_occlusion::R_occlusion(void) { enabled = strstr(Core.Params, "-no_occq") ? false : true; }
 R_occlusion::~R_occlusion(void) { occq_destroy(); }
 void R_occlusion::occq_create(u32 limit)
 {
     ZoneScoped;
+    enabled = strstr(Core.Params, "-no_occq") ? false : true;
     pool.reserve(limit);
     used.reserve(limit);
     fids.reserve(limit);

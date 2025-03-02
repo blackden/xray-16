@@ -40,19 +40,7 @@ sizeof(aabb_id)/(2*sizeof(u16)), color);
 
 namespace
 {
-//  For OOBB
-//  shared_str  strBoxLBDcorner("boxLBDcorner");
-//  shared_str  strBoxRTUcorner("boxRTUcorner");
-shared_str strOOBBClipPlane("OOBBClipPlane");
-
-//  For velocity calculation
-shared_str strWorldToLocal("WorldToLocal");
-shared_str strLocalToWorld("LocalToWorld");
-shared_str strMassCenter("MassCenter");
-shared_str strOOBBWorldAngularVelocity("OOBBWorldAngularVelocity");
-shared_str strOOBBWorldTranslationVelocity("OOBBWorldTranslationVelocity");
-
-Fvector4 UnitClipPlanes[] = {
+constexpr Fvector4 UnitClipPlanes[] = {
     {-1.f, 0.0f, 0.0f, 0.5f}, //
     {1.f, 0.0f, 0.0f, 0.5f}, //
     {0.0f, -1.f, 0.0f, 0.5f}, // Top
@@ -136,6 +124,8 @@ void dx113DFluidObstacles::ProcessObstacles(const dx113DFluidData& FluidData, fl
 
 void dx113DFluidObstacles::RenderStaticOOBB(const Fmatrix& Transform)
 {
+    static shared_str strOOBBClipPlane("OOBBClipPlane");
+
     PIX_EVENT(RenderObstacle);
 
     //  Shader must be already set up!
@@ -173,6 +163,9 @@ void dx113DFluidObstacles::ProcessStaticObstacles(const dx113DFluidData& FluidDa
 void dx113DFluidObstacles::ProcessDynamicObstacles(
     const dx113DFluidData& FluidData, const Fmatrix& WorldToFluid, float timestep)
 {
+    static shared_str strWorldToLocal("WorldToLocal");
+    static shared_str strLocalToWorld("LocalToWorld");
+
     m_lstRenderables.clear();
     m_lstShells.clear();
     m_lstElements.clear();
@@ -260,6 +253,10 @@ void dx113DFluidObstacles::RenderPhysicsShell(const IPhysicsShell* pShell, const
 void dx113DFluidObstacles::RenderPhysicsElement(
     const IPhysicsElement& Element, const Fmatrix& WorldToFluid, float timestep)
 {
+    static shared_str strMassCenter("MassCenter");
+    static shared_str strOOBBWorldAngularVelocity("OOBBWorldAngularVelocity");
+    static shared_str strOOBBWorldTranslationVelocity("OOBBWorldTranslationVelocity");
+
     //  Shader must be already set up!
     const Fvector3& MassCenter3 = Element.mass_Center();
     Fvector3 AngularVelocity3;
@@ -313,6 +310,8 @@ void dx113DFluidObstacles::RenderPhysicsElement(
 void dx113DFluidObstacles::RenderDynamicOOBB( const IPhysicsElement &Element, const Fmatrix &WorldToFluid, float
 timestep)
 {
+    static shared_str strOOBBClipPlane("OOBBClipPlane");
+
     PIX_EVENT(RenderDynamicObstacle);
 
     //  dsdad;
@@ -383,6 +382,8 @@ timestep)
 void dx113DFluidObstacles::RenderDynamicOOBB(
     const IPhysicsGeometry& Geometry, const Fmatrix& WorldToFluid, float /*timestep*/)
 {
+    static shared_str strOOBBClipPlane("OOBBClipPlane");
+
     PIX_EVENT(RenderDynamicObstacle);
 
     //  dsdad;

@@ -7,13 +7,6 @@
 
 namespace xray::render::RENDER_NAMESPACE
 {
-namespace
-{
-shared_str strImpulseSize("size");
-shared_str strImpulseCenter("center");
-shared_str strSplatColor("splatColor");
-}
-
 dx113DFluidEmitters::dx113DFluidEmitters(int gridWidth, int gridHeight, int gridDepth, dx113DFluidGrid* pGrid)
     : m_pGrid(pGrid)
 {
@@ -79,6 +72,10 @@ void dx113DFluidEmitters::RenderVelocity(const dx113DFluidData& FluidData)
 
 void dx113DFluidEmitters::ApplyDensity(const CEmitter& Emitter)
 {
+    static shared_str strImpulseSize{ "size" };
+    static shared_str strImpulseCenter{ "center" };
+    static shared_str strSplatColor{ "splatColor" };
+
     // Draw gaussian ball of color
     RCache.set_Element(m_EmitterTechnique[ET_SimpleGausian]);
 
@@ -120,6 +117,10 @@ void dx113DFluidEmitters::ApplyDensity(const CEmitter& Emitter)
 static float lilrand() { return (rand() / float(RAND_MAX) - 0.5f) * 5.0f; }
 void dx113DFluidEmitters::ApplyVelocity(const CEmitter& Emitter)
 {
+    static shared_str strImpulseSize{ "size" };
+    static shared_str strImpulseCenter{ "center" };
+    static shared_str strSplatColor{ "splatColor" };
+
     // Draw gaussian ball of velocity
     RCache.set_Element(m_EmitterTechnique[ET_SimpleGausian]);
 

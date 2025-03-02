@@ -16,21 +16,6 @@ struct VsInput
     Fvector pos;
 };
 
-namespace
-{
-// For render call
-shared_str strZNear("ZNear");
-shared_str strZFar("ZFar");
-shared_str strGridScaleFactor("gridScaleFactor");
-shared_str strEyeOnGrid("eyeOnGrid");
-shared_str strWorldViewProjection("WorldViewProjection");
-shared_str strInvWorldViewProjection("InvWorldViewProjection");
-shared_str strRTWidth("RTWidth");
-shared_str strRTHeight("RTHeight");
-
-shared_str strDiffuseLight("DiffuseLight");
-}
-
 LPCSTR dx113DFluidRenderer::m_pRTNames[RRT_NumRT] = {
     "$user$rayDataTex", "$user$rayDataTexSmall", "$user$rayCastTex", "$user$edgeTex"};
 
@@ -319,6 +304,8 @@ void dx113DFluidRenderer::CreateRayDataResources(int width, int height)
 
 void dx113DFluidRenderer::Draw(const dx113DFluidData& FluidData)
 {
+    static shared_str strDiffuseLight("DiffuseLight");
+
     //	We don't need ZB anyway
     RCache.set_ZB(nullptr);
 
@@ -514,6 +501,15 @@ void dx113DFluidRenderer::CalculateLighting(const dx113DFluidData& FluidData, Fo
 
 void dx113DFluidRenderer::PrepareCBuffer(const dx113DFluidData &FluidData, u32 RTWidth, u32 RTHeight)
 {
+    static shared_str strZNear("ZNear");
+    static shared_str strZFar("ZFar");
+    static shared_str strGridScaleFactor("gridScaleFactor");
+    static shared_str strEyeOnGrid("eyeOnGrid");
+    static shared_str strWorldViewProjection("WorldViewProjection");
+    static shared_str strInvWorldViewProjection("InvWorldViewProjection");
+    static shared_str strRTWidth("RTWidth");
+    static shared_str strRTHeight("RTHeight");
+
     const Fmatrix& transform = FluidData.GetTransform();
     RCache.set_xform_world(transform);
 
