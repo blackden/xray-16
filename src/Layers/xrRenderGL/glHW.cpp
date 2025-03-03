@@ -74,7 +74,7 @@ void CHW::OnAppDeactivate()
 //////////////////////////////////////////////////////////////////////
 void CHW::CreateDevice(SDL_Window* hWnd)
 {
-    ZoneTransient(tracy_scoped_zone, true);
+    ZoneScoped;
 
     m_window = hWnd;
 

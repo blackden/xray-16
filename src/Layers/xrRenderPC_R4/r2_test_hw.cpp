@@ -36,7 +36,7 @@ public:
 
 BOOL xrRender_test_hw()
 {
-    ZoneTransient(tracy_scoped_zone, true);
+    ZoneScoped;
 
     const DX11TestHelper helper;
     if (!helper.Successful())
