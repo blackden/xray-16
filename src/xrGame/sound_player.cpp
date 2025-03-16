@@ -283,7 +283,7 @@ CSoundPlayer::CSoundCollection::~CSoundCollection()
     delete_data(m_sounds);
 }
 
-const ref_sound& CSoundPlayer::CSoundCollection::random(const u32& id)
+const ref_sound& CSoundPlayer::CSoundCollection::random(u32 id)
 {
     VERIFY(!m_sounds.empty());
 
@@ -307,5 +307,5 @@ const ref_sound& CSoundPlayer::CSoundCollection::random(const u32& id)
     } while (result == m_last_sound_id);
 
     m_last_sound_id = result;
-    return (*m_sounds[result]);
+    return *m_sounds[result];
 }
