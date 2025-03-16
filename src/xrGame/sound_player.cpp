@@ -287,10 +287,9 @@ const ref_sound& CSoundPlayer::CSoundCollection::random(u32 id)
 {
     VERIFY(!m_sounds.empty());
 
-    if (id != u32(-1))
+    if (id != u32(-1) && id < m_sounds.size())
     {
         m_last_sound_id = id;
-        VERIFY(id < m_sounds.size());
         return (*m_sounds[id]);
     }
 
