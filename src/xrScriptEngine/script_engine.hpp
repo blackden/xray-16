@@ -105,9 +105,6 @@ protected:
 #endif
 #endif
 
-public:
-    bool m_stack_is_ready;
-
 private:
     static CScriptEngine* GetInstance(lua_State* state);
     static bool RegisterState(lua_State* state, CScriptEngine* scriptEngine);
@@ -188,7 +185,7 @@ public:
     {
         int result = 0;
 
-        //if (g_LuaDebug.test(1) || message == LuaMessageType::Error)
+        if (g_LuaDebug.test(1) || message == LuaMessageType::Error)
         {
             string4096 log;
             result = xr_sprintf(log, format, std::forward<Args>(args)...);
@@ -200,8 +197,12 @@ public:
             m_output.w("\r\n", sizeof("\r\n"));
         }
 
-        if (message == LuaMessageType::Error)
+        if (message == LuaMessageType::Error && !logReenterability)
+        {
+            logReenterability = true;
             print_stack();
+            logReenterability = false;
+        }
 
         return result;
     }
@@ -210,7 +211,6 @@ public:
 
 private:
     static void print_error(lua_State* L, int iErrorCode);
-    static bool onErrorCallback(lua_State* L, pcstr scriptName, int errorCode, pcstr err = nullptr);
 
 public:
     static void on_error(lua_State* state);
@@ -229,7 +229,7 @@ public:
     static int lua_panic(lua_State* L);
     static void lua_error(lua_State* L);
     static int lua_pcall_failed(lua_State* L);
-#if 1 //!XRAY_EXCEPTIONS
+#if !XRAY_EXCEPTIONS
     static void lua_cast_failed(lua_State* L, const luabind::type_id& info);
 #endif
     static void lua_hook_call(lua_State* L, lua_Debug* dbg);
