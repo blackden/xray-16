@@ -56,27 +56,6 @@ target_sources_grouped(
 
 target_sources_grouped(
     TARGET xrScriptEngine
-    NAME "LuaStudio"
-    FILES
-    LuaStudio/Config.hpp
-    LuaStudio/Defines.hpp
-    LuaStudio/LuaStudio.cpp
-    LuaStudio/LuaStudio.hpp
-)
-
-target_sources_grouped(
-    TARGET xrScriptEngine
-    NAME "LuaStudio\\Backend"
-    FILES
-    LuaStudio/Backend/Backend.hpp
-    LuaStudio/Backend/Engine.hpp
-    LuaStudio/Backend/Interfaces.hpp
-    LuaStudio/Backend/LibraryLinkage.hpp
-    LuaStudio/Backend/World.hpp
-)
-
-target_sources_grouped(
-    TARGET xrScriptEngine
     NAME "Process"
     FILES
     script_process.cpp

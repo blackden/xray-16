@@ -19,7 +19,7 @@ void LuaLog(pcstr caMessage)
 #ifndef MASTER_GOLD
     GEnv.ScriptEngine->script_log(LuaMessageType::Message, "%s", caMessage);
 #endif
-#if defined(USE_DEBUGGER) && !defined(USE_LUA_STUDIO)
+#if defined(USE_DEBUGGER)
     if (GEnv.ScriptEngine->debugger())
         GEnv.ScriptEngine->debugger()->Write(caMessage);
 #endif
@@ -29,17 +29,11 @@ void ErrorLog(pcstr caMessage)
 {
     GEnv.ScriptEngine->error_log("%s", caMessage);
     GEnv.ScriptEngine->print_stack();
-#if defined(USE_DEBUGGER) && !defined(USE_LUA_STUDIO)
+#if defined(USE_DEBUGGER)
     if (GEnv.ScriptEngine->debugger())
         GEnv.ScriptEngine->debugger()->Write(caMessage);
 #endif
-#if defined(USE_DEBUGGER) && defined(USE_LUA_STUDIO)
-    bool lua_studio_connected = !!GEnv.ScriptEngine->debugger();
-    if (!lua_studio_connected)
-        R_ASSERT2(0, caMessage);
-#else
     R_ASSERT2(0, caMessage);
-#endif
 }
 
 //AVO:

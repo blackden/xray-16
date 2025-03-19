@@ -33,18 +33,7 @@ struct lua_State;
 struct lua_Debug;
 
 #ifdef USE_DEBUGGER
-#ifndef USE_LUA_STUDIO
 class CScriptDebugger;
-#else
-namespace cs
-{
-namespace lua_studio
-{
-struct world;
-}
-}
-class lua_studio_engine;
-#endif
 #endif
 
 enum class ScriptProcessor : u32
@@ -97,12 +86,7 @@ protected:
     CMemoryWriter m_output; // for call stack
 
 #ifdef USE_DEBUGGER
-#ifndef USE_LUA_STUDIO
-    CScriptDebugger* m_scriptDebugger;
-#else
-    cs::lua_studio::world* m_lua_studio_world;
-    lua_studio_engine* m_lua_studio_engine;
-#endif
+    CScriptDebugger* m_scriptDebugger{};
 #endif
 
 private:
@@ -248,17 +232,9 @@ public:
     template <typename TResult>
     IC bool functor(LPCSTR function_to_call, luabind::functor<TResult>& lua_function);
 #ifdef USE_DEBUGGER
-#ifndef USE_LUA_STUDIO
     void stopDebugger();
     void restartDebugger();
     CScriptDebugger* debugger() { return m_scriptDebugger; }
-#else
-    void try_connect_to_debugger();
-    void disconnect_from_debugger();
-    cs::lua_studio::world* debugger() const { return m_lua_studio_world; }
-    void initialize_lua_studio(lua_State* state, cs::lua_studio::world*& world, lua_studio_engine*& engine);
-    void finalize_lua_studio(lua_State* state, cs::lua_studio::world*& world, lua_studio_engine*& engine);
-#endif
 #endif
     void collect_all_garbage();
 
