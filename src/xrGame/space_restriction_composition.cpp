@@ -153,11 +153,14 @@ void CSpaceRestrictionComposition::test_correctness()
     {
         for (const auto& restriction : m_restrictions)
         {
-            R_ASSERT3_CURE(!restriction->object().m_test_storage.empty(), "Restrictor has no border", restriction->object().name().c_str(),
+            const bool has_border = !restriction->object().m_test_storage.empty();
+            VERIFY3(has_border, "Restrictor has no border", restriction->object().name().c_str());
+            if (!has_border)
             {
                 m_correct = false;
                 break;
-            });
+            }
+
             nodes.clear();
             ai().level_graph().set_mask(border());
             ai().graph_engine().search(ai().level_graph(), restriction->object().m_test_storage.back(),
