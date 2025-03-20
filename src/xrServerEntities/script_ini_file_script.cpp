@@ -16,7 +16,6 @@ CScriptIniFile* get_system_ini() { return (CScriptIniFile*)pSettings; }
 bool r_line(const CScriptIniFile* self, pcstr S, int L, luabind::string& N, luabind::string& V)
 {
     THROW3(self->section_exist(S), "Cannot find section", S);
-    THROW2((int)self->line_count(S) > L, "Invalid line number");
 
     N = "";
     V = "";
