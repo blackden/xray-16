@@ -13,38 +13,32 @@
 **OpenXRay** is an improved version of the X-Ray Engine, the game engine used in the world-famous S.T.A.L.K.E.R. game series by GSC Game World.
 
 ## Goals
-1. Make it a drop-in replacement for original engine.
+1. Clean up engine code, boost performance, and fix original X-Ray Engine bugs that were polluting S.T.A.L.K.E.R. series.
+2. Make it a drop-in replacement for original engine.
     1. Aim at 99% compatibility and same behaviour, where possible.
-    2. Compile engine into a single executable file that you can just drop into `bin` folder. (see [#210](https://github.com/OpenXRay/xray-16/issues/210))
-2. Support all three games in the series: SOC/CS/COP. (see [Supported games](#supported-games) below)
-3. Fix original X-Ray Engine bugs that were polluting S.T.A.L.K.E.R. series.
+3. Support all three games in the series: SOC/CS/COP. (see [Supported game platforms](#supported-game-platforms) below)
 4. Introduce a solid platform for modmakers:
     1. Add frame/render graph for those who want to add new graphics features.
-    2. Improve performance via refactoring the code, parallelizing the engine, making it multithreaded.
-    3. Add new scripting, development and debugging features.
-    4. New game SDK with new features.
-5. Clean up engine code, make it easily portable to new platforms, minimize platform-specific code.
-6. Enhance player's experience with new graphics, gameplay and other features that can be enabled optionally. (by default, we stay close to vanilla)
+    2. Add new scripting, development and debugging features.
+    3. New game SDK with new features.
+5. Enhance player's experience with new graphics, gameplay and other features that can be enabled optionally. (by default, we stay close to vanilla)
 
 ## Main differences from original X-Ray are:
 - Support for 64-bit.
-- Support for ARM, ARM64, E2K (Elbrus 2000), PPC64LE.
-- Works on Linux, macOS, OSL (Elbrus OS).
-- New OpenGL renderer. (currently, requires OpenGL 4.1 minimum, lowering to at least OpenGL 3.3 is planned)
 - Improved performance, better FPS.
 - Original bugs fixes.
 - New features for modmakers.
 - Gamepad support. (not yet finished, but you can try already, see [#943](https://github.com/OpenXRay/xray-16/issues/943))
-- New game SDK being currently developed. (see [Game Editor](https://github.com/OpenXRay/xray-16/wiki/[EN]-Game-Editor))
+- Works on Linux, macOS, *BSDs and supports ARM, ARM64, E2K (Elbrus 2000), PPC64LE architectures.
 
 You can see the detailed differences table [here](https://github.com/OpenXRay/xray-16/wiki/%5BEN%5D-Differences-from-original-X‐Ray)
 
-## Supported games
-OpenXRay is based on X-Ray 1.6.02, used in S.T.A.L.K.E.R.: Call of Pripyat, so initially it supported only this game. <br>
-Currently, we are working on support for all three games in the series.
-|Call of Pripyat|Clear Sky|Shadow of Chernobyl|
-|---|---|---|
-|Yes|Release candidate (see [#382](https://github.com/OpenXRay/xray-16/issues/382)).<br>Minor bugs possible, but game is stable finishable.| **Not supported** yet (see [#392](https://github.com/OpenXRay/xray-16/issues/392))|
+## Supported game platforms
+OpenXRay is based on X-Ray 1.6.02, used in S.T.A.L.K.E.R.: Call of Pripyat, but the engine was extended to support more than that:
+
+|Call of Pripyat|Clear Sky|Shadow of Chernobyl|Call of Chernobyl|
+|---|---|---|---|
+|Yes|Release candidate (see [#382](https://github.com/OpenXRay/xray-16/issues/382)).<br>Minor bugs possible, but game is stable finishable.| **Not supported** yet (see [#392](https://github.com/OpenXRay/xray-16/issues/392))|Yes|
 
 ## Documentation:
 Make sure to visit our [wiki](https://github.com/OpenXRay/xray-16/wiki).
@@ -62,7 +56,7 @@ All contributions are more than welcomed. There are several ways how you can con
 Play and enjoy the game, [file an Issue](https://github.com/OpenXRay/xray-16/issues/new/choose) when you encounter any bugs, or you have an enhancement request.
 
 Join us on our [Discord](https://discord.gg/sjRMQwv), subscribe to our [YouTube channel](https://www.youtube.com/OpenXRay), join our [VK group](https://vk.com/openxray), leave a comment, put a like and communicate there! <br>
-Also you can put a star on this repository :)
+Also you can put a star on this repository or boost our Discord server :)
 
 ### Development
 [![GitHub Actions Build Status](https://github.com/OpenXRay/xray-16/actions/workflows/cibuild.yml/badge.svg)](https://github.com/OpenXRay/xray-16/actions/workflows/cibuild.yml)
@@ -97,36 +91,38 @@ You may provide financial support for this project by donating via different way
 Thank you for your support!
 
 ## Thanks
-* [GSC Game World](https://gsc-game.com/) – for creating S.T.A.L.K.E.R. and supporting the community;
-* Loxotron – for making the engine sources available;
-* [All the OpenXRay contributors](https://github.com/OpenXRay/xray-16/graphs/contributors) – for making the project better.
-  * The first OpenXRay team (2014-2017) – for being at the origins of the project.
+* [GSC Game World](https://gsc-game.com/) – for creating S.T.A.L.K.E.R. and supporting the community.
+* Loxotron – for making the engine sources available.
+* [All the OpenXRay contributors](https://github.com/OpenXRay/xray-16/graphs/contributors) – for making the project what it is:
+  * The first OpenXRay team (2014-2017) – for being at the origins of the project:
     * [nitrocaster](https://github.com/nitrocaster) – original project founder.
     * [Kaffeine](https://github.com/Kaffeine) – initial work on the Linux port, refactoring, polishing.
     * [CrossVR](https://github.com/CrossVR) (Armada651) – creation of the OpenGL renderer, work on the build system, other project maintenance work.
     * [andrew-boyarshin](https://github.com/andrew-boyarshin) – work on the build system.
     * [CasualDev242](https://github.com/CasualDev242) (Swartz27) – work on renderer features.
     * [awdavies](https://github.com/awdavies) – project maintenance work.
-  * The second OpenXRay team (2017-now) – for continuing work on the project.
+  * The second OpenXRay team (2017-now) – for continuing work on the project:
     * [Xottab_DUTY](https://github.com/Xottab-DUTY) – current project leader.
-    * [intorr](https://github.com/intorr) – work on the project quality. (memory leaks, refactoring, optimizations)
+    * [intorr](https://github.com/intorr) – work on the project quality, memory leaks, refactoring and optimizations.
     * [eagleivg](https://github.com/eagleivg) – main part of the work on Linux port.
     * [q4a](https://github.com/q4a) – main part of the work on Linux port.
-    * [SkyLoader](https://github.com/SkyLoaderr) – OpenGL renderer improvements and polishing, other project work.
+    * [SkyLoader](https://github.com/SkyLoaderr) – OpenGL renderer improvements, stabilization and polishing, other project work.
     * [qweasdd136963](https://github.com/qweasdd136963) – supporting the [OXR_COC](https://github.com/qweasdd136963/OXR_CoC) project (Call of Chernobyl port to latest OpenXRay), other project work on new features, refactoring and bug fixing.
-    * JohnDoe_71Rus – our regular tester.
+    * [JohnDoe_71Rus](https://github.com/johndoe71rus) – our regular tester.
     * [Chip_exe](https://github.com/007exe) – work on Linux port, maintaining AUR package, our regular tester.
     * [a1batross](https://github.com/a1batross) – work on Linux port.
     * [The Sin!](https://github.com/FreeZoneMods) – new features, refactoring, bug fixing polishing.
     * [Zegeri](https://github.com/Zegeri) – work on Linux port, code quality, fixes, polishing.
     * [drug007](https://github.com/drug007) – work on Linux port.
-    * [vTurbine](https://github.com/vTurbine) – work on renderer unification, refactoring, polishing.
+    * [vTurbine](https://github.com/vTurbine) – work on renderer multithreading, improvements and refactoring.
     * [Zigatun](https://github.com/Zigatun) – work on ARM port.
     * [Masterkatze](https://github.com/Masterkatze) – work on the build system, bug fixing.
     * [Chugunov Roman](https://github.com/ChugunovRoman) – work on [porting Call of Chernobyl to latest OpenXRay](https://github.com/ChugunovRoman/xray-16), extending functionality for modmakers.
-    * [yohjimane](https://github.com/yohjimane) – work on original game bugs fixes and new features.
+    * [yohjimane](https://github.com/yohjimane) – work on introducing many new features, fixing original engine bugs.
   * Other contributors:
     * [alexgdi](https://github.com/alexgdi) – work on organizing project infrastructure, external dependencies.
+    * [Shoker](https://github.com/ShokerStlk) – contributing new features, bug fixing.
+    * [Alundaio](https://github.com/revolucas) – useful new features, bug fixes and optimizations.
     * [NeoAnomaly](https://github.com/NeoAnomaly) – help with debug functionality on Windows.
     * [RainbowZerg](https://github.com/RainbowZerg) – work on the renderer features, bug fixing.
     * [FozeSt](https://github.com/FozeSt) – help with some fixes and features.
@@ -156,19 +152,32 @@ Thank you for your support!
     * [AMS21](https://github.com/AMS21) – work on CMake, code quality, and project standards and infrastructure.
     * [olefirenque](https://github.com/olefirenque) – work on multithreading and code optimization.
     * [tsmp](https://github.com/tsmp) – work on performance and code optimization.
-* Particular projects:
+  * Individuals, whose work was used, merged or imported:
+    * [Im-Dex](https://github.com/Im-dex/xray-162) – x64 support, work on the engine.
+    * [tamlin-mike](https://github.com/tamlin-mike) – work on the build system.
+    * [Vincent](https://github.com/0xBADEAFFE) – work on the Linux port.
+    * [abramcumner](https://github.com/abramcumner) – useful fixes and additions.
+    * [Morrey](https://github.com/morrey) (nouverbe, [viventaje](https://github.com/viventaje)) – work on Clear Sky support and his Return to Clear Sky mod, and work on DX12 support.
+    * [avoitishin](https://github.com/avoitishin) – work on scripting features expansion, other improvements and fixes.
+  * Financial supporters:
+    * [nitrocaster](https://github.com/nitrocaster), Lukas Friedrich, Luke Jones, NekoIt,
+    * Igor Polyakov, Incognito, PJ, RazDva, astral jellybean,
+    * Kirill Reprintsev, [John Curley](https://github.com/johncurley), The ParaziT, [clayne](https://github.com/clayne), [sobkas](https://github.com/sobkas),
+    * MANfromMOON, Valevicor, Nac, Midiy, Vadim Balashov,
+    * Jacob Arms, CatWMuttonChops, Reed777, Interpreter_, nexusasx10,
+    * [Egor Olefirenko](https://github.com/olefirenque), Igor Zharenko, SLF, Dmitriy Terletskiy, Alex Brodskiy,
+    * Neizvestniy Chelovek, LinuxNerd, [tyabus](https://github.com/tyabus)
+* Particular projects and their contributors:
   * [Oxygen](https://github.com/xrOxygen) – for being our friends and giving tips and help with new features, optimizations, bug fixes, etc.
-  * [Shoker Weapon Mod](https://github.com/ShokerStlk/xray-16-SWM) and [Shoker](https://github.com/ShokerStlk) – for contributing new features, bug fixing.
-  * [Im-Dex](https://github.com/Im-dex/xray-162) – for the work on the engine.
+  * [Shoker Weapon Mod](https://github.com/ShokerStlk/xray-16-SWM) – for first introducing 3D (PiP) scopes and implementing new features to overall improve the weaponry of the game.
   * [OGSR](https://github.com/OGSR/OGSR-Engine) – for amazing work on Shadow of Chernobyl.
-  * [Call of Chernobyl](https://github.com/revolucas/CoC-Xray) and its contributors – for useful new features, bug fixes and optimizations.
-  * Lost Alpha – for their effort on restoring the old game concept.
-  * Lost Alpha DC – for continuing work on Lost Alpha.
-* Individuals:
-  * [tamlin-mike](https://github.com/tamlin-mike) – for work on the build system.
-  * [Vincent](https://github.com/0xBADEAFFE) – for work on the Linux port.
-  * [abramcumner](https://github.com/abramcumner) – for useful fixes and additions.
-  * [Morrey](https://github.com/morrey) – for work on Clear Sky support and his Return to Clear Sky mod.
+  * [Call of Chernobyl](https://github.com/revolucas/CoC-Xray) – for useful new features, bug fixes and optimizations.
+    * [Anomaly](https://www.moddb.com/mods/stalker-anomaly) – for pushing the boundaries, adding new features and enhancing player experience.
+  * [Lost Alpha](https://www.moddb.com/mods/lost-alpha) – for their effort on restoring the old game concept.
+    * Lost Alpha DC – for continuing work on Lost Alpha and mastering it.
+  * [Living Zone](https://vk.com/projektx) – for pushing the limits of our engine past the edge.
+  * [OpenXRay Gunslinger](https://www.moddb.com/mods/openxray-gunslinger) – for introducing new fascinating features and enhancing the game experience with players-approved weapon pack on top of OpenXRay.  
+  * [IX-Ray](https://github.com/ixray-team) – for being at the edge of technology.
 * Companies:
   * [CoderGears](https://www.cppdepend.com) – thanks for providing a [free Pro Licence for CppDepend](https://www.cppdepend.com/cppdependfoross), an amazing and powerful tool for C and C++. <br>
     [![CppDepend logo](https://www.cppdepend.com/images/cppdependlogo.png)](https://www.cppdepend.com)
