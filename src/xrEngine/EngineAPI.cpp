@@ -120,7 +120,7 @@ void CEngineAPI::Destroy()
     XRC.r_clear_compact();
 }
 
-void CEngineAPI::CreateRendererList(const std::span<RendererModule*>& modules)
+void CEngineAPI::CreateRendererList(const std::array<RendererModule*, 2>& modules)
 {
     if (!VidQualityToken.empty())
         return;
@@ -130,6 +130,9 @@ void CEngineAPI::CreateRendererList(const std::span<RendererModule*>& modules)
     std::mutex mutex;
     const auto loadRenderer = [&](RendererModule* module) -> bool
     {
+        if (!module)
+            return false;
+
         const auto& modes = module->ObtainSupportedModes(); // Performs HW tests, may take time
         if (modes.empty())
             return false;
