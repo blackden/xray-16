@@ -176,7 +176,7 @@ Thank you for your support!
   * [Lost Alpha](https://www.moddb.com/mods/lost-alpha) – for their effort on restoring the old game concept.
     * Lost Alpha DC – for continuing work on Lost Alpha and mastering it.
   * [Living Zone](https://vk.com/projektx) – for pushing the limits of our engine past the edge.
-  * [OpenXRay Gunslinger](https://www.moddb.com/mods/openxray-gunslinger) – for introducing new fascinating features and enhancing the game experience with players-approved weapon pack on top of OpenXRay.  
+  * [OpenXRay Gunslinger](https://www.moddb.com/mods/openxray-gunslinger) – for introducing new fascinating features and enhancing the game experience with players-approved weapon pack on top of OpenXRay.
   * [IX-Ray](https://github.com/ixray-team) – for being at the edge of technology.
 * Companies:
   * [CoderGears](https://www.cppdepend.com) – thanks for providing a [free Pro Licence for CppDepend](https://www.cppdepend.com/cppdependfoross), an amazing and powerful tool for C and C++. <br>
