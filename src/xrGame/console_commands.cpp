@@ -2512,8 +2512,6 @@ void CCC_RegisterCommands()
 #endif
 
 #ifdef DEBUG
-    CMD4(CCC_Integer, "string_table_error_msg", &CStringTable::m_bWriteErrorsToLog, 0, 1);
-
     CMD1(CCC_DumpInfos, "dump_infos");
     CMD1(CCC_DumpTasks, "dump_tasks");
     CMD1(CCC_DumpMap, "dump_map");

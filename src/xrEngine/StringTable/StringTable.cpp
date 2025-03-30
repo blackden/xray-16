@@ -16,7 +16,6 @@ CStringTable& StringTable()
 
 std::mutex CStringTable::pDataMutex;
 xr_unique_ptr<STRING_TABLE_DATA> CStringTable::pData{};
-BOOL CStringTable::m_bWriteErrorsToLog = FALSE;
 u32 CStringTable::LanguageID = std::numeric_limits<u32>::max();
 string32 CStringTable::LanguageIDInLTX{};
 xr_vector<xr_token> CStringTable::languagesToken;
@@ -213,10 +212,13 @@ void CStringTable::Load(LPCSTR xml_file_full)
         LPCSTR string_name = uiXml.ReadAttrib(uiXml.GetRoot(), "string", i, "id", NULL);
         LPCSTR string_text = uiXml.Read(uiXml.GetRoot(), "string:text", i, NULL);
 
-        if (m_bWriteErrorsToLog && string_text)
-            Msg("[string table] '%s' no translation in '%s'", string_name, pData->m_sLanguage.c_str());
-
-        VERIFY3(string_text, "string table entry does not has a text", string_name);
+        if (!string_text)
+        {
+#ifndef MASTER_GOLD
+            Msg("! [%s] string table entry[%s] doesn't have a translation (no 'text' tag)", xml_file_full, string_name);
+#endif
+            continue;
+        }
 
         [[maybe_unused]] bool duplicate{};
         const STRING_VALUE str_val = ParseLine(string_text); // NOLINT
