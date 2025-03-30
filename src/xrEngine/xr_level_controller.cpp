@@ -610,14 +610,8 @@ static void RemapKeys()
         keyboard_key& kb = keyboards[idx];
         if (pInput->GetKeyName(kb.dik, buff, sizeof(buff)))
             kb.key_local_name = buff;
-        else
-        {
-#ifndef MASTER_GOLD
-            Msg("! Can't find a key name for %s", kb.key_name);
-#endif
-            if (kb.key_local_name.empty())
-                kb.key_local_name = kb.key_name;
-        }
+        else if (kb.key_local_name.empty())
+            kb.key_local_name = kb.key_name;
 
         // Msg("[%s]-[%s]", kb.key_name, kb.key_local_name.c_str());
     }
