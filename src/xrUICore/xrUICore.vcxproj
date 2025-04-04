@@ -75,7 +75,6 @@
     <ClInclude Include="InteractiveBackground\UI_IB_Static.h" />
     <ClInclude Include="Lines\UILine.h" />
     <ClInclude Include="Lines\UILines.h" />
-    <ClInclude Include="Lines\uilinestd.h" />
     <ClInclude Include="Lines\UISubLine.h" />
     <ClInclude Include="ListBox\UIListBox.h" />
     <ClInclude Include="ListBox\UIListBoxItem.h" />
