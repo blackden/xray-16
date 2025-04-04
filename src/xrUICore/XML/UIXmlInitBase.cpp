@@ -305,7 +305,7 @@ bool CUIXmlInitBase::InitText(CUIXml& xml_doc, pcstr path, int index, CUILines* 
     if (0 == xr_strcmp(al, "c"))
         pLines->SetVTextAlignment(valCenter);
     else if (0 == xr_strcmp(al, "b"))
-        pLines->SetVTextAlignment(valBotton);
+        pLines->SetVTextAlignment(valBottom);
     else if (0 == xr_strcmp(al, "t"))
         pLines->SetVTextAlignment(valTop);
 
@@ -885,12 +885,12 @@ bool CUIXmlInitBase::InitAnimatedStatic(CUIXml& xml_doc, pcstr path, int index, 
     const u32 animCols = static_cast<u32>(xml_doc.ReadAttribInt(path, index, "columns", 0));
     const float frameWidth = xml_doc.ReadAttribFlt(path, index, "frame_width", 0);
     const float frameHeight = xml_doc.ReadAttribFlt(path, index, "frame_height", 0);
-    const bool cyclic = !!xml_doc.ReadAttribInt(path, index, "cyclic", 0);
-    const bool play = !!xml_doc.ReadAttribInt(path, index, "autoplay", 0);
+    const bool cyclic = xml_doc.ReadAttribInt(path, index, "cyclic", 0);
+    const bool play = xml_doc.ReadAttribInt(path, index, "autoplay", 0);
 
     pWnd->SetFrameDimentions(frameWidth, frameHeight);
     pWnd->SetFramesCount(framesCount);
-    pWnd->m_bCyclic = cyclic;
+    pWnd->SetCyclic(cyclic);
     pWnd->SetAnimCols(animCols);
     pWnd->SetAnimationDuration(animDuration);
     pWnd->SetOffset(x, y);

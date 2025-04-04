@@ -60,16 +60,7 @@ protected:
     xr_string CutFirstColoredTextEntry(u32& color, xr_string& text) const;
     CUILine ParseTextToColoredLine(const std::string_view& str);
 
-    xr_vector<CUILine> m_lines; // parsed text
-
-    shared_str m_text{ "" };
-
-    ETextAlignment m_eTextAlign{ CGameFont::alLeft };
-    EVTextAlignment m_eVTextAlign{ valTop };
-    u32 m_dwTextColor{ 0xffffffff };
-
-    CGameFont* m_pFont{};
-
+protected:
     enum : u8
     {
         flNeedReparse = (1 << 0),
@@ -81,6 +72,12 @@ protected:
         flEllipsis = (1 << 6)
     };
 
-private:
     Flags8 uFlags{};
+    ETextAlignment m_eTextAlign{ CGameFont::alLeft };
+    EVTextAlignment m_eVTextAlign{ valTop };
+    u32 m_dwTextColor{ 0xffffffff };
+
+    xr_vector<CUILine> m_lines; // parsed text
+    shared_str m_text{ "" };
+    CGameFont* m_pFont{};
 };

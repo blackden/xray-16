@@ -398,7 +398,7 @@ float CUILines::GetVIndentByAlign()
     {
     case valTop: return 0;
     case valCenter: return (m_wndSize.y - GetVisibleHeight()) / 2;
-    case valBotton: return m_wndSize.y - GetVisibleHeight();
+    case valBottom: return m_wndSize.y - GetVisibleHeight();
     default: NODEFAULT;
     }
 #ifdef DEBUG
