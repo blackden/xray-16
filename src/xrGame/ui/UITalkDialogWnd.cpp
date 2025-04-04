@@ -221,6 +221,7 @@ void CUITalkDialogWnd::AddQuestion(LPCSTR str, LPCSTR value, int number, bool b_
     if (b_finalizer)
     {
         itm->m_text->SetAccelerator(kUI_BACK, false, 2);
+        itm->m_text->SetAccelerator(kUSE, false, 3);
     }
 
     itm->SetWindowName("question_item");
@@ -411,9 +412,6 @@ void CUITalkDialogWnd::FocusOnLastQuestion() const
 
 bool CUITalkDialogWnd::OnKeyboardAction(int dik, EUIMessages keyboard_action)
 {
-    if (CUIWindow::OnKeyboardAction(dik, keyboard_action))
-        return true;
-
     if (keyboard_action == WINDOW_KEY_PRESSED)
     {
         const auto focused = UIQuestionsList->CursorOverWindow() ? UI().Focus().GetFocused() : nullptr;
@@ -427,8 +425,7 @@ bool CUITalkDialogWnd::OnKeyboardAction(int dik, EUIMessages keyboard_action)
             }
         }
     }
-
-    return false;
+    return CUIWindow::OnKeyboardAction(dik, keyboard_action);
 }
 
 void CUIQuestionItem::SendMessage(CUIWindow* pWnd, s16 msg, void* pData) { CUIWndCallback::OnEvent(pWnd, msg, pData); }
