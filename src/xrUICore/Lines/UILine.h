@@ -15,8 +15,8 @@ class CUILine final
     friend class CUILines;
 
 public:
-    void AddSubLine(const xr_string& str, u32 color) { m_subLines.emplace_back(str, color); }
-    void AddSubLine(pcstr str, u32 color) { m_subLines.emplace_back(str, color); }
+    void AddSubLine(const xr_string& str, u32 color) { m_subLines.emplace_back(CUISubLine{ str, color }); }
+    void AddSubLine(pcstr str, u32 color) { m_subLines.emplace_back(CUISubLine{ str, color }); }
     void AddSubLine(CUISubLine&& subLine) { m_subLines.emplace_back(std::move(subLine)); }
 
     void Clear() { m_subLines.clear(); }
