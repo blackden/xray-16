@@ -632,19 +632,21 @@ pcstr IdToActionName(EGameActions id)
 
         ++idx;
     }
-    Msg("! cant find corresponding [action_name] for id");
-    return NULL;
+#ifndef MASTER_GOLD
+    Msg("! [IdToActionName] cant find corresponding 'action_name' for id '%u'", id);
+#endif
+    return nullptr;
 }
 
-EGameActions ActionNameToId(pcstr name)
+EGameActions ActionNameToId(pcstr name, bool silent /*= false*/)
 {
-    if (const game_action* action = ActionNameToPtr(name))
+    if (const game_action* action = ActionNameToPtr(name, silent))
         return action->id;
 
     return kNOTBINDED;
 }
 
-game_action* ActionNameToPtr(pcstr name)
+game_action* ActionNameToPtr(pcstr name, [[maybe_unused]] bool silent /*= false*/)
 {
     R_ASSERT1_CURE(name, return nullptr);
 
@@ -655,7 +657,10 @@ game_action* ActionNameToPtr(pcstr name)
             return &actions[idx];
         ++idx;
     }
-    Msg("! [ActionNameToPtr] cant find corresponding 'id' for '%s'", name);
+#ifndef MASTER_GOLD
+    if (!silent)
+        Msg("! [ActionNameToPtr] cant find corresponding 'id' for '%s'", name);
+#endif
     return nullptr;
 }
 
@@ -691,14 +696,12 @@ int GetActionDik(EGameActions action_id, int idx)
 
 pcstr DikToKeyname(int dik)
 {
-    keyboard_key* kb = DikToPtr(dik, true);
-    if (kb)
+    if (const keyboard_key* kb = DikToPtr(dik, true))
         return kb->key_name;
-    else
-        return nullptr;
+    return nullptr;
 }
 
-keyboard_key* DikToPtr(int dik, bool safe)
+keyboard_key* DikToPtr(int dik, [[maybe_unused]] bool silent)
 {
     int idx = 0;
     while (keyboards[idx].key_name)
@@ -710,20 +713,22 @@ keyboard_key* DikToPtr(int dik, bool safe)
         ++idx;
     }
 
-    if (!safe)
+#ifndef MASTER_GOLD
+    if (!silent)
         Msg("! [DikToPtr] cant find corresponding 'keyboard_key' for dik '%d'", dik);
+#endif
 
     return nullptr;
 }
 
-int KeynameToDik(pcstr name)
+int KeynameToDik(pcstr name, bool silent /*= false*/)
 {
-    if (const keyboard_key* kb = KeynameToPtr(name))
+    if (const keyboard_key* kb = KeynameToPtr(name, silent))
         return kb->dik;
     return SDL_SCANCODE_UNKNOWN;
 }
 
-keyboard_key* KeynameToPtr(pcstr name)
+keyboard_key* KeynameToPtr(pcstr name, [[maybe_unused]] bool silent /*= false*/)
 {
     R_ASSERT1_CURE(name, return nullptr);
 
@@ -736,7 +741,10 @@ keyboard_key* KeynameToPtr(pcstr name)
         ++idx;
     }
 
-    Msg("! [KeynameToPtr] cant find corresponding 'keyboard_key' for keyname %s", name);
+#ifndef MASTER_GOLD
+    if (!silent)
+        Msg("! [KeynameToPtr] cant find corresponding 'keyboard_key' for keyname %s", name);
+#endif
     return nullptr;
 }
 

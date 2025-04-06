@@ -381,12 +381,12 @@ bool CUIXmlInitBase::Init3tButton(CUIXml& xml_doc, pcstr path, int index, CUI3tB
     {
         if (cpcstr accel = xml_doc.ReadAttrib(path, index, attrName, nullptr))
         {
-            const int acc = KeynameToDik(accel);
+            const int acc = KeynameToDik(accel, true);
             if (acc != SDL_SCANCODE_UNKNOWN)
                 pWnd->SetAccelerator(acc, true, accelIdx);
             else
             {
-                const auto action = ActionNameToId(accel);
+                const auto action = ActionNameToId(accel, true);
                 if (action != kNOTBINDED)
                     pWnd->SetAccelerator(static_cast<int>(action), false, accelIdx);
                 else
