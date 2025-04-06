@@ -788,7 +788,6 @@ bool CUIXmlInitBase::InitFrameLine(CUIXml& xml_doc, pcstr path, int index, CUIFr
 
     if (xml_doc.ReadAttribInt(path, index, "stretch"))
     {
-        Msg("~ [%s] stretch attribute is unsupported for [%s]", xml_doc.m_xml_file_name, path);
         //.	pWnd->SetStretchTexture( stretch_flag );
     }
 
