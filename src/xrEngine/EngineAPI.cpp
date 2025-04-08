@@ -10,7 +10,6 @@
 
 #include "xrCore/xr_token.h"
 #include "xrCore/ModuleLookup.hpp"
-#include "xrCore/Threading/ParallelForEach.hpp"
 
 #include "xrScriptEngine/ScriptExporter.hpp"
 
@@ -127,8 +126,7 @@ void CEngineAPI::CreateRendererList(const std::array<RendererModule*, 2>& module
 
     ZoneScoped;
 
-    std::mutex mutex;
-    const auto loadRenderer = [&](RendererModule* module) -> bool
+    const auto loadRenderer = [this](RendererModule* module) -> bool
     {
         if (!module)
             return false;
@@ -137,7 +135,6 @@ void CEngineAPI::CreateRendererList(const std::array<RendererModule*, 2>& module
         if (modes.empty())
             return false;
 
-        std::lock_guard guard{ mutex };
         for (auto [mode, modeIndex] : modes)
         {
             const auto it = renderModes.find(mode);
@@ -161,11 +158,8 @@ void CEngineAPI::CreateRendererList(const std::array<RendererModule*, 2>& module
     }
     else
     {
-#ifdef XR_PLATFORM_WINDOWS
-        xr_parallel_for_each(modules, loadRenderer);
-#else
-        std::for_each(std::begin(modules), std::end(modules), loadRenderer);
-#endif
+        for (const auto& module : modules)
+            loadRenderer(module);
     }
 
     auto& modes = VidQualityToken;

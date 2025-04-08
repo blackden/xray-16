@@ -245,13 +245,6 @@ CApplication::CApplication(pcstr commandLine, GameModule* game, const std::array
         Engine.Sound.CreateDevicesList();
     });
 
-#ifdef XR_PLATFORM_WINDOWS
-    const auto& createRendererList = TaskManager::AddTask([&]
-    {
-        Engine.External.CreateRendererList(modules);
-    });
-#endif
-
     pcstr fsltx = "-fsltx ";
     string_path fsgame = "";
     if (strstr(commandLine, fsltx))
@@ -275,12 +268,7 @@ CApplication::CApplication(pcstr commandLine, GameModule* game, const std::array
     TaskScheduler->Wait(inputTask);
     InitConsole();
 
-#ifdef XR_PLATFORM_WINDOWS
-    TaskScheduler->Wait(createRendererList);
-#else
-    Engine.External.CreateRendererList(modules);
-#endif
-    Engine.Initialize(game);
+    Engine.Initialize(game, modules);
     Device.Initialize();
 
     Console->OnDeviceInitialize();
