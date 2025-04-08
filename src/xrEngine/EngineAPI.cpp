@@ -9,7 +9,6 @@
 #include "XR_IOConsole.h"
 
 #include "xrCore/xr_token.h"
-#include "xrCore/ModuleLookup.hpp"
 
 #include "xrScriptEngine/ScriptExporter.hpp"
 
@@ -72,7 +71,7 @@ void CEngineAPI::SelectRenderer()
             if (renderer->CheckGameRequirements())
             {
                 selectedRenderer = renderer;
-                selected_mode = mode.c_str();
+                selected_mode = mode;
                 string64 buf;
                 xr_sprintf(buf, "renderer %s", selected_mode);
                 Console->Execute(buf);
@@ -143,10 +142,8 @@ void CEngineAPI::CreateRendererList(const std::array<RendererModule*, 2>& module
                 VERIFY3(false, "Renderer mode duplicate. Skipping.", mode);
                 continue;
             }
-            // mode string will be freed after library unloading, copy.
-            shared_str copiedMode = mode;
             renderModes[mode] = module;
-            VidQualityToken.emplace_back(copiedMode.c_str(), modeIndex);
+            VidQualityToken.emplace_back(mode, modeIndex);
         }
 
         return true;

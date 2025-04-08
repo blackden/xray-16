@@ -62,7 +62,7 @@ public:
 
 class ENGINE_API CEngineAPI
 {
-    xr_map<shared_str, RendererModule*> renderModes;
+    xr_map<cpcstr, RendererModule*> renderModes;
 
     GameModule* gameModule{};
     RendererModule* selectedRenderer{};
