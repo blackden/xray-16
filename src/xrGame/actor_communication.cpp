@@ -283,7 +283,7 @@ void CActor::LostPdaContact(CInventoryOwner* pInvOwner)
 
 void CActor::AddGameNews_deffered(GAME_NEWS_DATA&& news_data, u32 delay)
 {
-    m_defferedMessages.emplace_back(std::move(news_data), Device.dwTimeGlobal + delay);
+    m_defferedMessages.emplace_back(SDefNewsMsg{ std::move(news_data), Device.dwTimeGlobal + delay });
     std::sort(m_defferedMessages.begin(), m_defferedMessages.end());
 }
 
