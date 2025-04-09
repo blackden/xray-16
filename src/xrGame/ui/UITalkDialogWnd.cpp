@@ -239,8 +239,7 @@ void CUITalkDialogWnd::AddAnswer(LPCSTR SpeakerName, LPCSTR str, bool bActor)
     GAME_NEWS_DATA news_data;
     news_data.news_caption = SpeakerName;
 
-    xr_string res;
-    res = "%c[250,255,232,208]";
+    xr_string res = "%c[250,255,232,208]";
     res += str;
     news_data.news_text = res.c_str();
 
@@ -250,7 +249,7 @@ void CUITalkDialogWnd::AddAnswer(LPCSTR SpeakerName, LPCSTR str, bool bActor)
     news_data.texture_name = ci.IconName();
     news_data.receive_time = Level().GetGameTime();
 
-    Actor()->game_news_registry->registry().objects().push_back(news_data);
+    Actor()->game_news_registry->registry().objects().emplace_back(std::move(news_data));
 }
 
 void CUITalkDialogWnd::AddIconedAnswer(LPCSTR caption, LPCSTR text, LPCSTR texture_name, LPCSTR templ_name)
@@ -268,7 +267,7 @@ void CUITalkDialogWnd::AddIconedAnswer(LPCSTR caption, LPCSTR text, LPCSTR textu
     news_data.texture_name = texture_name;
     news_data.receive_time = Level().GetGameTime();
 
-    Actor()->game_news_registry->registry().objects().push_back(news_data);
+    Actor()->game_news_registry->registry().objects().emplace_back(std::move(news_data));
 }
 
 void CUITalkDialogWnd::AddIconedAnswer(pcstr text, pcstr texture_name, Frect texture_rect, pcstr templ_name)
@@ -286,7 +285,7 @@ void CUITalkDialogWnd::AddIconedAnswer(pcstr text, pcstr texture_name, Frect tex
     news_data.texture_name = texture_name;
     news_data.receive_time = Level().GetGameTime();
 
-    Actor()->game_news_registry->registry().objects().push_back(news_data);
+    Actor()->game_news_registry->registry().objects().emplace_back(std::move(news_data));
 }
 
 void CUITalkDialogWnd::SetOsoznanieMode(bool b)
