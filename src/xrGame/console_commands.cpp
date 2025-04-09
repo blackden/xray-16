@@ -2229,6 +2229,8 @@ void CCC_RegisterCommands()
     CMD3(CCC_Mask, "lua_debug", &g_LuaDebug, 1);
 #endif // MASTER_GOLD
 
+    CMD4(CCC_Integer, "lua_dump_depth", &g_LuaDumpDepth, 0, 16);
+
     CMD1(CCC_LuaProfiler, CCC_LuaProfiler::COMMAND_LUA_PROFILER_STATUS);
     CMD1(CCC_LuaProfiler, CCC_LuaProfiler::COMMAND_LUA_PROFILER_START);
     CMD1(CCC_LuaProfiler, CCC_LuaProfiler::COMMAND_LUA_PROFILER_START_SAMPLING_MODE);
