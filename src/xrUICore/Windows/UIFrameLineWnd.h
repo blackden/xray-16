@@ -56,6 +56,8 @@ public:
     void SetHorizontal(bool horiz) { bHorizontal = horiz; }
 
     pcstr GetDebugType() override { return "CUIFrameLineWnd"; }
+    bool FillDebugTree(const CUIDebugState& debugState) override;
+    void FillDebugInfo() override;
 
 protected:
     bool inc_pos(Frect& rect, int counter, int i, Fvector2& LTp, Fvector2& RBp, Fvector2& LTt, Fvector2& RBt);
