@@ -51,10 +51,14 @@ void CEngineAPI::SelectRenderer()
 {
     ZoneScoped;
 
-    // User has some renderer selected
-    // Find it and check if we can use it
+    // User has some renderer selected, find it
     pcstr selected_mode = Console->GetString("renderer");
-    const auto it = renderModes.find(selected_mode);
+    const auto it = std::find_if(renderModes.begin(), renderModes.end(), [selected_mode](const auto& pair)
+    {
+        return xr_strcmp(selected_mode, pair.first) == 0;
+    });
+
+    // Check if we can use it
     if (it != renderModes.end())
     {
         if (it->second->CheckGameRequirements())
@@ -62,7 +66,7 @@ void CEngineAPI::SelectRenderer()
     }
 
     // Renderer is either fully unsupported (hardware)
-    // or we don't comply with it requirements (e.g. shaders missing)
+    // or we don't comply with it's requirements (e.g. shaders missing)
     if (!selectedRenderer)
     {
         // Select any suitable
@@ -134,7 +138,7 @@ void CEngineAPI::CreateRendererList(const std::array<RendererModule*, 2>& module
         if (modes.empty())
             return false;
 
-        for (auto [mode, modeIndex] : modes)
+        for (const auto [mode, modeIndex] : modes)
         {
             const auto it = renderModes.find(mode);
             if (it != renderModes.end())
