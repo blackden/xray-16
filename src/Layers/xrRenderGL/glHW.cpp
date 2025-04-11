@@ -145,8 +145,8 @@ void CHW::CreateDevice(SDL_Window* hWnd)
 
     ComputeShadersSupported = false; // XXX: Implement compute shaders support
 
-    //	Create render target and depth-stencil views here
-    UpdateViews();
+    if (glGenFramebuffers && glBindFramebuffer)
+        UpdateViews();
 }
 
 void CHW::DestroyDevice()
