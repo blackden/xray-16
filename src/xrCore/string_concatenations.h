@@ -15,9 +15,13 @@ int _cdecl XRCORE_API _resetstkoflw(void);
 template <typename... Args>
 pstr strconcat(size_t dest_sz, const pstr dest, const Args... sources)
 {
-    R_ASSERT1_CURE(dest, return nullptr);
+    constexpr size_t MAXIMUM_ADEQUATE_STRING_SIZE = 256UL << 20; // 256 MB
 
-    R_ASSERT1_CURE(dest_sz > 0 && dest_sz < RSIZE_MAX,
+    R_ASSERT1_CURE(dest && dest_sz > 0, return nullptr);
+
+    R_ASSERT2_CURE(dest_sz < MAXIMUM_ADEQUATE_STRING_SIZE,
+        "Isn't it too much to take more than 256 MB for a single string?\n"
+        "If you really need the string THAT BIG, please report.",
     {
         dest[0] = '\0';
         return dest;
