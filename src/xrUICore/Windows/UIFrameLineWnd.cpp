@@ -52,6 +52,42 @@ bool CUIFrameLineWnd::InitTextureEx(pcstr texture, pcstr shader, bool fatal /*= 
         failed |= !e_exist;
     }
 
+    const bool B_and_E_are_similar_by_height = fsimilar(m_tex_rect[flFirst].height(), m_tex_rect[flSecond].height());
+    const bool B_and_Back_are_similar_by_height = fsimilar(m_tex_rect[flFirst].height(), m_tex_rect[flBack].height());
+    const bool B_and_E_are_similar_by_width = fsimilar(m_tex_rect[flFirst].width(), m_tex_rect[flSecond].width());
+    const bool B_and_Back_are_similar_by_width = fsimilar(m_tex_rect[flFirst].width(), m_tex_rect[flBack].width());
+
+    if (fatal)
+    {
+        if (bHorizontal)
+        {
+            R_ASSERT2(B_and_E_are_similar_by_height, texture);
+            R_ASSERT2(B_and_Back_are_similar_by_height, texture);
+        }
+        else
+        {
+            R_ASSERT2(B_and_E_are_similar_by_width, texture);
+            R_ASSERT2(B_and_Back_are_similar_by_width, texture);
+        }
+    }
+    else
+    {
+        if (bHorizontal)
+        {
+            if (!B_and_E_are_similar_by_height && b_exist && e_exist)
+                Msg("! Textures %s_b and %s_e are not similar by height", texture, texture);
+            if (!B_and_Back_are_similar_by_height && b_exist && back_exist)
+                Msg("! Textures %s_b and %s_back are not similar by height", texture, texture);
+        }
+        else
+        {
+            if (!B_and_E_are_similar_by_width && b_exist && e_exist)
+                Msg("! Textures %s_b and %s_e are not similar by width", texture, texture);
+            if (!B_and_Back_are_similar_by_width && b_exist && back_exist)
+                Msg("! Textures %s_b and %s_back are not similar by width", texture, texture);
+        }
+    }
+
     m_bTextureVisible = !failed;
     return !failed;
 }
