@@ -39,7 +39,7 @@ Shadow of Chernobyl is **not supported** yet (see [#392](https://github.com/Open
 1. Clean up engine code, boost performance, and fix original X-Ray Engine bugs that were polluting S.T.A.L.K.E.R. series.
 2. Make it a drop-in replacement for original engine.
     1. Aim at 99% compatibility and same behaviour, where possible.
-3. Support all three games in the series: SOC/CS/COP. (see [Supported game platforms](#supported-game-platforms) below)
+3. Support all three games in the series: SOC/CS/COP.
 4. Introduce a solid platform for modmakers:
     1. Add frame/render graph for those who want to add new graphics features.
     2. Add new scripting, development and debugging features.
