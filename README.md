@@ -168,13 +168,13 @@ Thank you for your support!
     * [Morrey](https://github.com/morrey) (nouverbe, [viventaje](https://github.com/viventaje)) – work on Clear Sky support and his Return to Clear Sky mod, and work on DX12 support.
     * [avoitishin](https://github.com/avoitishin) – work on scripting features expansion, other improvements and fixes.
   * Financial supporters:
-    * [nitrocaster](https://github.com/nitrocaster), Lukas Friedrich, Luke Jones, NekoIt,
-    * Igor Polyakov, Incognito, PJ, RazDva, astral jellybean,
-    * Kirill Reprintsev, [John Curley](https://github.com/johncurley), The ParaziT, [clayne](https://github.com/clayne), [sobkas](https://github.com/sobkas),
-    * MANfromMOON, Valevicor, Nac, Midiy, Vadim Balashov,
-    * Jacob Arms, CatWMuttonChops, Reed777, Interpreter_, nexusasx10,
-    * [Egor Olefirenko](https://github.com/olefirenque), Igor Zharenko, SLF, Dmitriy Terletskiy, Alex Brodskiy,
-    * Neizvestniy Chelovek, LinuxNerd, [tyabus](https://github.com/tyabus)
+    * [nitrocaster](https://github.com/nitrocaster), Lukas Friedrich, Luke Jones, NekoIt, Igor Polyakov,
+    * Incognito, PJ, RazDva, astral jellybean, Kirill Reprintsev,
+    * [John Curley](https://github.com/johncurley), The ParaziT, [clayne](https://github.com/clayne), [sobkas](https://github.com/sobkas), MANfromMOON,
+    * Valevicor, Nac, Midiy, Vadim Balashov, Jacob Arms,
+    * CatWMuttonChops, Reed777, Interpreter_, nexusasx10, [Egor Olefirenko](https://github.com/olefirenque),
+    * Igor Zharenko, SLF, Dmitriy Terletskiy, Alex Brodskiy, Neizvestniy Chelovek,
+    * LinuxNerd, [tyabus](https://github.com/tyabus), [Sevenfortyseven](https://github.com/Sevenfortyseven)
 * Particular projects and their contributors:
   * [Oxygen](https://github.com/xrOxygen) – for being our friends and giving tips and help with new features, optimizations, bug fixes, etc.
   * [Shoker Weapon Mod](https://github.com/ShokerStlk/xray-16-SWM) – for first introducing 3D (PiP) scopes and implementing new features to overall improve the weaponry of the game.
