@@ -28,12 +28,11 @@ struct Fbox3;
 using Fbox = Fbox3;
 class Lock;
 
-
 #pragma pack(push, 8)
 namespace CDB
 {
 // Triangle
-class XRCDB_API TRI //*** 16 bytes total (was 32 :)
+class TRI //*** 16 bytes total (was 32 :)
 {
 public:
     u32 verts[3]; // 3*4 = 12b
@@ -51,9 +50,10 @@ public:
 
 public:
     [[nodiscard]]
-    auto IDvert(size_t ID) const { return verts[ID]; }
+    auto IDvert(const size_t ID) const { return verts[ID]; }
 };
 
+static_assert(std::is_trivial_v<TRI> && std::is_standard_layout_v<TRI>);
 static_assert(sizeof(TRI) == 16, "TRI always should be 16 bytes on any architecture.");
 
 // Build callback
