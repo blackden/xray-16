@@ -77,20 +77,23 @@ void IGame_Level::net_Stop()
 //-------------------------------------------------------------------------------------------
 // extern CStatTimer tscreate;
 
-static void build_callback(Fvector* V, int Vcnt, CDB::TRI* T, int Tcnt, void* params)
+namespace
+{
+void build_callback(Fvector* V, u32 Vcnt, CDB::TRI* T, u32 Tcnt, void* params)
 {
     g_pGameLevel->Load_GameSpecific_CFORM(T, Tcnt);
 }
 
-static void serialize_callback(IWriter& writer)
+void serialize_callback(IWriter& writer)
 {
     g_pGameLevel->Load_GameSpecific_CFORM_Serialize(writer);
 }
 
-static bool deserialize_callback(IReader& reader)
+bool deserialize_callback(IReader& reader)
 {
     return g_pGameLevel->Load_GameSpecific_CFORM_Deserialize(reader);
 }
+} // namespace
 
 bool IGame_Level::Load(u32 dwNum)
 {

@@ -418,7 +418,7 @@ void CRender::LoadSectors(IReader* fs)
                 v3.set(-20002.f, -20002.f, -20002.f);
                 CL.add_face_packed_D(v1, v2, v3, 0);
             }
-            rmPortals->build(CL.getV(), int(CL.getVS()), CL.getT(), int(CL.getTS()));
+            rmPortals->build(CL.getV(), CL.getVS(), CL.getT(), CL.getTS());
             if (use_cache)
                 rmPortals->serialize(file_name);
         }

@@ -142,7 +142,7 @@ void CHOM::Load()
 #ifndef MASTER_GOLD
         Msg("* HOM cache for '%s' was not loaded. Building the model from scratch..", fName);
 #endif
-        m_pModel->build(CL.getV(), int(CL.getVS()), CL.getT(), int(CL.getTS()));
+        m_pModel->build(CL.getV(), CL.getVS(), CL.getT(), CL.getTS());
 
         if (use_cache)
             m_pModel->serialize(fName);

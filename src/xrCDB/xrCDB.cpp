@@ -22,13 +22,8 @@ MODEL::MODEL() :
     pcs(xr_new<Lock>())
 #endif // CONFIG_PROFILE_LOCKS
 {
-    tree = 0;
-    tris = 0;
-    tris_count = 0;
-    verts = 0;
-    verts_count = 0;
-    status = S_INIT;
 }
+
 MODEL::~MODEL()
 {
     syncronize(); // maybe model still in building
@@ -49,7 +44,7 @@ void MODEL::syncronize_impl() const
     C->Leave();
 }
 
-void MODEL::build(Fvector* V, int Vcnt, TRI* T, int Tcnt, build_callback* bc, void* bcp)
+void MODEL::build(Fvector* V, u32 Vcnt, TRI* T, u32 Tcnt, build_callback* bc, void* bcp)
 {
     ZoneScoped;
 
@@ -82,7 +77,7 @@ void MODEL::build(Fvector* V, int Vcnt, TRI* T, int Tcnt, build_callback* bc, vo
     }
 }
 
-void MODEL::build_internal(Fvector* V, int Vcnt, TRI* T, int Tcnt, build_callback* bc, void* bcp)
+void MODEL::build_internal(Fvector* V, u32 Vcnt, TRI* T, u32 Tcnt, build_callback* bc, void* bcp)
 {
     ZoneScoped;
 
@@ -116,7 +111,7 @@ void MODEL::build_internal(Fvector* V, int Vcnt, TRI* T, int Tcnt, build_callbac
         return;
     }
     u32* temp_ptr = temp_tris;
-    for (int i = 0; i < tris_count; i++)
+    for (u32 i = 0; i < tris_count; i++)
     {
         *temp_ptr++ = tris[i].verts[0];
         *temp_ptr++ = tris[i].verts[1];

@@ -57,7 +57,7 @@ public:
 static_assert(sizeof(TRI) == 16, "TRI always should be 16 bytes on any architecture.");
 
 // Build callback
-using build_callback = void(Fvector* V, int Vcnt, TRI* T, int Tcnt, void* params);
+using build_callback = void(Fvector* V, u32 Vcnt, TRI* T, u32 Tcnt, void* params);
 using serialize_callback = void(IWriter& writer);
 using deserialize_callback = bool(IReader& reader);
 
@@ -75,15 +75,15 @@ class XRCDB_API MODEL : Noncopyable
 
 private:
     Lock* pcs;
-    Opcode::OPCODE_Model* tree;
-    volatile u32 status; // 0=ready, 1=init, 2=building
-    u32 model_crc32;
+    Opcode::OPCODE_Model* tree{};
+    volatile u32 status{ S_INIT }; // 0=ready, 1=init, 2=building
+    u32 model_crc32{};
 
     // tris
-    int tris_count;
-    int verts_count;
-    TRI* tris;
-    Fvector* verts;
+    u32 tris_count{};
+    u32 verts_count{};
+    TRI* tris{};
+    Fvector* verts{};
 
 public:
     MODEL();
@@ -109,8 +109,8 @@ public:
             syncronize_impl();
     }
 
-    void build_internal(Fvector* V, int Vcnt, TRI* T, int Tcnt, build_callback* bc = NULL, void* bcp = NULL);
-    void build(Fvector* V, int Vcnt, TRI* T, int Tcnt, build_callback* bc = NULL, void* bcp = NULL);
+    void build_internal(Fvector* V, u32 Vcnt, TRI* T, u32 Tcnt, build_callback* bc = nullptr, void* bcp = nullptr);
+    void build(Fvector* V, u32 Vcnt, TRI* T, u32 Tcnt, build_callback* bc = nullptr, void* bcp = nullptr);
 
     void set_model_crc32(u32 value) { model_crc32 = value; }
     bool serialize(pcstr fileName, serialize_callback callback = nullptr) const;
