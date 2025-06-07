@@ -77,7 +77,7 @@ private:
     Lock* pcs;
     Opcode::OPCODE_Model* tree;
     volatile u32 status; // 0=ready, 1=init, 2=building
-    u32 version;
+    u32 model_crc32;
 
     // tris
     int tris_count;
@@ -103,11 +103,12 @@ public:
 
     void build_internal(Fvector* V, int Vcnt, TRI* T, int Tcnt, build_callback* bc = NULL, void* bcp = NULL);
     void build(Fvector* V, int Vcnt, TRI* T, int Tcnt, build_callback* bc = NULL, void* bcp = NULL);
-    u32 memory();
 
-    void set_version(u32 value) { version = value; }
+    void set_model_crc32(u32 value) { model_crc32 = value; }
     bool serialize(pcstr fileName, serialize_callback callback = nullptr) const;
-    bool deserialize(pcstr fileName, bool checkCrc32 = true, deserialize_callback callback = nullptr);
+    bool deserialize(pcstr fileName, bool skipCrc32Check = false, deserialize_callback callback = nullptr);
+
+    u32 memory();
 
 private:
     void syncronize_impl() const;

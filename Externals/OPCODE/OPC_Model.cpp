@@ -276,17 +276,26 @@ bool OPCODE_Model::Build(const OPCODECREATE& create)
     return true;
 }
 
-void OPCODE_Model::Load(IReader* stream)
+bool OPCODE_Model::Load(IReader* stream, bool skipCrc32Check /*= false*/)
 {
-    mNoLeaf    = stream->r_u32();
+    mNoLeaf = stream->r_u32();
     mQuantized = stream->r_u32();
 
     const u32 nodesNum = stream->r_u32();
+
     if (mNoLeaf && !mQuantized)
     {
+        const u32 size = nodesNum * sizeof(AABBNoLeafNode);
+        if (size > stream->elapsed())
+            return false;
+
+        const auto crc = stream->r_u32();
+        auto actualCrc = skipCrc32Check ? crc : crc32(stream->pointer(), size);
+        if (crc != actualCrc)
+            return false;
+
         mTree = xr_new<AABBNoLeafTree>();
         auto* ptr = xr_alloc<AABBNoLeafNode>(nodesNum);
-        const u32 size = nodesNum * sizeof(AABBNoLeafNode);
         CopyMemory(ptr, stream->pointer(), size);
         for (u32 i = 0; i < nodesNum; ++i)
         {
@@ -297,10 +306,11 @@ void OPCODE_Model::Load(IReader* stream)
                 ptr[i].mData2 += (uintptr_t)rootPtr;
         }
         mTree->SetData(ptr, nodesNum);
+        return true;
     }
     else
     {
-        NODEFAULT; // Not used by engine so not supported
+        return false; // Not used by engine so not supported
     }
 }
 
@@ -310,14 +320,15 @@ void OPCODE_Model::Save(IWriter* stream) const
     stream->w_u32(mQuantized);
 
     const u32 nodesNum = mTree->GetNbNodes();
-    stream->w_u32(mTree->GetNbNodes());
+    stream->w_u32(nodesNum);
 
     void* pData = nullptr;
     if (mNoLeaf && !mQuantized)
     {
-        auto* ptr = xr_alloc<AABBNoLeafNode>(nodesNum);
         const u32 size = nodesNum * sizeof(AABBNoLeafNode);
         R_ASSERT(size == mTree->GetUsedBytes());
+
+        auto* ptr = xr_alloc<AABBNoLeafNode>(nodesNum);
         CopyMemory(ptr, mTree->GetData(), size);
         pData = ptr;
         for (u32 i = 0; i < nodesNum; ++i, ++ptr)
@@ -328,6 +339,9 @@ void OPCODE_Model::Save(IWriter* stream) const
             if (!ptr->HasLeaf2())
                 ptr->mData2 -= (uintptr_t)rootPtr;
         }
+
+        const auto crc = crc32(pData, size);
+        stream->w_u32(crc);
     }
     else
     {

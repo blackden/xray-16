@@ -86,6 +86,10 @@ void MODEL::build_internal(Fvector* V, int Vcnt, TRI* T, int Tcnt, build_callbac
 {
     ZoneScoped;
 
+    xr_free(verts);
+    xr_free(tris);
+    xr_free(tree);
+
     // verts
     verts_count = Vcnt;
     verts = xr_alloc<Fvector>(verts_count);
@@ -140,7 +144,122 @@ void MODEL::build_internal(Fvector* V, int Vcnt, TRI* T, int Tcnt, build_callbac
 
     // Free temporary tris
     xr_free(temp_tris);
-    return;
+}
+
+/*
+    Serialization/Deserialization
+
+    Data layout of the cache file:
+    [u32] crc32 of the model file (e.g. level.cform)
+    [...] user-specific data (e.g. CLevel::LoadGameSpecificCFORMSerialize writes crc32 of gamemtl.xr)
+    [u32] crc32 of the MODEL (4 records below)
+    [u32] vertex count
+    [u32] index count
+    [...] vertices themselves
+    [...] indices themselves
+    [...] OPCODE tree
+*/
+bool MODEL::serialize(pcstr fileName, serialize_callback callback /*= nullptr*/) const
+{
+    ZoneScoped;
+
+    IWriter* wstream = FS.w_open(fileName);
+    if (!wstream)
+        return false;
+
+    // 1. Source file checksum
+    wstream->w_u32(model_crc32);
+
+    // 2. User-specific data (e.g. GameSpecificCFORM)
+    if (callback)
+        callback(*wstream);
+
+    // 3. MODEL checksum and contents
+    auto crc = crc32(&verts_count, sizeof(verts_count));
+    crc      = crc32(&tris_count, sizeof(tris_count), crc);
+    crc      = crc32(verts, sizeof(Fvector) * verts_count, crc);
+    crc      = crc32(tris, sizeof(TRI) * tris_count, crc);
+
+    wstream->w_u32(crc);
+    wstream->w_u32(verts_count);
+    wstream->w_u32(tris_count);
+    wstream->w(verts, sizeof(Fvector) * verts_count);
+    wstream->w(tris, sizeof(TRI) * tris_count);
+
+    // 4. OPCODE tree
+    if (tree)
+        tree->Save(wstream);
+
+    FS.w_close(wstream);
+    return true;
+}
+
+bool MODEL::deserialize(pcstr fileName, bool skipCrc32Check /*= false*/, deserialize_callback callback /*= nullptr*/)
+{
+    ZoneScoped;
+
+    IReader* rstream = FS.r_open(fileName);
+    if (!rstream)
+        return false;
+
+    // 1. Check that model's source file didn't changed
+    if (model_crc32 != rstream->r_u32())
+    {
+        FS.r_close(rstream);
+        return false;
+    }
+
+    // 2. User-specific data check (e.g. GameSpecificCFORM)
+    if (callback && !callback(*rstream))
+    {
+        FS.r_close(rstream);
+        return false;
+    }
+
+    // 3. Check MODEL's integrity and load it
+    const u32 modelCrc = rstream->r_u32();
+
+    const auto integrityPointer = rstream->pointer();
+    verts_count = rstream->r_u32();
+    tris_count = rstream->r_u32();
+
+    const u32 vertsSize = verts_count * sizeof(Fvector);
+    const u32 trisSize = tris_count * sizeof(TRI);
+    const u32 treeSize = sizeof(verts_count) + sizeof(tris_count) + vertsSize + trisSize;
+    if (treeSize > rstream->elapsed())
+    {
+        FS.r_close(rstream);
+        return false;
+    }
+
+    const u32 actualModelCrc = skipCrc32Check ? modelCrc : crc32(integrityPointer, treeSize);
+    if (modelCrc != actualModelCrc)
+    {
+        FS.r_close(rstream);
+        return false;
+    }
+
+    xr_free(verts);
+    xr_free(tris);
+    xr_free(tree);
+
+    verts = xr_alloc<Fvector>(verts_count);
+    tris = xr_alloc<TRI>(tris_count);
+    tree = xr_new<OPCODE_Model>();
+
+    CopyMemory(verts, rstream->pointer(), vertsSize);
+    rstream->advance(vertsSize);
+
+    CopyMemory(tris, rstream->pointer(), trisSize);
+    rstream->advance(trisSize);
+
+    // 4. Load the OPCODE tree
+    const bool success = tree->Load(rstream);
+    if (success)
+        status = S_READY;
+
+    FS.r_close(rstream);
+    return success;
 }
 
 u32 MODEL::memory()
@@ -153,84 +272,6 @@ u32 MODEL::memory()
     u32 V = verts_count * sizeof(Fvector);
     u32 T = tris_count * sizeof(TRI);
     return tree->GetUsedBytes() + V + T + sizeof(*this) + sizeof(*tree);
-}
-
-bool MODEL::serialize(pcstr fileName, serialize_callback callback /*= nullptr*/) const
-{
-    ZoneScoped;
-
-    IWriter* wstream = FS.w_open(fileName);
-    if (!wstream)
-        return false;
-
-    CMemoryWriter memory;
-
-    // Write to buffer, to be able to calculate crc
-    memory.w_u32(version);
-    if (callback)
-        callback(memory);
-
-    memory.w_u32(verts_count);
-    memory.w(verts, sizeof(Fvector) * verts_count);
-    memory.w_u32(tris_count);
-    memory.w(tris, sizeof(TRI) * tris_count);
-    if (tree)
-        tree->Save(&memory);
-
-    // Actually write to file
-    const u32 crc = crc32(memory.pointer(), memory.size());
-    wstream->w_u32(crc);
-    wstream->w(memory.pointer(), memory.size());
-
-    FS.w_close(wstream);
-    return true;
-}
-
-bool MODEL::deserialize(pcstr fileName, bool checkCrc32 /*= true*/, deserialize_callback callback /*= nullptr*/)
-{
-    ZoneScoped;
-
-    IReader* rstream = FS.r_open(fileName);
-    if (!rstream)
-        return false;
-
-    const u32 crc = rstream->r_u32();
-    const u32 actualCrc = checkCrc32 ? crc32(rstream->pointer(), rstream->elapsed()) : crc;
-
-    if (crc != actualCrc || version != rstream->r_u32())
-    {
-        FS.r_close(rstream);
-        return false;
-    }
-
-    if (callback && !callback(*rstream))
-    {
-        FS.r_close(rstream);
-        return false;
-    }
-
-    xr_free(verts);
-    xr_free(tris);
-    xr_free(tree);
-
-    verts_count = rstream->r_u32();
-    verts = xr_alloc<Fvector>(verts_count);
-    const u32 vertsSize = verts_count * sizeof(Fvector);
-    CopyMemory(verts, rstream->pointer(), vertsSize);
-    rstream->advance(vertsSize);
-
-    tris_count = rstream->r_u32();
-    tris = xr_alloc<TRI>(tris_count);
-    const u32 trisSize = tris_count * sizeof(TRI);
-    CopyMemory(tris, rstream->pointer(), trisSize);
-    rstream->advance(trisSize);
-
-    tree = xr_new<OPCODE_Model>();
-    tree->Load(rstream);
-    status = S_READY;
-
-    FS.r_close(rstream);
-    return true;
 }
 
 COLLIDER::~COLLIDER() { r_free(); }

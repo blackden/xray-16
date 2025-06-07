@@ -109,11 +109,16 @@ void CObjectSpace::Load(IReader* F,
 {
     ZoneScoped;
 
+    static const bool use_cache = !strstr(Core.Params, "-no_cdb_cache");
+    if (use_cache)
+        Static.set_model_crc32(crc32(F->pointer(), F->length()));
+
     hdrCFORM H;
     F->r(&H, sizeof(hdrCFORM));
+
     Fvector* verts = (Fvector*)F->pointer();
     CDB::TRI* tris = (CDB::TRI*)(verts + H.vertcount);
-    Static.set_version(F->get_age());
+
     Create(verts, tris, H, build_callback, serialize_callback, deserialize_callback);
     FS.r_close(F);
 }
@@ -127,27 +132,29 @@ void CObjectSpace::Create(Fvector* verts, CDB::TRI* tris, const hdrCFORM& H,
 
     R_ASSERT(CFORM_CURRENT_VERSION == H.version);
 
-    string_path fName;
-    const bool bUseCache = !strstr(Core.Params, "-no_cdb_cache");
-    const bool checkCrc32 = !strstr(Core.Params, "-skip_cdb_cache_crc32_check");
-    strconcat(fName, "cdb_cache" DELIMITER, FS.get_path("$level$")->m_Add, "objspace.bin");
-    FS.update_path(fName, "$app_data_root$", fName);
-    if (bUseCache && FS.exist(fName) && Static.deserialize(fName, checkCrc32, deserialize_callback))
+    string_path file_name;
+    static const bool use_cache = !strstr(Core.Params, "-no_cdb_cache");
+    static const bool skip_crc32_check = strstr(Core.Params, "-skip_cdb_cache_crc32_check");
+
+    strconcat(file_name, "cdb_cache" DELIMITER, FS.get_path("$level$")->m_Add, "objspace.bin");
+    FS.update_path(file_name, "$app_data_root$", file_name);
+
+    if (use_cache && FS.exist(file_name) && Static.deserialize(file_name, skip_crc32_check, deserialize_callback))
     {
 #ifndef MASTER_GOLD
-        Msg("* Loaded ObjectSpace cache (%s)...", fName);
+        Msg("* Loaded ObjectSpace cache (%s)...", file_name);
 #endif
     }
     else
     {
 #ifndef MASTER_GOLD
         Msg("* ObjectSpace cache for '%s' was not loaded. "
-            "Building the model from scratch..", fName);
+            "Building the model from scratch..", file_name);
 #endif
         Static.build(verts, H.vertcount, tris, H.facecount, build_callback);
 
-        if (bUseCache)
-            Static.serialize(fName, serialize_callback);
+        if (use_cache)
+            Static.serialize(file_name, serialize_callback);
     }
 
     m_BoundingVolume.set(H.aabb);
