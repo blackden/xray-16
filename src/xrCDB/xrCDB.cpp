@@ -45,8 +45,8 @@ void MODEL::syncronize_impl() const
 {
     Log("! WARNING: syncronized CDB::query");
     Lock* C = pcs;
-	C->Enter();
-	C->Leave();
+    C->Enter();
+    C->Leave();
 }
 
 void MODEL::build(Fvector* V, int Vcnt, TRI* T, int Tcnt, build_callback* bc, void* bcp)
