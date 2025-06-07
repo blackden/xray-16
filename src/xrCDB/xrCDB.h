@@ -89,13 +89,21 @@ public:
     MODEL();
     ~MODEL();
 
-    IC Fvector* get_verts() { return verts; }
-    IC const Fvector* get_verts() const { return verts; }
-    IC int get_verts_count() const { return verts_count; }
-    IC const TRI* get_tris() const { return tris; }
-    IC TRI* get_tris() { return tris; }
-    IC int get_tris_count() const { return tris_count; }
-    IC void syncronize() const
+    [[nodiscard]]
+    auto get_verts_count() const { return verts_count; }
+    [[nodiscard]]
+    auto get_tris_count() const { return tris_count; }
+
+    [[nodiscard]]
+    const auto* get_verts() const { return verts; }
+    [[nodiscard]]
+    auto get_verts() { return verts; }
+    [[nodiscard]]
+    const auto* get_tris() const { return tris; }
+    [[nodiscard]]
+    auto get_tris() { return tris; }
+
+    void syncronize() const
     {
         if (S_READY != status)
             syncronize_impl();
@@ -183,10 +191,21 @@ public:
     void remove_duplicate_T();
     void calc_adjacency(xr_vector<u32>& dest) const;
 
-    Fvector* getV() { return &*verts.begin(); }
-    size_t getVS() { return verts.size(); }
-    TRI* getT() { return &*faces.begin(); }
-    size_t getTS() { return faces.size(); }
+    [[nodiscard]]
+    auto getVS() const { return verts.size(); }
+    [[nodiscard]]
+    auto getTS() const { return faces.size(); }
+
+    [[nodiscard]]
+    auto getV() const { return &verts.front(); }
+    [[nodiscard]]
+    auto getT() const { return &faces.front(); }
+
+    [[nodiscard]]
+    auto getV() { return &verts.front(); }
+    [[nodiscard]]
+    auto getT() { return &faces.front(); }
+
     void clear()
     {
         verts.clear();
@@ -199,21 +218,17 @@ public:
 const u32 clpMX = 24, clpMY = 16, clpMZ = 24;
 class XRCDB_API CollectorPacked : public Noncopyable
 {
-    using DWORDList = xr_vector<u32>;
-    using DWORDIt = DWORDList::iterator;
-
-private:
     xr_vector<Fvector> verts;
     xr_vector<TRI> faces;
     xr_vector<u32> flags;
     Fvector VMmin, VMscale;
-    DWORDList VM[clpMX + 1][clpMY + 1][clpMZ + 1];
+    xr_vector<u32> VM[clpMX + 1][clpMY + 1][clpMZ + 1];
     Fvector VMeps;
 
     u32 VPack(const Fvector& V);
 
 public:
-    CollectorPacked(const Fbox& bb, int apx_vertices = 5000, int apx_faces = 5000);
+    CollectorPacked(const Fbox& bb, u32 apx_vertices = 5000, u32 apx_faces = 5000);
 
     //		ICN CollectorPacked &operator=	(const CollectorPacked &object)
     //		{
@@ -223,13 +238,31 @@ public:
     void add_face(const Fvector& v0, const Fvector& v1, const Fvector& v2, u16 material, u16 sector, u32 flags);
     void add_face_D(const Fvector& v0, const Fvector& v1, const Fvector& v2, u32 dummy, u32 flags);
 
-    xr_vector<Fvector>& getV_Vec() { return verts; }
-    Fvector* getV() { return &verts.front(); }
-    size_t getVS() { return verts.size(); }
-    TRI* getT() { return &faces.front(); }
-    u32 getfFlags(size_t index) { return flags[index]; }
-    IC TRI& getT(size_t index) { return faces[index]; }
-    size_t getTS() { return faces.size(); }
+    [[nodiscard]]
+    auto getVS() const { return verts.size(); }
+    [[nodiscard]]
+    auto getTS() const { return faces.size(); }
+
+    [[nodiscard]]
+    auto& getV_Vec() const { return verts; }
+    [[nodiscard]]
+    auto& getV_Vec() { return verts; }
+
+    [[nodiscard]]
+    auto getV() const { return &verts.front(); }
+    [[nodiscard]]
+    auto getT() const { return &faces.front(); }
+
+    [[nodiscard]]
+    auto getV() { return &verts.front(); }
+    [[nodiscard]]
+    auto getT() { return &faces.front(); }
+
+    [[nodiscard]]
+    auto getfFlags(size_t index) const { return flags[index]; }
+    [[nodiscard]]
+    auto& getT(size_t index) { return faces[index]; }
+
     void clear();
 };
 #pragma warning(pop)
