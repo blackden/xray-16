@@ -182,14 +182,14 @@ struct translation_pair
 
 void CLevel::Load_GameSpecific_CFORM_Serialize(IWriter& writer)
 {
-    writer.w_u32(GMLib.GetFileAge());
+    writer.w_u32(GMLib.GetLibraryCrc32());
 }
 
 bool CLevel::Load_GameSpecific_CFORM_Deserialize(IReader& reader)
 {
-    const auto materials_file_age = GMLib.GetFileAge();
-    const auto cached_materials_file_age = reader.r_u32();
-    return materials_file_age == cached_materials_file_age;
+    const auto materials_crc32 = GMLib.GetLibraryCrc32();
+    const auto cached_materials_crc32 = reader.r_u32();
+    return materials_crc32 == cached_materials_crc32;
 }
 
 void CLevel::Load_GameSpecific_CFORM(CDB::TRI* tris, u32 count)
