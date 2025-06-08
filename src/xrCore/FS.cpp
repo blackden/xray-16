@@ -503,6 +503,7 @@ CVirtualFileRW::CVirtualFileRW(pcstr cFileName)
     // Open the file
     hSrcFile = CreateFile(cFileName, GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
     R_ASSERT3(hSrcFile != INVALID_HANDLE_VALUE, cFileName, xrDebug::ErrorToString(GetLastError()));
+
     LARGE_INTEGER size;
     BOOL result = GetFileSizeEx(hSrcFile, &size);
     Size = static_cast<size_t>(size.QuadPart);
@@ -557,8 +558,11 @@ CVirtualFileReader::CVirtualFileReader(pcstr cFileName)
     // Open the file
     hSrcFile = CreateFile(cFileName, GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING, 0, 0);
     R_ASSERT3(hSrcFile != INVALID_HANDLE_VALUE, cFileName, xrDebug::ErrorToString(GetLastError()));
-    Size = (int)GetFileSize(hSrcFile, NULL);
-    R_ASSERT3(Size, cFileName, xrDebug::ErrorToString(GetLastError()));
+
+    LARGE_INTEGER size;
+    BOOL result = GetFileSizeEx(hSrcFile, &size);
+    Size = static_cast<size_t>(size.QuadPart);
+    R_ASSERT3(result && Size, cFileName, xrDebug::ErrorToString(GetLastError()));
 
     hSrcMap = CreateFileMapping(hSrcFile, 0, PAGE_READONLY, 0, 0, 0);
     R_ASSERT3(hSrcMap != INVALID_HANDLE_VALUE, cFileName, xrDebug::ErrorToString(GetLastError()));
