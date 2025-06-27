@@ -6,7 +6,7 @@
 
 float SBoneProtections::getBoneProtection(s16 bone_id)
 {
-    storage_it it = m_bones_koeff.find(bone_id);
+    const auto it = m_bones_koeff.find(bone_id);
     if (it != m_bones_koeff.end())
         return it->second.koeff;
     else
@@ -15,16 +15,16 @@ float SBoneProtections::getBoneProtection(s16 bone_id)
 
 float SBoneProtections::getBoneArmor(s16 bone_id)
 {
-    storage_it it = m_bones_koeff.find(bone_id);
+    const auto it = m_bones_koeff.find(bone_id);
     if (it != m_bones_koeff.end())
         return it->second.armor;
     else
         return m_default.armor;
 }
 
-BOOL SBoneProtections::getBonePassBullet(s16 bone_id)
+bool SBoneProtections::getBonePassBullet(s16 bone_id)
 {
-    storage_it it = m_bones_koeff.find(bone_id);
+    const auto it = m_bones_koeff.find(bone_id);
     if (it != m_bones_koeff.end())
         return it->second.BonePassBullet;
     else
@@ -71,7 +71,7 @@ void SBoneProtections::reload(const shared_str& bone_sect, IKinematics* kinemati
             // TODO: fix that warning
             // warning: result of comparison of constant 65535 with expression of type 's16' (aka 'short') is always true
             R_ASSERT2(BI_NONE != bone_id, i->first.c_str());
-            m_bones_koeff.insert(std::make_pair(bone_id, BP));
+            m_bones_koeff.emplace(bone_id, BP);
         }
     }
 }
