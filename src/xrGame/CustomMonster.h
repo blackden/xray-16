@@ -253,7 +253,6 @@ public:
     virtual LPCSTR visual_name(CSE_Abstract* server_entity);
 
 public:
-    virtual bool use_simplified_visual() const { return false; }
     virtual void on_enemy_change(const CEntityAlive* enemy);
     virtual CVisualMemoryManager* visual_memory() const;
 

@@ -356,7 +356,7 @@ void CUIActorMenu::UpdateActor()
 void CUIActorMenu::UpdatePartnerBag()
 {
     CBaseMonster* monster = smart_cast<CBaseMonster*>(m_pPartnerInvOwner);
-    if (monster || m_pPartnerInvOwner->use_simplified_visual())
+    if (monster)
     {
         m_PartnerMoney->SetText("");
     }

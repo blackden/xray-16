@@ -204,10 +204,7 @@ steering_behaviour::manager* CBaseMonster::get_steer_manager()
 void CBaseMonster::reload(LPCSTR section)
 {
     CCustomMonster::reload(section);
-
-    if (!CCustomMonster::use_simplified_visual())
-        CStepManager::reload(section);
-
+    CStepManager::reload(section);
     CInventoryOwner::reload(section);
     movement().reload(section);
 
