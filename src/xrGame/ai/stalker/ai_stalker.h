@@ -404,7 +404,7 @@ public:
     virtual void UpdateCamera();
     virtual bool can_attach(const CInventoryItem* inventory_item) const;
     // because we don't want to use this feature for stalkers
-    virtual bool use_simplified_visual() const { return false; } //(already_dead());};
+    virtual bool use_simplified_visual() const { return false; }
 #ifdef DEBUG
     void debug_planner(const script_planner* planner);
 #endif
