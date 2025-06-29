@@ -4,37 +4,36 @@
 #include "xrCore/Animation/Bone.hpp"
 #include "Level.h"
 
-float SBoneProtections::getBoneProtection(s16 bone_id)
+float SBoneProtections::getBoneProtection(s16 bone_id) const
 {
     const auto it = m_bones_koeff.find(bone_id);
     if (it != m_bones_koeff.end())
         return it->second.koeff;
-    else
-        return m_default.koeff;
+
+    return m_bones_koeff[BI_NONE].koeff;
 }
 
-float SBoneProtections::getBoneArmor(s16 bone_id)
+float SBoneProtections::getBoneArmor(s16 bone_id) const
 {
     const auto it = m_bones_koeff.find(bone_id);
     if (it != m_bones_koeff.end())
         return it->second.armor;
-    else
-        return m_default.armor;
+
+    return m_bones_koeff[BI_NONE].armor;
 }
 
-bool SBoneProtections::getBonePassBullet(s16 bone_id)
+bool SBoneProtections::getBonePassBullet(s16 bone_id) const
 {
     const auto it = m_bones_koeff.find(bone_id);
     if (it != m_bones_koeff.end())
         return it->second.BonePassBullet;
-    else
-        return m_default.BonePassBullet;
+
+    return m_bones_koeff[BI_NONE].BonePassBullet;
 }
 
 void SBoneProtections::reload(const shared_str& bone_sect, IKinematics* kinematics)
 {
     VERIFY(kinematics);
-    m_bones_koeff.clear();
 
     float defaultHitFraction = 0.1f;
     if (ShadowOfChernobylMode || ClearSkyMode)
@@ -43,34 +42,37 @@ void SBoneProtections::reload(const shared_str& bone_sect, IKinematics* kinemati
     }
     m_fHitFracNpc = pSettings->read_if_exists<float>(bone_sect, "hit_fraction_npc", defaultHitFraction);
 
-    m_default.koeff = 1.0f;
-    m_default.armor = 0.0f;
-    m_default.BonePassBullet = FALSE;
+    m_bones_koeff.clear();
+    m_bones_koeff[BI_NONE] = BoneProtection{};
 
     CInifile::Sect& protections = pSettings->r_section(bone_sect);
-    for (auto i = protections.Data.cbegin(); protections.Data.cend() != i; ++i)
+    for (const auto& [name, value] : protections.Data)
     {
+        if (xr_strcmp(name.c_str(), "hit_fraction") == 0)
+            continue;
+
         string256 buffer;
 
-        BoneProtection BP;
-
-        BP.koeff = (float)atof(_GetItem(i->second.c_str(), 0, buffer));
-        BP.armor = (float)atof(_GetItem(i->second.c_str(), 1, buffer));
-        BP.BonePassBullet = (bool)(atof(_GetItem(i->second.c_str(), 2, buffer)) > 0.5f);
-
-        if (!xr_strcmp(i->first.c_str(), "default"))
+        BoneProtection BP
         {
-            m_default = BP;
+            .koeff = (float)atof(_GetItem(value.c_str(), 0, buffer)),
+            .armor = (float)atof(_GetItem(value.c_str(), 1, buffer)),
+            .BonePassBullet = (bool)(atof(_GetItem(value.c_str(), 2, buffer)) > 0.5f),
+        };
+
+        if (xr_strcmp(name.c_str(), "default") == 0)
+        {
+            m_bones_koeff[BI_NONE] = BP;
         }
         else
         {
-            if (!xr_strcmp(i->first.c_str(), "hit_fraction"))
+            if (!kinematics)
                 continue;
 
-            s16 bone_id = kinematics->LL_BoneID(i->first);
+            s16 bone_id = kinematics->LL_BoneID(name);
             // TODO: fix that warning
             // warning: result of comparison of constant 65535 with expression of type 's16' (aka 'short') is always true
-            R_ASSERT2(BI_NONE != bone_id, i->first.c_str());
+            R_ASSERT2(BI_NONE != bone_id, name.c_str());
             m_bones_koeff.emplace(bone_id, BP);
         }
     }
@@ -91,27 +93,29 @@ void SBoneProtections::add(const shared_str& bone_sect, IKinematics* kinematics)
     m_fHitFracNpc += READ_IF_EXISTS(pSettings, r_float, bone_sect.c_str(), "hit_fraction_npc", defaultHitFraction);
 
     CInifile::Sect& protections = pSettings->r_section(bone_sect);
-    for (auto i = protections.Data.cbegin(); protections.Data.cend() != i; ++i)
+    for (const auto& [name, value] : protections.Data)
     {
-        if (!xr_strcmp(i->first.c_str(), "hit_fraction"))
+        if (xr_strcmp(name.c_str(), "hit_fraction") == 0)
             continue;
 
         string256 buffer;
-        if (!xr_strcmp(i->first.c_str(), "default"))
+        if (xr_strcmp(name.c_str(), "default") == 0)
         {
-            BoneProtection& BP = m_default;
-            BP.koeff += (float)atof(_GetItem(i->second.c_str(), 0, buffer));
-            BP.armor += (float)atof(_GetItem(i->second.c_str(), 1, buffer));
+            BoneProtection& BP = m_bones_koeff[BI_NONE];
+            BP.koeff += (float)atof(_GetItem(value.c_str(), 0, buffer));
+            BP.armor += (float)atof(_GetItem(value.c_str(), 1, buffer));
         }
         else
         {
-            s16 bone_id = kinematics->LL_BoneID(i->first);
+            if (!kinematics)
+                continue;
+            s16 bone_id = kinematics->LL_BoneID(name);
             // TODO: fix that warning
             // warning: result of comparison of constant 65535 with expression of type 's16' (aka 'short') is always true
-            R_ASSERT2(BI_NONE != bone_id, i->first.c_str());
+            R_ASSERT2(BI_NONE != bone_id, name.c_str());
             BoneProtection& BP = m_bones_koeff[bone_id];
-            BP.koeff += (float)atof(_GetItem(i->second.c_str(), 0, buffer));
-            BP.armor += (float)atof(_GetItem(i->second.c_str(), 1, buffer));
+            BP.koeff += (float)atof(_GetItem(value.c_str(), 0, buffer));
+            BP.armor += (float)atof(_GetItem(value.c_str(), 1, buffer));
         }
     }
 }
