@@ -332,6 +332,10 @@ private:
     size_t m_last_pos;
 };
 
+#ifdef XR_PLATFORM_WINDOWS
+#   include "FS_impl.h"
+#endif
+
 class XRCORE_API IReader : public IReaderBase<IReader>
 {
 protected:
