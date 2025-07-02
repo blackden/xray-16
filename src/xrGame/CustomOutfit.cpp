@@ -122,19 +122,23 @@ void CCustomOutfit::Hit(float hit_power, ALife::EHitType hit_type)
     ChangeCondition(-hit_power);
 }
 
-float CCustomOutfit::GetDefHitTypeProtection(ALife::EHitType hit_type)
+float CCustomOutfit::GetDefHitTypeProtection(ALife::EHitType hit_type) const
 {
     return m_HitTypeProtection[hit_type] * GetCondition();
 }
 
-float CCustomOutfit::GetHitTypeProtection(ALife::EHitType hit_type, s16 element)
+float CCustomOutfit::GetHitTypeProtection(ALife::EHitType hit_type, s16 element) const
 {
     float fBase = m_HitTypeProtection[hit_type] * GetCondition();
     float bone = m_boneProtection->getBoneProtection(element);
     return fBase * bone;
 }
 
-float CCustomOutfit::GetBoneArmor(s16 element) { return m_boneProtection->getBoneArmor(element); }
+float CCustomOutfit::GetBoneArmor(s16 element) const
+{
+    return m_boneProtection->getBoneArmor(element);
+}
+
 float CCustomOutfit::HitThroughArmor(float hit_power, s16 element, float ap, bool& add_wound, ALife::EHitType hit_type)
 {
     float NewHitPower = hit_power;
@@ -276,7 +280,11 @@ void CCustomOutfit::OnMoveToRuck(const SInvItemPlace& prev)
     }
 };
 
-u32 CCustomOutfit::ef_equipment_type() const { return (m_ef_equipment_type); }
+u32 CCustomOutfit::ef_equipment_type() const
+{
+    return m_ef_equipment_type;
+}
+
 bool CCustomOutfit::install_upgrade_impl(LPCSTR section, bool test)
 {
     bool result = inherited::install_upgrade_impl(section, test);

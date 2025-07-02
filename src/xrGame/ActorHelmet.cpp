@@ -130,19 +130,23 @@ void CHelmet::Hit(float hit_power, ALife::EHitType hit_type)
     ChangeCondition(-hit_power);
 }
 
-float CHelmet::GetDefHitTypeProtection(ALife::EHitType hit_type)
+float CHelmet::GetDefHitTypeProtection(ALife::EHitType hit_type) const
 {
     return m_HitTypeProtection[hit_type] * GetCondition();
 }
 
-float CHelmet::GetHitTypeProtection(ALife::EHitType hit_type, s16 element)
+float CHelmet::GetHitTypeProtection(ALife::EHitType hit_type, s16 element) const
 {
-    float fBase = m_HitTypeProtection[hit_type] * GetCondition();
-    float bone = m_boneProtection->getBoneProtection(element);
-    return fBase * bone;
+    const float base = m_HitTypeProtection[hit_type] * GetCondition();
+    const float bone = m_boneProtection->getBoneProtection(element);
+    return base * bone;
 }
 
-float CHelmet::GetBoneArmor(s16 element) { return m_boneProtection->getBoneArmor(element); }
+float CHelmet::GetBoneArmor(s16 element) const
+{
+    return m_boneProtection->getBoneArmor(element);
+}
+
 bool CHelmet::install_upgrade_impl(LPCSTR section, bool test)
 {
     bool result = inherited::install_upgrade_impl(section, test);
