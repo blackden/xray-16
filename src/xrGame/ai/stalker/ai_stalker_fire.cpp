@@ -244,7 +244,11 @@ void CAI_Stalker::Hit(SHit* pHDS)
     {
         const float BoneArmor = m_boneHitProtection->getBoneArmor(HDS.bone());
 
-        if (m_boneHitProtection->m_hitFracType == SBoneProtections::HitFractionNPC) // COP
+        if (wounded()) // уже лежит => добивание
+        {
+            hit_power = 1000.f;
+        }
+        else if (m_boneHitProtection->m_hitFracType == SBoneProtections::HitFractionNPC) // COP
         {
             if (!fis_zero(BoneArmor, EPS))
             {
@@ -295,11 +299,6 @@ void CAI_Stalker::Hit(SHit* pHDS)
                 hit_power = HDS.power * m_boneHitProtection->m_fHitFrac;
             else
                 hit_power = NewHitPower;
-        }
-
-        if (wounded()) //уже лежит => добивание
-        {
-            hit_power = 1000.f;
         }
     }
     HDS.power = hit_power;
