@@ -229,8 +229,8 @@ float CHelmet::HitThroughArmor(float hit_power, s16 element, float ap, bool& add
             if (!IsGameTypeSingle())
             {
                 float hit_fraction = (ap - BoneArmor) / ap;
-                if (hit_fraction < m_boneProtection->m_fHitFracActor)
-                    hit_fraction = m_boneProtection->m_fHitFracActor;
+                if (hit_fraction < m_boneProtection->m_fHitFrac)
+                    hit_fraction = m_boneProtection->m_fHitFrac;
 
                 NewHitPower *= hit_fraction;
                 NewHitPower *= m_boneProtection->getBoneProtection(element);
@@ -241,7 +241,7 @@ float CHelmet::HitThroughArmor(float hit_power, s16 element, float ap, bool& add
         else
         {
             //пуля НЕ пробила бронь
-            NewHitPower *= m_boneProtection->m_fHitFracActor;
+            NewHitPower *= m_boneProtection->m_fHitFrac;
             add_wound = false; //раны нет
         }
     }
