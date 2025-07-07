@@ -170,7 +170,7 @@ public:
     {
         int result = 0;
 
-        if (g_LuaDebug.test(1) || message == LuaMessageType::Error)
+        if (message == LuaMessageType::Error || g_LuaDebug.test(1))
         {
             string4096 log;
             result = xr_sprintf(log, format, std::forward<Args>(args)...);
