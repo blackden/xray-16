@@ -213,8 +213,8 @@ void CGameMtlLibrary::Load()
         }
         OBJ->close();
     }
-    const u32 mtlCount = materials.size();
-    material_pairs_rt.resize(mtlCount * mtlCount, 0);
+    const auto mtlCount = materials.size();
+    material_pairs_rt.resize(mtlCount * mtlCount, nullptr);
     for (const auto& mtlPair : material_pairs)
     {
         const int idx0 = GetMaterialIdx(mtlPair->mtl0) * mtlCount + GetMaterialIdx(mtlPair->mtl1);
