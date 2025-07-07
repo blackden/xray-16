@@ -28,7 +28,7 @@ float const CBulletManager::parent_ignore_distance = 3.f;
 #ifdef DEBUG
 float air_resistance_epsilon = .1f;
 #else // #ifdef DEBUG
-static float const air_resistance_epsilon = .1f;
+constexpr float air_resistance_epsilon = .1f;
 #endif // #ifdef DEBUG
 float g_bullet_time_factor = 1.f;
 
@@ -562,6 +562,13 @@ static void update_bullet(
     update_bullet_parabolic(bullet, data, gravity, air_resistance);
 }
 
+// callback функция
+//	result.O;		// 0-static else IGameObject*
+//	result.range;	// range from start to element
+//	result.element;	// if (O) "num tri" else "num bone"
+//	params;			// user defined abstract data
+//	Device.Statistic.TEST0.End();
+// return TRUE-продолжить трассировку / FALSE-закончить трассировку
 bool CBulletManager::firetrace_callback(collide::rq_result& result, LPVOID params)
 {
     bullet_test_callback_data& data = *(bullet_test_callback_data*)params;

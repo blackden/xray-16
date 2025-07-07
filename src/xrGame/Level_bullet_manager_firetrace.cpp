@@ -161,14 +161,6 @@ bool CBulletManager::test_callback(const collide::ray_defs& rd, IGameObject* obj
     return bRes;
 }
 
-// callback функция
-//	result.O;		// 0-static else IGameObject*
-//	result.range;	// range from start to element
-//	result.element;	// if (O) "num tri" else "num bone"
-//	params;			// user defined abstract data
-//	Device.Statistic.TEST0.End();
-// return TRUE-продолжить трассировку / FALSE-закончить трассировку
-
 void CBulletManager::FireShotmark(SBullet* bullet, const Fvector& vDir, const Fvector& vEnd, collide::rq_result& R,
     u16 target_material, const Fvector& vNormal, bool ShowMark)
 {
@@ -376,8 +368,7 @@ bool CBulletManager::ObjectHit(SBullet_Hit* hit_res, SBullet* bullet, const Fvec
     if (R.O)
     {
         //вернуть нормаль по которой играть партиклы
-        CCF_Skeleton* skeleton = smart_cast<CCF_Skeleton*>(R.O->GetCForm());
-        if (skeleton)
+        if (CCF_Skeleton* skeleton = smart_cast<CCF_Skeleton*>(R.O->GetCForm()))
         {
             Fvector e_center;
             hit_normal.set(0, 0, 0);
