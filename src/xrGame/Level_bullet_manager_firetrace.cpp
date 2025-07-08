@@ -165,7 +165,7 @@ void CBulletManager::FireShotmark(SBullet* bullet, const Fvector& vDir, const Fv
     u16 target_material, const Fvector& vNormal, bool ShowMark)
 {
     SGameMtlPair* mtl_pair = GMLib.GetMaterialPairByIndices(bullet->bullet_material_idx, target_material);
-    Fvector particle_dir = vNormal;
+    Fvector particle_dir;
 
     if (R.O)
     {
@@ -197,6 +197,7 @@ void CBulletManager::FireShotmark(SBullet* bullet, const Fvector& vDir, const Fv
     else
     {
         //вычислить нормаль к пораженной поверхности
+        particle_dir = vNormal;
         Fvector* pVerts = Level().ObjectSpace.GetStaticVerts();
         CDB::TRI* pTri = Level().ObjectSpace.GetStaticTris() + R.element;
 

@@ -44,20 +44,23 @@ constexpr u32 GAMEMTL_NONE_IDX            = u16(-1);
 
 constexpr pcstr GAMEMTL_FILENAME          = "gamemtl.xr";
 
-enum EGameMtlVersion : u16
+enum EGameMtlVersion : s32
 {
     // The big issue is that GSC had version 1 in SOC,
     // then they introduced a significant change in CS,
     // but didn't change the version number...
     // In fact, they NEVER have changed the number
     // since the system was introduced in 2002.
-    // So, we introduce helper values:
-    GAMEMTL_VERSION_SOC     = u16(-1),
+    // So, we introduce virtual values:
+    GAMEMTL_VERSION_SOC     = -2,
+    GAMEMTL_VERSION_CS      = -1,
 
     GAMEMTL_VERSION_UNKNOWN = 0,
 
     // Real version numbers in GAMEMTL_FILENAME:
-    GAMEMTL_CURRENT_VERSION = 1,
+    GAMEMTL_VERSION_COP     = 1,
+
+    GAMEMTL_CURRENT_VERSION = GAMEMTL_VERSION_COP,
 };
 
 // fwd. decl.
@@ -126,7 +129,7 @@ public:
     MtlAcoustics Acoustics{};
 
 public:
-    void Load(IReader& fs);
+    EGameMtlVersion Load(IReader& fs);
     void Save(IWriter& fs);
 
     [[nodiscard]] int GetID() const { return ID; }
@@ -355,6 +358,12 @@ public:
 
     [[nodiscard]] GameMtlPairIt FirstMaterialPair() { return material_pairs.begin(); }
     [[nodiscard]] GameMtlPairIt LastMaterialPair() { return material_pairs.end(); }
+
+    [[nodiscard]]
+    auto GetLibraryVersion() const noexcept
+    {
+        return m_version;
+    }
 
 	[[nodiscard]]
 	auto GetLibraryCrc32() const noexcept

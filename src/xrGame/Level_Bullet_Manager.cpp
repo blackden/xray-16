@@ -33,8 +33,8 @@ constexpr float air_resistance_epsilon = .1f;
 float g_bullet_time_factor = 1.f;
 
 SBullet::SBullet(const Fvector& position, const Fvector& direction, float starting_speed, float power,
-    /*float power_critical,*/ float impulse, u16 sender_id, u16 sendersweapon_id, ALife::EHitType e_hit_type,
-    float maximum_distance, const CCartridge& cartridge, float const air_resistance_factor, bool SendHit, int iShotNum /*= 0*/)
+    float impulse, u16 sender_id, u16 sendersweapon_id, ALife::EHitType e_hit_type, float maximum_distance,
+    const CCartridge& cartridge, float const air_resistance_factor, bool SendHit, int iShotNum /*= 0*/)
 {
     bullet_pos = position;
     speed = max_speed = starting_speed;
@@ -178,7 +178,6 @@ void CBulletManager::Clear()
 }
 
 void CBulletManager::AddBullet(const Fvector& position, const Fvector& direction, float starting_speed, float power,
-    //.							   float power_critical,
     float impulse, u16 sender_id, u16 sendersweapon_id, ALife::EHitType e_hit_type, float maximum_distance,
     const CCartridge& cartridge, float const air_resistance_factor, bool SendHit, bool AimBullet, int iShotNum /*= 0*/)
 {
@@ -190,7 +189,7 @@ void CBulletManager::AddBullet(const Fvector& position, const Fvector& direction
     VERIFY(u16(-1) != cartridge.bullet_material_idx);
     //	u32 CurID					= Level().CurrentControlEntity()->ID();
     //	u32 OwnerID					= sender_id;
-    SBullet& bullet = m_Bullets.emplace_back(position, direction, starting_speed, power, /*power_critical,*/ impulse, sender_id,
+    SBullet& bullet = m_Bullets.emplace_back(position, direction, starting_speed, power, impulse, sender_id,
         sendersweapon_id, e_hit_type, maximum_distance, cartridge, air_resistance_factor, SendHit, iShotNum);
     //	bullet.frame_num			= Device.dwFrame;
     bullet.flags.aim_bullet = AimBullet;
