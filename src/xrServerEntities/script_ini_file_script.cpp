@@ -142,6 +142,10 @@ static void CScriptIniFile_Export(lua_State* luaState)
             {
                 return (CScriptIniFile*)pGameIni;
             }),
+            def("openxray_ini", +[]()
+            {
+                return (CScriptIniFile*)pSettingsOpenXRay;
+            }),
 
             def("reload_system_ini", &reload_system_ini),
 
