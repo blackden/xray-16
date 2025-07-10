@@ -68,21 +68,19 @@ void CPsyDog::reload(LPCSTR section) { inherited::reload(section); }
 //////////////////////////////////////////////////////////////////////////
 
 void CPsyDog::register_phantom(CPsyDogPhantom* phantom) { m_storage.push_back(phantom); }
+
 void CPsyDog::unregister_phantom(CPsyDogPhantom* phantom)
 {
-    xr_vector<CPsyDogPhantom*>::iterator it = std::find(m_storage.begin(), m_storage.end(), phantom);
-
-    for (int i = 0; i < m_max_phantoms_count; ++i)
-    {
-        if (m_phantoms_die_time[i] == s_phantom_alive_flag)
-        {
-            m_phantoms_die_time[i] = time();
-            break;
-        }
-    }
-
+    const auto it = std::find(m_storage.begin(), m_storage.end(), phantom);
     VERIFY(it != m_storage.end());
+    if (it == m_storage.end())
+        return;
+
     m_storage.erase(it);
+
+    const auto idx = std::distance(m_storage.begin(), it);
+    if (idx < m_max_phantoms_count)
+        m_phantoms_die_time[idx] = time();
 }
 
 //////////////////////////////////////////////////////////////////////////
