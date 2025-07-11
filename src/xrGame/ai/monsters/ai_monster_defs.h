@@ -43,20 +43,22 @@ class CBlend;
 #define HIT_LOW 0
 #define HIT_HIGH 1
 
-// Enemy flags
-#define FLAG_ENEMY_DIE (1 << 0)
-#define FLAG_ENEMY_LOST_SIGHT (1 << 1)
-#define FLAG_ENEMY_GO_CLOSER (1 << 2)
-#define FLAG_ENEMY_GO_FARTHER (1 << 3)
-#define FLAG_ENEMY_GO_CLOSER_FAST (1 << 4)
-#define FLAG_ENEMY_GO_FARTHER_FAST (1 << 5)
-#define FLAG_ENEMY_STANDING (1 << 6)
-#define FLAG_ENEMY_HIDING (1 << 7)
-#define FLAG_ENEMY_RUN_AWAY (1 << 8)
-#define FLAG_ENEMY_DOESNT_KNOW_ABOUT_ME (1 << 9)
-#define FLAG_ENEMY_GO_OFFLINE (1 << 10)
-#define FLAG_ENEMY_DOESNT_SEE_ME (1 << 11)
-#define FLAG_ENEMY_STATS_NOT_READY (1 << 12)
+enum EnemyFlags : u16
+{
+    FLAG_ENEMY_DIE                  = 1 << 0,
+    FLAG_ENEMY_LOST_SIGHT           = 1 << 1,
+    FLAG_ENEMY_GO_CLOSER            = 1 << 2,
+    FLAG_ENEMY_GO_FARTHER           = 1 << 3,
+    FLAG_ENEMY_GO_CLOSER_FAST       = 1 << 4,
+    FLAG_ENEMY_GO_FARTHER_FAST      = 1 << 5,
+    FLAG_ENEMY_STANDING             = 1 << 6,
+    FLAG_ENEMY_HIDING               = 1 << 7,
+    FLAG_ENEMY_RUN_AWAY             = 1 << 8,
+    FLAG_ENEMY_DOESNT_KNOW_ABOUT_ME = 1 << 9,
+    FLAG_ENEMY_GO_OFFLINE           = 1 << 10,
+    FLAG_ENEMY_DOESNT_SEE_ME        = 1 << 11,
+    FLAG_ENEMY_STATS_NOT_READY      = 1 << 12,
+};
 
 #define SOUND_ATTACK_HIT_MIN_DELAY 1000
 #define MORALE_NORMAL 0.5f
@@ -540,7 +542,7 @@ struct SMonsterHit
 
 using MONSTER_HIT_VECTOR = xr_vector<SMonsterHit>;
 
-enum EDangerType
+enum EDangerType : u8
 {
     eWeak,
     eNormal,
