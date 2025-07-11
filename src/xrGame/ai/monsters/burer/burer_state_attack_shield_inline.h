@@ -88,8 +88,5 @@ bool CStateBurerShield<Object>::check_completion()
             return true;
     }
 
-    if (!this->object->EnemyMan.get_enemy())
-        return true;
-
     return false;
 }
