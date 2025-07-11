@@ -151,6 +151,9 @@ public:
     void ActivateShield();
     void DeactivateShield();
 
+    [[nodiscard]]
+    bool CanDeactivateShieldEarly() const;
+
     bool need_shotmark() const { return !m_shield_active; }
     virtual bool ability_distant_feel() { return true; }
     pcstr get_monster_class_name() override { return "burer"; }
@@ -168,5 +171,3 @@ private:
 public:
     void face_enemy();
 };
-
-bool actor_is_reloading_weapon();

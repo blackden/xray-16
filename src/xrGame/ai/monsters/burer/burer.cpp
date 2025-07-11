@@ -522,18 +522,25 @@ void CBurer::face_enemy()
     set_action(ACT_STAND_IDLE);
 }
 
-extern CActor* g_actor;
-
-bool actor_is_reloading_weapon()
+bool CBurer::CanDeactivateShieldEarly() const
 {
-    if (!g_actor)
-    {
-        return false;
-    }
+    CEntityAlive const* enemy = EnemyMan.get_enemy();
+    if (!enemy)
+        return true;
 
-    CWeapon* const active_weapon = smart_cast<CWeapon*>(Actor()->inventory().ActiveItem());
+    auto* inv_owner = smart_cast<const CInventoryOwner*>(enemy);
+    if (!inv_owner)
+        return false;
+
+    CWeapon* const active_weapon = smart_cast<CWeapon*>(inv_owner->inventory().ActiveItem());
+
+    // When there's no weapon we should return false, otherwise
+    // it would be easy to exploit the shield:
+    // i.e. hide the weapon, see shield deactivated, take the weapon again.
     if (active_weapon && active_weapon->GetState() == CWeapon::eReload)
     {
+        // We want burers to be smart enough, so return true only
+        // if the enemy has a weapon right now and reloading it.
         return true;
     }
 
