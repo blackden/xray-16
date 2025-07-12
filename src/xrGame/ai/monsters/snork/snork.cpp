@@ -275,10 +275,11 @@ bool CSnork::check_start_conditions(ControlCom::EControlType type)
 
     if (type == ControlCom::eControlThreaten)
     {
-        return false;
-        // 		if (!start_threaten) return false;
-        // 		start_threaten = false;
-        // 		if (Random.randI(100) < 50) return false;
+        if (!start_threaten)
+            return false;
+        start_threaten = false;
+        if (Random.randI(100) < 50)
+            return false;
     }
 
     return true;
