@@ -92,9 +92,6 @@ void CBurer::Load(LPCSTR section)
     sound_tele_hold.create(pSettings->r_string(section, "sound_tele_hold"), st_Effect, SOUND_TYPE_WORLD);
     sound_tele_throw.create(pSettings->r_string(section, "sound_tele_throw"), st_Effect, SOUND_TYPE_WORLD);
 
-    m_gravi.cooldown = pSettings->r_u32(section, "Gravi_Cooldown");
-    m_gravi.min_dist = pSettings->r_float(section, "Gravi_MinDist");
-    m_gravi.max_dist = pSettings->r_float(section, "Gravi_MaxDist");
     m_gravi.speed = pSettings->r_float(section, "Gravi_Speed");
     m_gravi.step = pSettings->r_float(section, "Gravi_Step");
     m_gravi.time_to_hold = pSettings->r_u32(section, "Gravi_Time_To_Hold");
@@ -102,6 +99,12 @@ void CBurer::Load(LPCSTR section)
     m_gravi.impulse_to_objects = pSettings->r_float(section, "Gravi_Impulse_To_Objects");
     m_gravi.impulse_to_enemy = pSettings->r_float(section, "Gravi_Impulse_To_Enemy");
     m_gravi.hit_power = pSettings->r_float(section, "Gravi_Hit_Power");
+
+    m_gravi.min_dist = pSettings->read_if_exists<float>(section, "Gravi_MinDist", 1.0f);
+    m_gravi.max_dist = pSettings->read_if_exists<float>(section, "Gravi_MaxDist", m_gravi.radius * 3.0f);
+
+    const u32 default_cooldown = u32(std::round(m_gravi.impulse_to_enemy / m_gravi.hit_power * 5.0f));
+    m_gravi.cooldown = pSettings->read_if_exists<u32>(section, "Gravi_Cooldown", default_cooldown);
 
     m_weight_to_stamina_hit = READ_IF_EXISTS(pSettings, r_float, section, "weight_to_stamina_hit", 0.02f);
     m_weapon_drop_stamina_k = READ_IF_EXISTS(pSettings, r_float, section, "weapon_drop_stamina_k", 3.f);
