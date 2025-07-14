@@ -347,26 +347,23 @@ void CControlAnimationBase::FX_Play(EHitSide side, float amount)
     if (fx_time_last_play + FX_CAN_PLAY_MIN_INTERVAL > m_object->m_dwCurrentTime)
         return;
 
-    SAnimItem* anim_it = m_anim_storage[cur_anim_info().get_motion()];
+    const SAnimItem* anim_it = m_anim_storage[cur_anim_info().get_motion()];
     VERIFY(anim_it);
 
     clamp(amount, 0.f, 1.f);
 
-    shared_str* p_str = 0;
+    pcstr fx{};
     switch (side)
     {
-    case eSideFront: p_str = &anim_it->fxs.front; break;
-    case eSideBack: p_str = &anim_it->fxs.back; break;
-    case eSideLeft: p_str = &anim_it->fxs.left; break;
-    case eSideRight: p_str = &anim_it->fxs.right; break;
+    case eSideFront: fx = anim_it->fxs.front.c_str(); break;
+    case eSideBack:  fx = anim_it->fxs.back.c_str();  break;
+    case eSideLeft:  fx = anim_it->fxs.left.c_str();  break;
+    case eSideRight: fx = anim_it->fxs.right.c_str(); break;
     }
 
-    if (p_str && p_str->size())
+    if (fx && fx[0])
     {
-        if (anim_it->fxs.may_not_exist[side])
-            smart_cast<IKinematicsAnimated*>(m_object->Visual())->PlayFX_Safe(*(*p_str), amount);
-        else
-            smart_cast<IKinematicsAnimated*>(m_object->Visual())->PlayFX(*(*p_str), amount);
+        smart_cast<IKinematicsAnimated*>(m_object->Visual())->PlayFX(fx, amount);
     }
 
     fx_time_last_play = m_object->m_dwCurrentTime;
@@ -502,7 +499,7 @@ void CControlAnimationBase::ValidateAnimation()
 void CControlAnimationBase::UpdateAnimCount()
 {
     IKinematicsAnimated* skel = smart_cast<IKinematicsAnimated*>(m_object->Visual());
-    xr_vector<u32> subjectsToDelete;
+    xr_vector<size_t> subjectsToDelete;
 
     for (auto it = m_anim_storage.begin(); it != m_anim_storage.end(); ++it)
     {
@@ -531,37 +528,18 @@ void CControlAnimationBase::UpdateAnimCount()
                 break;
         }
 
-        if (count == 0 && (*it)->target_name2.size())
-        {
-            for (int i = 0;; ++i)
-            {
-                strconcat(sizeof(s_temp), s_temp, *((*it)->target_name2), xr_itoa(i, s, 10));
-                LPCSTR name = s_temp;
-                MotionID id = skel->ID_Cycle_Safe(name);
-
-                if (id.valid())
-                {
-                    count++;
-                    AddAnimTranslation(id, name);
-                }
-                else
-                    break;
-            }
-        }
-
         if (count != 0)
             (*it)->count = count;
-        else if ((*it)->target_may_not_exist)
-            subjectsToDelete.push_back(std::distance(m_anim_storage.begin(), it));
         else
         {
             xr_sprintf(s, "Error! No animation: %s for monster %s", *((*it)->target_name), *m_object->cName());
-            R_ASSERT2(count != 0, s);
-            subjectsToDelete.push_back(std::distance(m_anim_storage.begin(), it));
+            Msg("! %s", s);
+            VERIFY2(count != 0, s);
+            subjectsToDelete.emplace_back(std::distance(m_anim_storage.begin(), it));
         }
     }
 
-    for (u32 idx : subjectsToDelete)
+    for (size_t idx : subjectsToDelete)
     {
         xr_delete(m_anim_storage[idx]);
         while (true)

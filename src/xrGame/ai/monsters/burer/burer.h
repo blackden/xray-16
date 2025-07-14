@@ -20,8 +20,6 @@ public:
     u32 last_hit_frame;
     u32 time_last_scan;
 
-    typedef CTelekinesis TTelekinesis;
-
     struct GraviObject
     {
         bool active;
@@ -120,6 +118,7 @@ public:
     LPCSTR particle_fire_shield;
 
     CBurerFastGravi* m_fast_gravi;
+    bool m_use_three_gravi_anims{};
 
 public:
     CBurer();

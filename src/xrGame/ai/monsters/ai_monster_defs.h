@@ -280,8 +280,6 @@ typedef shared_str anim_string;
 struct SAnimItem
 {
     anim_string target_name; // "stand_idle_"
-    anim_string target_name2; // "stand_idle_"
-    bool target_may_not_exist;
 
     int spec_id; // (-1) - any,  (0 - ...) - идентификатор 3
     u8 count; // количество анимаций : "idle_0", "idle_1", "idle_2"
@@ -290,13 +288,12 @@ struct SAnimItem
 
     EPState pos_state;
 
-    struct
+    struct Effects
     {
         anim_string front;
         anim_string back;
         anim_string left;
         anim_string right;
-        std::bitset<eSideCount> may_not_exist;
     } fxs;
 };
 
