@@ -17,7 +17,6 @@ constexpr pcstr dbg_action_name_table[] = {"ACT_STAND_IDLE", "ACT_SIT_IDLE", "AC
     "ACT_RUN", "ACT_EAT", "ACT_SLEEP", "ACT_REST", "ACT_DRAG", "ACT_ATTACK", "ACT_STEAL", "ACT_LOOK_AROUND",
     "ACT_JUMP"};
 
-void SCurrentAnimationInfo::set_motion(EMotionAnim new_motion) { motion = new_motion; }
 CControlAnimationBase::CControlAnimationBase()
 {
     m_override_animation = eAnimUndefined;
@@ -38,10 +37,7 @@ void CControlAnimationBase::reinit()
 
     accel_init();
 
-    aa_time_last_attack = 0;
-
     // обновить количество анимаций
-    m_anim_motion_map.clear();
     UpdateAnimCount();
 
     // инициализация информации о текущей анимации
@@ -449,7 +445,7 @@ EAction CControlAnimationBase::GetActionFromPath()
 //////////////////////////////////////////////////////////////////////////
 // Debug
 
-LPCSTR CControlAnimationBase::GetAnimationName(EMotionAnim anim)
+pcstr CControlAnimationBase::GetAnimationName(EMotionAnim anim) const
 {
     SAnimItem* item_it = m_anim_storage[anim];
     VERIFY2(item_it, make_string("animation not found in m_anim_storage!"));
@@ -458,7 +454,7 @@ LPCSTR CControlAnimationBase::GetAnimationName(EMotionAnim anim)
     return *item_it->target_name;
 }
 
-LPCSTR CControlAnimationBase::GetActionName(EAction action) { return dbg_action_name_table[action]; }
+pcstr CControlAnimationBase::GetActionName(EAction action) { return dbg_action_name_table[action]; }
 ///////////////////////////////////////////////////////////////////////////////////////
 
 void CControlAnimationBase::ValidateAnimation()
@@ -522,7 +518,6 @@ void CControlAnimationBase::UpdateAnimCount()
             if (id.valid())
             {
                 count++;
-                AddAnimTranslation(id, name);
             }
             else
                 break;
@@ -562,7 +557,8 @@ void CControlAnimationBase::UpdateAnimCount()
 }
 
 void CControlAnimationBase::SetCurAnim(EMotionAnim a) { cur_anim_info().set_motion(a); }
-CMotionDef* CControlAnimationBase::get_motion_def(SAnimItem* it, u32 index)
+
+CMotionDef* CControlAnimationBase::get_motion_def(SAnimItem* it, u32 index) const
 {
     string128 s1, s2;
     IKinematicsAnimated* skeleton_animated = smart_cast<IKinematicsAnimated*>(m_object->Visual());
@@ -571,22 +567,7 @@ CMotionDef* CControlAnimationBase::get_motion_def(SAnimItem* it, u32 index)
     return (skeleton_animated->LL_GetMotionDef(motion_id));
 }
 
-void CControlAnimationBase::AddAnimTranslation(const MotionID& motion, LPCSTR str)
-{
-    m_anim_motion_map.insert(std::make_pair(motion, str));
-}
-shared_str CControlAnimationBase::GetAnimTranslation(const MotionID& motion)
-{
-    shared_str ret_value;
-
-    auto anim_it = m_anim_motion_map.find(motion);
-    if (anim_it != m_anim_motion_map.end())
-        ret_value = anim_it->second;
-
-    return ret_value;
-}
-
-MotionID CControlAnimationBase::get_motion_id(EMotionAnim a, u32 index)
+MotionID CControlAnimationBase::get_motion_id(EMotionAnim a, u32 index) const
 {
     // получить элемент SAnimItem, соответствующий текущей анимации
     SAnimItem* anim_it = m_anim_storage[a];

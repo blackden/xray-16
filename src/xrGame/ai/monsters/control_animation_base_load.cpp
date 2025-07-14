@@ -66,7 +66,7 @@ void CControlAnimationBase::AddTransition(
 
     new_item.skip_if_aggressive = skip_aggressive;
 
-    m_tTransitions.push_back(new_item);
+    m_tTransitions.emplace_back(new_item);
 }
 
 void CControlAnimationBase::AddTransition(
@@ -84,7 +84,7 @@ void CControlAnimationBase::AddTransition(
     new_item.chain = chain;
     new_item.skip_if_aggressive = skip_aggressive;
 
-    m_tTransitions.push_back(new_item);
+    m_tTransitions.emplace_back(new_item);
 }
 
 void CControlAnimationBase::AddTransition(
@@ -102,7 +102,7 @@ void CControlAnimationBase::AddTransition(
     new_item.chain = chain;
     new_item.skip_if_aggressive = skip_aggressive;
 
-    m_tTransitions.push_back(new_item);
+    m_tTransitions.emplace_back(new_item);
 }
 
 void CControlAnimationBase::AddTransition(EPState from, EPState to, EMotionAnim trans, bool chain, bool skip_aggressive)
@@ -119,7 +119,7 @@ void CControlAnimationBase::AddTransition(EPState from, EPState to, EMotionAnim 
     new_item.chain = chain;
     new_item.skip_if_aggressive = skip_aggressive;
 
-    m_tTransitions.push_back(new_item);
+    m_tTransitions.emplace_back(new_item);
 }
 
 void CControlAnimationBase::LinkAction(
@@ -133,7 +133,7 @@ void CControlAnimationBase::LinkAction(
     new_item.turn.anim_right = pmt_right;
     new_item.turn.min_angle = pmt_angle;
 
-    m_tMotions.insert(std::make_pair(act, new_item));
+    m_tMotions.emplace(act, new_item);
 }
 
 void CControlAnimationBase::LinkAction(EAction act, EMotionAnim pmt_motion)
@@ -143,7 +143,7 @@ void CControlAnimationBase::LinkAction(EAction act, EMotionAnim pmt_motion)
     new_item.anim = pmt_motion;
     new_item.is_turn_params = false;
 
-    m_tMotions.insert(std::make_pair(act, new_item));
+    m_tMotions.emplace(act, new_item);
 }
 
 void CControlAnimationBase::AddReplacedAnim(bool* b_flag, EMotionAnim pmt_cur_anim, EMotionAnim pmt_new_anim)
@@ -154,5 +154,5 @@ void CControlAnimationBase::AddReplacedAnim(bool* b_flag, EMotionAnim pmt_cur_an
     ra.cur_anim = pmt_cur_anim;
     ra.new_anim = pmt_new_anim;
 
-    m_tReplacedAnims.push_back(ra);
+    m_tReplacedAnims.emplace_back(ra);
 }

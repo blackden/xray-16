@@ -7,7 +7,7 @@ struct SEventVelocityBounce : public ControlCom::IEventData
 {
     float m_ratio;
 
-    IC SEventVelocityBounce(float ratio) : m_ratio(ratio) {}
+    SEventVelocityBounce(const float ratio) : m_ratio(ratio) {}
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -16,27 +16,15 @@ class CControlAnimationBase : public CControl_ComBase
     typedef CControl_ComBase inherited;
 
 protected:
-    REPLACED_ANIM m_tReplacedAnims; // анимации подмены
-
-    // сохранённые анимации
-    EMotionAnim prev_motion;
-
-    // исправления сосояния 'бега на месте'
-    TTime time_start_stand;
-
-    // работа с анимациями атаки
-    TTime aa_time_last_attack; // время последнего нанесения хита
-
-    // -------------------------------------------------------------------------
-    u32 spec_params; // дополнительные параметры
-
-    TTime fx_time_last_play;
+    // информация о текущей анимации
+    SCurrentAnimationInfo m_cur_anim;
 
     // -------------------------------------------------------------------------------------
     // Acceleration
-
     struct
     {
+        VELOCITY_CHAIN_VEC chain;
+
         bool active;
         bool enable_braking; // не использовать при торможении
 
@@ -44,37 +32,39 @@ protected:
 
         float calm;
         float aggressive;
-
-        VELOCITY_CHAIN_VEC chain;
     } m_accel;
 
-    // ---------------------------------------------------------------------------------------
+    xr_vector<SAnimItem*> m_anim_storage;
 
-    EMotionAnim spec_anim;
-
-    MOTION_ITEM_MAP m_tMotions; // карта соответсвий EAction к SMotionItem
-    TRANSITION_ANIM_VECTOR m_tTransitions; // вектор переходов из одной анимации в другую
-
-    t_fx_index default_fx_indexes;
-    FX_MAP_STRING fx_map_string;
-    FX_MAP_U16 fx_map_u16;
-    bool map_converted;
-
-    AA_VECTOR m_attack_anims;
-
-    bool m_state_attack;
-
-protected:
-    ANIM_TO_MOTION_MAP m_anim_motion_map;
-
-    ANIM_ITEM_VECTOR m_anim_storage;
-    void init_anim_storage();
-    void free_anim_storage();
+    // анимации подмены
+    xr_vector<SReplacedAnim> m_tReplacedAnims;
 
 public:
     EAction m_tAction;
 
+protected:
+    EMotionAnim spec_anim;
+    EMotionAnim prev_motion;
+
+    EMotionAnim m_override_animation; // used if != eAnimUndefined
+    u32 m_override_animation_index; // used if != -1
+
+    // -------------------------------------------------------------------------
+    u32 spec_params; // дополнительные параметры
+    TTime fx_time_last_play;
     float m_prev_character_velocity;
+
+    bool m_state_attack;
+    bool braking_mode;
+    // ---------------------------------------------------------------------------------------
+
+    xr_map<EAction, SMotionItem> m_tMotions; // карта соответсвий EAction к SMotionItem
+    xr_vector<STransition> m_tTransitions; // вектор переходов из одной анимации в другую
+    xr_vector<SAAParam> m_attack_anims; // работа с анимациями атаки
+
+protected:
+    void init_anim_storage();
+    void free_anim_storage();
 
 public:
     CControlAnimationBase();
@@ -129,7 +119,7 @@ public:
     // FX's
     void FX_Play(EHitSide side, float amount);
 
-    MotionID get_motion_id(EMotionAnim a, u32 index = u32(-1));
+    MotionID get_motion_id(EMotionAnim a, u32 index = u32(-1)) const;
 
 protected:
     void UpdateAnimCount();
@@ -142,7 +132,7 @@ protected:
     EPState GetState(EMotionAnim a);
     void CheckReplacedAnim();
 
-    CMotionDef* get_motion_def(SAnimItem* it, u32 index);
+    CMotionDef* get_motion_def(SAnimItem* it, u32 index) const;
 
 public:
     float GetAnimSpeed(EMotionAnim anim);
@@ -163,12 +153,15 @@ protected:
 
     void stop_now();
 
+protected:
     //////////////////////////////////////////////////////////////////////////
     // DEBUG
 
-protected:
-    LPCSTR GetAnimationName(EMotionAnim anim);
-    LPCSTR GetActionName(EAction action);
+    [[nodiscard]]
+    pcstr GetAnimationName(EMotionAnim anim) const;
+
+    [[nodiscard]]
+    static pcstr GetActionName(EAction action);
 
     // end DEBUG
     //////////////////////////////////////////////////////////////////////////
@@ -178,18 +171,21 @@ public:
     // Acceleration
 
     void accel_init();
-    void accel_load(LPCSTR section);
+    void accel_load(pcstr section);
 
     void accel_activate(EAccelType type);
-    IC void accel_deactivate()
+
+    void accel_deactivate()
     {
         m_accel.active = false;
         m_accel.enable_braking = false;
     }
-    IC void accel_set_braking(bool val = true) { m_accel.enable_braking = val; }
-    float accel_get(EAccelValue val = eAV_Accel);
 
-    IC bool accel_active(EAccelValue val = eAV_Accel)
+    void accel_set_braking(bool val = true) { m_accel.enable_braking = val; }
+
+    [[nodiscard]] float accel_get(EAccelValue val = eAV_Accel) const;
+
+    [[nodiscard]] bool accel_active(const EAccelValue val = eAV_Accel) const
     {
         return (val == eAV_Accel) ? m_accel.active : m_accel.enable_braking;
     }
@@ -199,7 +195,6 @@ public:
     bool accel_chain_test();
 
     bool accel_check_braking(float before_interval, float nominal_speed);
-    bool braking_mode;
 
     // --------------------------------------------------------------------------------
 
@@ -208,14 +203,14 @@ public:
     // Other
     void SetTurnAnimation();
 
-    // MotionDef to animation name translation
-    void AddAnimTranslation(const MotionID& motion, LPCSTR str);
-    shared_str GetAnimTranslation(const MotionID& motion);
 
 public:
-    // информация о текущей анимации
-    SCurrentAnimationInfo m_cur_anim;
-    SCurrentAnimationInfo& cur_anim_info() { return m_cur_anim; }
+    [[nodiscard]]
+    auto& cur_anim_info() { return m_cur_anim; }
+
+    [[nodiscard]]
+    const auto& cur_anim_info() const { return m_cur_anim; }
+
     void select_animation(bool anim_end = false);
     void set_animation_speed();
 
@@ -225,13 +220,11 @@ public:
     bool get_animation_info(EMotionAnim anim, u32 index, MotionID& motion, float& length) const;
     float get_animation_hit_time(EMotionAnim anim, u32 index) const;
     u32 get_animation_variants_count(EMotionAnim anim) const;
+
     // you need to call it with default arguments to turn it off
     void set_override_animation(EMotionAnim anim = eAnimUndefined, u32 index = -1);
     void set_override_animation(pcstr name);
     void clear_override_animation();
     EMotionAnim get_override_animation() const { return m_override_animation; }
     bool has_override_animation() const { return get_override_animation() != eAnimUndefined; }
-private:
-    u32 m_override_animation_index; // used if != -1
-    EMotionAnim m_override_animation; // used if != eAnimUndefined
 };

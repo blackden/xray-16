@@ -5,7 +5,7 @@
 #include "monster_velocity_space.h"
 
 void CControlAnimationBase::accel_init() { m_accel.active = false; }
-void CControlAnimationBase::accel_load(LPCSTR section)
+void CControlAnimationBase::accel_load(pcstr section)
 {
     m_accel.calm = pSettings->r_float(section, "Accel_Calm");
     m_accel.aggressive = pSettings->r_float(section, "Accel_Aggressive");
@@ -19,16 +19,16 @@ void CControlAnimationBase::accel_activate(EAccelType type)
     m_accel.enable_braking = true;
 }
 
-float CControlAnimationBase::accel_get(EAccelValue val)
+float CControlAnimationBase::accel_get(EAccelValue val) const
 {
     if (!accel_active(val))
         return flt_max;
 
     switch (m_accel.type)
     {
+    default:
     case eAT_Calm: return m_accel.calm;
     case eAT_Aggressive: return m_accel.aggressive;
-    default: return m_accel.calm;
     }
 }
 
@@ -37,10 +37,10 @@ float CControlAnimationBase::accel_get(EAccelValue val)
 void CControlAnimationBase::accel_chain_add(EMotionAnim anim1, EMotionAnim anim2)
 {
     SEQ_VECTOR v_temp;
-    v_temp.push_back(anim1);
-    v_temp.push_back(anim2);
+    v_temp.emplace_back(anim1);
+    v_temp.emplace_back(anim2);
 
-    m_accel.chain.push_back(v_temp);
+    m_accel.chain.emplace_back(v_temp);
 }
 
 bool CControlAnimationBase::accel_chain_get(
