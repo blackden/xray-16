@@ -33,7 +33,7 @@ enum EControlType : u8
     eComCriticalWound,
     eAntiAim,
 
-    eControllersCount, 
+    eControllersCount,
     eControlInvalid = u8(-1),
 };
 
