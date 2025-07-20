@@ -110,7 +110,7 @@ public:
     void SetSpecParams(u32 param) { spec_params |= param; }
     void SetCurAnim(EMotionAnim a);
 
-    EMotionAnim GetCurAnim() { return cur_anim_info().get_motion(); }
+    EMotionAnim GetCurAnim() const { return cur_anim_info().get_motion(); }
     // работа с анимациями атак
     void AA_reload(LPCSTR section);
     SAAParam& AA_GetParams(LPCSTR anim_name);
@@ -203,13 +203,12 @@ public:
     // Other
     void SetTurnAnimation();
 
-
 public:
     [[nodiscard]]
-    auto& cur_anim_info() { return m_cur_anim; }
+    SCurrentAnimationInfo& cur_anim_info() { return m_cur_anim; }
 
     [[nodiscard]]
-    const auto& cur_anim_info() const { return m_cur_anim; }
+    const SCurrentAnimationInfo& cur_anim_info() const { return m_cur_anim; }
 
     void select_animation(bool anim_end = false);
     void set_animation_speed();
