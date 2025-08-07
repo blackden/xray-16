@@ -1,4 +1,4 @@
-add_library(xrCore SHARED)
+add_library(xrCore)
 
 target_sources_grouped(
     TARGET xrCore
@@ -476,8 +476,8 @@ target_compile_definitions(xrCore
     GITHUB_RUN_ID=\"$ENV{GITHUB_RUN_ID}\"
     GITHUB_RUN_NUMBER=\"$ENV{GITHUB_RUN_NUMBER}\"
     GITHUB_REPOSITORY=\"$ENV{GITHUB_REPOSITORY}\"
-    GIT_INFO_CURRENT_COMMIT=\"${GIT_SHA1}\"
-    GIT_INFO_CURRENT_BRANCH=\"${GIT_BRANCH}\"
+    GIT_INFO_CURRENT_COMMIT=\"${XRAY_GIT_SHA1}\"
+    GIT_INFO_CURRENT_BRANCH=\"${XRAY_GIT_BRANCH}\"
     OPENSSL_NO_DEPRECATED
 )
 
@@ -496,6 +496,8 @@ target_precompile_headers(xrCore
     stdafx.h
 )
 
-install(TARGETS xrCore LIBRARY
-    DESTINATION "${CMAKE_INSTALL_LIBDIR}"
-)
+if (BUILD_SHARED_LIBS)
+    install(TARGETS xrCore LIBRARY
+        DESTINATION "${CMAKE_INSTALL_LIBDIR}"
+    )
+endif()

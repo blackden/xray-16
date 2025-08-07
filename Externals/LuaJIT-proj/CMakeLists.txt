@@ -18,7 +18,7 @@ set(NODOTABIVER 51)
 set(CMAKE_OSX_SYSROOT "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk")
 set(LUAJIT_DIR ${CMAKE_SOURCE_DIR}/Externals/LuaJIT/src CACHE PATH "Location of luajit sources")
 
-option(LUAJIT_BUILD_STATIC_LIB "Build as static library" OFF)
+option(BUILD_SHARED_LIBS "Build as shared library" ON)
 option(LUAJIT_BUILD_APP "Build application" OFF)
 
 # NOTE: Not working because there is no lib_package_rel.c file
@@ -72,24 +72,14 @@ execute_process(
     WORKING_DIRECTORY ${LUAJIT_DIR}
 )
 
-# TODO: check windows supports same target name for static and shared lib
-if (LUAJIT_BUILD_STATIC_LIB)
-    add_library(xrLuaJIT STATIC)
-else()
-    add_library(xrLuaJIT SHARED)
-endif()
+add_library(xrLuaJIT)
 
 # Compiler options
-if (PROJECT_PLATFORM_E2K)
-    # O3 on E2K mcst-lcc approximately equal to O2 at X86/ARM gcc
-    set(CCOPT_OPT_LEVEL "-O3")
-else()
-    set(CCOPT_OPT_LEVEL "-O2")
-endif()
+set(CCOPT_OPT_LEVEL "-O3")
 
 set(CCOPT "${CMAKE_C_FLAGS} ${CCOPT_OPT_LEVEL}")
 
-if (USE_ADDRESS_SANITIZER)
+if (XRAY_USE_ASAN)
     set(CCOPT "${CCOPT} -fno-stack-protector")
 else()
     set(CCOPT "${CCOPT} -fomit-frame-pointer -fno-stack-protector")
@@ -201,7 +191,7 @@ if (WIN32)
         " -shared -Wl,--out-implib,libluajit-${ABIVER}.dll.a"
     )
 
-    if (NOT LUAJIT_BUILD_STATIC_LIB)
+    if (LUAJIT_BUILD_STATIC_LIB)
         string(APPEND HOST_XCFLAGS " -DLUA_BUILD_AS_DLL")
     endif()
 
