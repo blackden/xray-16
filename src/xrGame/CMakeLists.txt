@@ -2547,7 +2547,7 @@ endif()
 
 set_target_properties(xrGame PROPERTIES
     PREFIX ""
-    UNITY_BUILD_BATCH_SIZE 30
+    UNITY_BUILD_BATCH_SIZE 50
 )
 
 target_precompile_headers(xrGame
