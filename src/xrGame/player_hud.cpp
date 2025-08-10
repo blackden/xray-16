@@ -11,7 +11,7 @@
 
 player_hud* g_player_hud = nullptr;
 extern ENGINE_API shared_str current_player_hud_sect;
-// clang-format off
+
 // --#SM+# Begin--
 constexpr float PITCH_OFFSET_R    = 0.0f;   // Насколько сильно ствол смещается вбок (влево) при вертикальных поворотах камеры
 constexpr float PITCH_OFFSET_N    = 0.0f;   // Насколько сильно ствол поднимается\опускается при вертикальных поворотах камеры
@@ -22,7 +22,6 @@ constexpr float ORIGIN_OFFSET_AIM = -0.03f; // (Для прицеливания)
 constexpr float TENDTO_SPEED      = 5.f;    // Скорость нормализации положения ствола
 constexpr float TENDTO_SPEED_AIM  = 8.f;    // (Для прицеливания)
 // --#SM+# End--
-// clang-format on
 
 float CalcMotionSpeed(const shared_str& anim_name, const float anim_speed)
 {

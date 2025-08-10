@@ -7,8 +7,8 @@
 ////////////////////////////////////////////////////////////////////////////
 
 #include "pch_script.h"
+
 #include "script_ini_file.h"
-#include "xrScriptEngine/ScriptExporter.hpp"
 #include "xrScriptEngine/Functor.hpp"
 
 bool r_line(const CScriptIniFile* self, pcstr S, int L, luabind::string& N, luabind::string& V)
@@ -65,7 +65,7 @@ CScriptIniFile* reload_system_ini()
 }
 //Alundaio: END
 
-static void CScriptIniFile_Export(lua_State* luaState)
+void CScriptIniFile::script_register(lua_State* luaState)
 {
     using namespace luabind;
     using namespace luabind::policy;
@@ -152,5 +152,3 @@ static void CScriptIniFile_Export(lua_State* luaState)
             def("create_ini_file", &create_ini_file, adopt<0>())
     ];
 }
-
-SCRIPT_EXPORT_FUNC(CScriptIniFile, (), CScriptIniFile_Export);

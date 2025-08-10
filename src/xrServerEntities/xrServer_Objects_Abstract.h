@@ -69,6 +69,9 @@ public:
 #endif
 
     virtual CSE_Visual* visual() = 0;
+
+private:
+    DECLARE_SCRIPT_REGISTER_FUNCTION();
 };
 
 class CSE_Motion
@@ -94,6 +97,9 @@ public:
 #endif
 
     virtual CSE_Motion* motion() = 0;
+
+private:
+    DECLARE_SCRIPT_REGISTER_FUNCTION();
 };
 
 class XR_NOVTABLE IServerEntityLEOwner

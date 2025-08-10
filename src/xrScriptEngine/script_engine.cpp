@@ -7,11 +7,14 @@
 ////////////////////////////////////////////////////////////////////////////
 
 #include "pch.hpp"
+
+#include "Common/Noncopyable.hpp"
+#include "xrCore/ModuleLookup.hpp"
+
 #include "script_engine.hpp"
 #include "script_process.hpp"
 #include "script_profiler.hpp"
 #include "script_thread.hpp"
-#include "ScriptExporter.hpp"
 #include "BindingsDumper.hpp"
 #ifdef USE_DEBUGGER
 #include "script_debugger.hpp"
@@ -19,13 +22,14 @@
 #ifdef DEBUG
 #include "script_thread.hpp"
 #endif
-#include <stdarg.h>
-#include "Common/Noncopyable.hpp"
-#include "xrCore/ModuleLookup.hpp"
+
 #include "xrLuaFix/xrLuaFix.h"
-#include "luabind/class_info.hpp"
 
 #include <tracy/TracyLua.hpp>
+
+#include <luabind/class_info.hpp>
+
+#include <stdarg.h>
 
 Flags32 g_LuaDebug;
 int g_LuaDumpDepth = 3;
@@ -777,7 +781,7 @@ struct luajit
     }
 };
 
-void CScriptEngine::init(ExporterFunc exporterFunc, bool loadGlobalNamespace)
+void CScriptEngine::init(export_func exporter, bool loadGlobalNamespace)
 {
     ZoneScoped;
 
@@ -799,8 +803,8 @@ void CScriptEngine::init(ExporterFunc exporterFunc, bool loadGlobalNamespace)
 
     luabind::bind_class_info(lua());
     setup_callbacks();
-    if (exporterFunc)
-        exporterFunc(lua());
+    if (exporter)
+        exporter(lua());
     if (std::strstr(Core.Params, "-dump_bindings") && !bindingsDumped)
     {
         bindingsDumped = true;

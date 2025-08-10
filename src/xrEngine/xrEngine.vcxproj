@@ -182,6 +182,7 @@
     <ClCompile Include="xr_collide_form.cpp" />
     <ClCompile Include="xr_efflensflare.cpp" />
     <ClCompile Include="xr_input.cpp" />
+    <ClCompile Include="XR_IOConsole_script.cpp" />
     <ClCompile Include="xr_level_controller.cpp" />
     <ClCompile Include="XR_IOConsole.cpp" />
     <ClCompile Include="XR_IOConsole_callback.cpp" />
