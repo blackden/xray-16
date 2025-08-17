@@ -48,7 +48,7 @@ public:
     void verify() const;
 
     [[nodiscard]]
-    size_t stat_economy() const;
+    std::pair<size_t, size_t> stat_economy() const;
 
 private:
     str_container_impl* impl;
