@@ -12,13 +12,6 @@
 
 #define BULLET_MANAGER_SECTION "bullet_manager"
 
-CCartridge::CCartridge()
-{
-    m_flags.assign(cfTracer | cfRicochet);
-    param_s.Init();
-    bullet_material_idx = u16(-1);
-}
-
 void CCartridge::Load(LPCSTR section, u8 LocalAmmoType)
 {
     m_ammoSect = section;
@@ -63,7 +56,7 @@ void CCartridge::Load(LPCSTR section, u8 LocalAmmoType)
     }
 
     if (pSettings->line_exist(section, "4to1_tracer"))
-        m_4to1_tracer = pSettings->r_bool(section, "4to1_tracer");;
+        m_flags.set(cf4to1Tracer, pSettings->r_bool(section, "4to1_tracer"));
 
     if (pSettings->line_exist(section, "can_be_unlimited"))
         m_flags.set(cfCanBeUnlimited, pSettings->r_bool(section, "can_be_unlimited"));
@@ -73,8 +66,6 @@ void CCartridge::Load(LPCSTR section, u8 LocalAmmoType)
     bullet_material_idx = GMLib.GetMaterialIdx(WEAPON_MATERIAL_NAME);
     VERIFY(u16(-1) != bullet_material_idx);
     VERIFY(param_s.fWallmarkSize > 0);
-
-    m_InvShortName = StringTable().translate(pSettings->r_string(section, "inv_name_short"));
 }
 
 float CCartridge::Weight() const
@@ -93,8 +84,6 @@ float CCartridge::Weight() const
     return res;
 }
 
-CWeaponAmmo::CWeaponAmmo(void) {}
-CWeaponAmmo::~CWeaponAmmo(void) {}
 void CWeaponAmmo::Load(LPCSTR section)
 {
     inherited::Load(section);
@@ -186,9 +175,8 @@ bool CWeaponAmmo::Get(CCartridge& cartridge)
     cartridge.param_s = cartridge_param;
 
     cartridge.m_flags.set(CCartridge::cfTracer, m_tracer);
-    cartridge.m_4to1_tracer = m_4to1_tracer;
+    cartridge.m_flags.set(CCartridge::cf4to1Tracer, m_4to1_tracer);
     cartridge.bullet_material_idx = GMLib.GetMaterialIdx(WEAPON_MATERIAL_NAME);
-    cartridge.m_InvShortName = NameShort();
     --m_boxCurr;
     if (m_pInventory)
         m_pInventory->InvalidateState();
