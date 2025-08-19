@@ -222,7 +222,7 @@ void CBulletManager::FireShotmark(SBullet* bullet, const Fvector& vDir, const Fv
 
     LPCSTR ps_name = (!mtl_pair || mtl_pair->CollideParticles.empty()) ?
         NULL :
-        *mtl_pair->CollideParticles[::Random.randI(0, mtl_pair->CollideParticles.size())];
+        mtl_pair->CollideParticles[::Random.randI(0, mtl_pair->CollideParticles.size())].c_str();
 
     SGameMtl* tgt_mtl = GMLib.GetMaterialByIdx(target_material);
     BOOL bStatic = !tgt_mtl->Flags.test(SGameMtl::flDynamic);
@@ -313,7 +313,7 @@ void CBulletManager::DynamicObjectHit(CBulletManager::_event& E)
 
     if (V)
     {
-        VERIFY3(V->LL_GetBoneVisible(u16(E.R.element)), *E.R.O->cNameVisual(), V->LL_BoneName_dbg(u16(E.R.element)));
+        VERIFY3(V->LL_GetBoneVisible(u16(E.R.element)), E.R.O->cNameVisual().c_str(), V->LL_BoneName_dbg(u16(E.R.element)));
         Fmatrix& m_bone = (V->LL_GetBoneInstance(u16(E.R.element))).mTransform;
         Fmatrix m_inv_bone;
         m_inv_bone.invert(m_bone);

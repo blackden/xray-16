@@ -677,7 +677,7 @@ void CAI_Bloodsucker::predator_start()
         return;
 
     cNameVisual_set(m_visual_predator);
-    CDamageManager::reload(*cNameSect(), "damage", pSettings);
+    CDamageManager::reload(cNameSect().c_str(), "damage", pSettings);
 
     control().animation().restart();
 
@@ -705,10 +705,10 @@ void CAI_Bloodsucker::predator_stop()
         return;
     }
 
-    cNameVisual_set(*m_visual_default);
+    cNameVisual_set(m_visual_default.c_str());
     character_physics_support()->in_ChangeVisual();
 
-    CDamageManager::reload(*cNameSect(), "damage", pSettings);
+    CDamageManager::reload(cNameSect().c_str(), "damage", pSettings);
 
     control().animation().restart();
 

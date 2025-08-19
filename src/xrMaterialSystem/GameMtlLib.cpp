@@ -10,7 +10,7 @@ const char* SGameMtlPair::dbg_Name() const
     static string256 nm;
     const SGameMtl* M0 = GMLib.GetMaterialByID(GetMtl0());
     const SGameMtl* M1 = GMLib.GetMaterialByID(GetMtl1());
-    xr_sprintf(nm, sizeof(nm), "Pair: %s - %s", *M0->m_Name, *M1->m_Name);
+    xr_sprintf(nm, sizeof(nm), "Pair: %s - %s", M0->m_Name.c_str(), M1->m_Name.c_str());
     return nm;
 }
 #endif

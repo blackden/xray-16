@@ -150,8 +150,8 @@ void CPseudoGigant::reinit()
 
     m_time_next_threaten = 0;
 
-    move().load_velocity(*cNameSect(), "Velocity_JumpPrepare", MonsterMovement::eGiantVelocityParameterJumpPrepare);
-    move().load_velocity(*cNameSect(), "Velocity_JumpGround", MonsterMovement::eGiantVelocityParameterJumpGround);
+    move().load_velocity(cNameSect().c_str(), "Velocity_JumpPrepare", MonsterMovement::eGiantVelocityParameterJumpPrepare);
+    move().load_velocity(cNameSect().c_str(), "Velocity_JumpGround", MonsterMovement::eGiantVelocityParameterJumpGround);
 
     // com_man().load_jump_data(0,"jump_attack_0", "jump_attack_1", "jump_attack_2",
     // MonsterMovement::eGiantVelocityParameterJumpPrepare, MonsterMovement::eGiantVelocityParameterJumpGround,0);

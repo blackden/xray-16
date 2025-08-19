@@ -363,7 +363,7 @@ void CExplosive::Explode()
     explode_matrix.c.set(pos);
 
     CParticlesObject* pStaticPG;
-    pStaticPG = CParticlesObject::Create(*m_sExplodeParticles, !m_bDynamicParticles);
+    pStaticPG = CParticlesObject::Create(m_sExplodeParticles.c_str(), !m_bDynamicParticles);
     if (m_bDynamicParticles)
         m_pExpParticle = pStaticPG;
     pStaticPG->UpdateParent(explode_matrix, vel);

@@ -191,11 +191,11 @@ bool CPsyDogPhantom::net_Spawn(CSE_Abstract* dc)
     // load effector
     // Load psi postprocess --------------------------------------------------------
 
-    load_effector(*cNameSect(), "appear_effector", m_appear_effector);
+    load_effector(cNameSect().c_str(), "appear_effector", m_appear_effector);
 
     // --------------------------------------------------------------------------------
-    m_particles_appear = pSettings->r_string(*cNameSect(), "particles_appear");
-    m_particles_disappear = pSettings->r_string(*cNameSect(), "particles_disappear");
+    m_particles_appear = pSettings->r_string(cNameSect(), "particles_appear");
+    m_particles_disappear = pSettings->r_string(cNameSect(), "particles_disappear");
 
     m_time_spawned = time();
 

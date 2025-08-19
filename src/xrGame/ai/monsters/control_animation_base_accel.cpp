@@ -123,7 +123,7 @@ bool CControlAnimationBase::accel_chain_test()
             const float to = anim_to->velocity.velocity.linear * anim_to->velocity.min_factor;
 
             xr_sprintf(error_msg, "Incompatible speed ranges. Monster[%s] From animation  [%s] To animation [%s]",
-                *m_object->cName(), *anim_from->target_name, *anim_to->target_name);
+                m_object->cName().c_str(), anim_from->target_name.c_str(), anim_to->target_name.c_str());
             VERIFY2(to < from, error_msg);
 #endif
             anim_from = anim_to;

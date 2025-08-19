@@ -191,14 +191,14 @@ void CWeaponAmmo::renderable_Render(u32 context_id, IRenderable* root)
 
 void CWeaponAmmo::UpdateCL()
 {
-    VERIFY2(_valid(renderable.xform), *cName());
+    VERIFY2(_valid(renderable.xform), cName().c_str());
     inherited::UpdateCL();
-    VERIFY2(_valid(renderable.xform), *cName());
+    VERIFY2(_valid(renderable.xform), cName().c_str());
 
     if (!IsGameTypeSingle())
         make_Interpolation();
 
-    VERIFY2(_valid(renderable.xform), *cName());
+    VERIFY2(_valid(renderable.xform), cName().c_str());
 }
 
 void CWeaponAmmo::net_Export(NET_Packet& P)

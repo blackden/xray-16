@@ -59,7 +59,7 @@ void CControlAnimationBase::reinit()
     m_man->capture(this, ControlCom::eControlAnimation);
     m_man->subscribe(this, ControlCom::eventAnimationSignal);
 
-    AA_reload(pSettings->r_string(*(m_object->cNameSect()), "attack_params"));
+    AA_reload(pSettings->r_string(m_object->cNameSect().c_str(), "attack_params"));
 
     braking_mode = false;
 
@@ -210,7 +210,7 @@ void CControlAnimationBase::select_animation(bool anim_end)
     // установить анимацию
     string128 s1, s2;
     MotionID cur_anim = smart_cast<IKinematicsAnimated*>(
-        m_object->Visual())->ID_Cycle_Safe(strconcat(sizeof(s2), s2, *anim_it->target_name, xr_itoa(index, s1, 10)));
+        m_object->Visual())->ID_Cycle_Safe(strconcat(sizeof(s2), s2, anim_it->target_name.c_str(), xr_itoa(index, s1, 10)));
     if (!cur_anim.valid())
         FATAL(s2);
 
@@ -221,7 +221,7 @@ void CControlAnimationBase::select_animation(bool anim_end)
 
     // Заполнить текущую анимацию
     string64 st, tmp;
-    strconcat(sizeof(st), st, *anim_it->target_name, xr_itoa(index, tmp, 10));
+    strconcat(sizeof(st), st, anim_it->target_name.c_str(), xr_itoa(index, tmp, 10));
     //	xr_sprintf		(st, "%s%d", *anim_it->second.target_name, index);
     m_cur_anim.name = st;
     m_cur_anim.index = u8(index);
@@ -451,7 +451,7 @@ pcstr CControlAnimationBase::GetAnimationName(EMotionAnim anim) const
     VERIFY2(item_it, make_string("animation not found in m_anim_storage!"));
     ;
 
-    return *item_it->target_name;
+    return item_it->target_name.c_str();
 }
 
 pcstr CControlAnimationBase::GetActionName(EAction action) { return dbg_action_name_table[action]; }
@@ -511,7 +511,7 @@ void CControlAnimationBase::UpdateAnimCount()
 
         for (int i = 0;; ++i)
         {
-            strconcat(sizeof(s_temp), s_temp, *((*it)->target_name), xr_itoa(i, s, 10));
+            strconcat(sizeof(s_temp), s_temp, (*it)->target_name.c_str(), xr_itoa(i, s, 10));
             LPCSTR name = s_temp;
             MotionID id = skel->ID_Cycle_Safe(name);
 
@@ -527,7 +527,7 @@ void CControlAnimationBase::UpdateAnimCount()
             (*it)->count = count;
         else
         {
-            xr_sprintf(s, "Error! No animation: %s for monster %s", *((*it)->target_name), *m_object->cName());
+            xr_sprintf(s, "Error! No animation: %s for monster %s", (*it)->target_name.c_str(), m_object->cName().c_str());
             Msg("! %s", s);
             VERIFY2(count != 0, s);
             subjectsToDelete.emplace_back(std::distance(m_anim_storage.begin(), it));
@@ -563,7 +563,7 @@ CMotionDef* CControlAnimationBase::get_motion_def(SAnimItem* it, u32 index) cons
     string128 s1, s2;
     IKinematicsAnimated* skeleton_animated = smart_cast<IKinematicsAnimated*>(m_object->Visual());
     const MotionID& motion_id =
-        skeleton_animated->ID_Cycle_Safe(strconcat(sizeof(s2), s2, *it->target_name, xr_itoa(index, s1, 10)));
+        skeleton_animated->ID_Cycle_Safe(strconcat(sizeof(s2), s2, it->target_name.c_str(), xr_itoa(index, s1, 10)));
     return (skeleton_animated->LL_GetMotionDef(motion_id));
 }
 
@@ -587,7 +587,7 @@ MotionID CControlAnimationBase::get_motion_id(EMotionAnim a, u32 index) const
 
     string128 s1, s2;
     return (smart_cast<IKinematicsAnimated*>(m_object->Visual())
-                ->ID_Cycle_Safe(strconcat(sizeof(s2), s2, *anim_it->target_name, xr_itoa(index, s1, 10))));
+                ->ID_Cycle_Safe(strconcat(sizeof(s2), s2, anim_it->target_name.c_str(), xr_itoa(index, s1, 10))));
 }
 
 void CControlAnimationBase::stop_now()

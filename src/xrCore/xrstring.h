@@ -225,14 +225,14 @@ ICF int xr_strcmp(const char* S1, const char* S2)
     return strcmp(S1, S2);
 }
 
-IC int xr_strcmp(const shared_str& a, const char* b) noexcept { return xr_strcmp(*a, b); }
-IC int xr_strcmp(const char* a, const shared_str& b) noexcept { return xr_strcmp(a, *b); }
+IC int xr_strcmp(const shared_str& a, const char* b) noexcept { return xr_strcmp(a.c_str(), b); }
+IC int xr_strcmp(const char* a, const shared_str& b) noexcept { return xr_strcmp(a, b.c_str()); }
 IC int xr_strcmp(const shared_str& a, const shared_str& b) noexcept
 {
     if (a.equal(b))
         return 0;
     else
-        return xr_strcmp(*a, *b);
+        return xr_strcmp(a.c_str(), b.c_str());
 }
 
 IC char* xr_strlwr(char* src)
@@ -248,7 +248,7 @@ IC char* xr_strlwr(char* src)
 
 IC void xr_strlwr(shared_str& src)
 {
-    if (*src)
+    if (src.c_str())
     {
         char* lp = xr_strdup(src.c_str());
         xr_strlwr(lp);
