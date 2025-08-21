@@ -149,7 +149,7 @@ constexpr CLASS_ID CLSID_Z_BFUZZ                    = MK_CLSID('Z', '_', 'B', 'F
 constexpr CLASS_ID CLSID_Z_RUSTYH                   = MK_CLSID('Z', '_', 'R', 'U', 'S', 'T', 'Y', 'H');
 constexpr CLASS_ID CLSID_Z_AMEBA                    = MK_CLSID('Z', '_', 'A', 'M', 'E', 'B', 'A', ' ');
 constexpr CLASS_ID CLSID_Z_NOGRAVITY                = MK_CLSID('Z', '_', 'N', 'O', 'G', 'R', 'A', 'V');
-constexpr CLASS_ID CLSID_Z_FRYUP                    = MK_CLSID('Z', '_', 'F', 'R', 'Y', 'U', 'P ', ' ');
+constexpr CLASS_ID CLSID_Z_FRYUP                    = MK_CLSID('Z', '_', 'F', 'R', 'Y', 'U', 'P', ' ');
 constexpr CLASS_ID CLSID_Z_DEAD                     = MK_CLSID('Z', '_', 'D', 'E', 'A', 'D', ' ', ' ');
 
 // Read more about this clsids in object_factory_register.cpp
