@@ -1,24 +1,8 @@
 #include "StdAfx.h"
 #include "specific_character.h"
 
-#ifdef XRGAME_EXPORTS
 #include "PhraseDialog.h"
 
-SSpecificCharacterData::SSpecificCharacterData()
-{
-    m_sGameName.clear();
-    m_sVisual.clear();
-    m_sSupplySpawn.clear();
-    m_sNpcConfigSect.clear();
-
-    m_ActorDialogs.clear();
-}
-
-SSpecificCharacterData::~SSpecificCharacterData() {}
-#endif
-
-CSpecificCharacter::CSpecificCharacter() { m_OwnId = nullptr; }
-CSpecificCharacter::~CSpecificCharacter() {}
 void CSpecificCharacter::InitXmlIdToIndex()
 {
     if (!id_to_index::tag_name)
@@ -66,8 +50,6 @@ void CSpecificCharacter::load_shared(LPCSTR)
     R_ASSERT3(!(data()->m_bNoRandom && data()->m_bDefaultForCommunity),
         "cannot set 'no_random' and 'team_default' flags simultaneously, profile id", shared_str(item_data.id).c_str());
 
-#ifdef XRGAME_EXPORTS
-
     LPCSTR start_dialog = pXML->Read("start_dialog", 0, NULL);
     if (start_dialog)
     {
@@ -97,11 +79,8 @@ void CSpecificCharacter::load_shared(LPCSTR)
 
     data()->m_critical_wound_weights = pXML->Read("critical_wound_weights", 0, "1");
 
-#endif
-
     data()->m_sVisual = pXML->Read("visual", 0, "");
 
-#ifdef XRGAME_EXPORTS
     data()->m_sSupplySpawn = pXML->Read("supplies", 0, "");
 
     if (!data()->m_sSupplySpawn.empty())
@@ -121,8 +100,6 @@ void CSpecificCharacter::load_shared(LPCSTR)
 
     data()->m_terrain_sect = pXML->Read("terrain_sect", 0, "");
 
-#endif
-
     data()->m_Classes.clear();
     int classes_num = pXML->GetNodesNum(pXML->GetLocalRoot(), "class");
     for (int i = 0; i < classes_num; i++)
@@ -136,8 +113,6 @@ void CSpecificCharacter::load_shared(LPCSTR)
             xr_free(buf_str);
         }
     }
-
-#ifdef XRGAME_EXPORTS
 
     LPCSTR team = pXML->Read("community", 0, NULL);
     R_ASSERT3(team != NULL, "'community' field not fulfiled for specific character", m_OwnId.c_str());
@@ -170,14 +145,10 @@ void CSpecificCharacter::load_shared(LPCSTR)
         MoneyDef().inf_money = false;
     }
 
-#endif
-
 #if 0
 	Msg			("CSpecificCharacter::load_shared() takes %f milliseconds",timer.GetElapsed_sec()*1000.f);
 #endif
 }
-
-#ifdef XRGAME_EXPORTS
 
 LPCSTR CSpecificCharacter::Name() const { return data()->m_sGameName.c_str(); }
 shared_str CSpecificCharacter::Bio() const { return data()->m_sBioText; }
@@ -190,7 +161,6 @@ float CSpecificCharacter::hit_probability_factor() const { return data()->m_fHit
 int CSpecificCharacter::crouch_type() const { return data()->m_crouch_type; }
 bool CSpecificCharacter::upgrade_mechanic() const { return data()->m_upgrade_mechanic; }
 LPCSTR CSpecificCharacter::critical_wound_weights() const { return data()->m_critical_wound_weights.c_str(); }
-#endif
 
 shared_str CSpecificCharacter::terrain_sect() const { return data()->m_terrain_sect; }
 CHARACTER_RANK_VALUE CSpecificCharacter::Rank() const { return data()->m_Rank; }
