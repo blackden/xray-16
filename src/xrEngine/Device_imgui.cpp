@@ -13,6 +13,8 @@ void CRenderDevice::InitializeImGui()
 
     ZoneScoped;
 
+    IMGUI_CHECKVERSION();
+
     ImGui::SetAllocatorFunctions(
         [](size_t size, void* /*user_data*/)
         {
@@ -42,6 +44,17 @@ void CRenderDevice::InitializeImGui()
     io.LogFilename = xr_strdup(fName);
 
     io.BackendPlatformName = "OpenXRay";
+
+    io.ConfigDebugIsDebuggerPresent = xrDebug::DebuggerIsPresent();
+#ifdef DEBUG
+    io.ConfigErrorRecoveryEnableAssert  = true;
+    io.ConfigErrorRecoveryEnableTooltip = true;
+    io.ConfigDebugHighlightIdConflicts  = true;
+#else
+    io.ConfigErrorRecoveryEnableAssert  = false;
+    io.ConfigErrorRecoveryEnableTooltip = false;
+    io.ConfigDebugHighlightIdConflicts  = false;
+#endif
 
     // Register platform interface (will be coupled with a renderer interface)
     ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO();
