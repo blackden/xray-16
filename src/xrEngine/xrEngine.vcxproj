@@ -27,6 +27,9 @@
     <Link>
       <AdditionalDependencies>libogg_static.lib;libtheora_static.lib;vfw32.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <Lib>
+      <AdditionalDependencies>libogg_static.lib;libtheora_static.lib;vfw32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="AccessibilityShortcuts.hpp" />
@@ -238,11 +241,6 @@
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="..\OpenXRay.natvis" />
-  </ItemGroup>
-  <ItemGroup>
-    <CopyFileToFolders Include="..\..\sdk\binaries\$(PlatformShortName)\discord_game_sdk.dll">
-      <FileType>Document</FileType>
-    </CopyFileToFolders>
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />

@@ -36,6 +36,10 @@
       <DelayLoadDLLs>AnselSDK$(PlatformArchitecture).dll;</DelayLoadDLLs>
       <AdditionalDependencies>AnselSDK$(PlatformArchitecture).lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <Lib>
+      <DelayLoadDLLs>AnselSDK$(PlatformArchitecture).dll;</DelayLoadDLLs>
+      <AdditionalDependencies>AnselSDK$(PlatformArchitecture).lib;%(AdditionalDependencies)</AdditionalDependencies>
+    </Lib>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="$(xrExternals)GameSpy\src\GameSpy\md5.h" />
