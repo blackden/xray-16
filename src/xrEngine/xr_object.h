@@ -1,5 +1,9 @@
 #pragma once
 
+#include "xrCommon/misc_math_types.h" // SRotation
+
+#include "xrCore/FixedVector.h"
+
 #include "xrCDB/ISpatial.h"
 #include "ISheduled.h"
 
@@ -7,14 +11,14 @@
 #include "ICollidable.h"
 #include "EngineAPI.h"
 
-#include "xrServerEntities/xrServer_Space.h"
 #include "xrGame/game_object_space.h"
 #include "xrServerEntities/alife_space.h"
-#include "xrCommon/misc_math_types.h" // SRotation
+#include "xrServerEntities/xrServer_Space.h"
 
 // fwd. decl.
 class IRender_Sector;
 class IRender_ObjectSpecific;
+class IKinematics;
 class CCustomHUD;
 class NET_Packet;
 class CSE_Abstract;
