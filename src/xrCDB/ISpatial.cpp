@@ -1,14 +1,15 @@
 #include "stdafx.h"
+
 #include "ISpatial.h"
+
 #include "xrEngine/Engine.h"
 #include "xrEngine/Render.h"
+
 #ifdef DEBUG
 #include "xrEngine/xr_object.h"
 #include "xrEngine/PS_instance.h"
 #endif
-#include "xrEngine/device.h"
-#include "xrEngine/GameFont.h"
-#include "xrEngine/PerformanceAlert.hpp"
+
 #include "xrCore/Threading/Lock.hpp"
 #include "xrCore/Threading/ScopeLock.hpp"
 

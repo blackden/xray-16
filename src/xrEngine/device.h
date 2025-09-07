@@ -21,6 +21,8 @@
 #include "Include/xrRender/FactoryPtr.h"
 #include "Render.h"
 
+#include "xrScriptEngine/ScriptExporter.hpp"
+
 #include <SDL.h>
 
 // refs
@@ -303,6 +305,9 @@ private:
 
     ImGuiContext* m_imgui_context{};
     IImGuiRender* m_imgui_render{};
+
+private:
+    DECLARE_SCRIPT_REGISTER_FUNCTION();
 };
 
 extern ENGINE_API CRenderDevice Device;
