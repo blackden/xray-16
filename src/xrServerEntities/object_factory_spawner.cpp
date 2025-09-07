@@ -39,7 +39,7 @@ void CObjectFactory::init_spawn_data()
         {
             const auto width = pSettings->read_if_exists<u32>(name, "inv_grid_width", 0);
             const auto height = pSettings->read_if_exists<u32>(name, "inv_grid_height", 0);
-            
+
             if (width == 0 && height == 0) // ban fake items
                 category = SpawnCategory::Unknown;
             else if (pSettings->read_if_exists<bool>(name, "quest_item", false))
@@ -535,7 +535,7 @@ void CObjectFactory::on_tool_frame()
         {
             if (spawn_category == SpawnCategory::SquadsStalkers || spawn_category == SpawnCategory::SquadsMutants)
             {
-                
+
             }
             else if (!alife || spawn_category == SpawnCategory::CreaturesPhantoms)
             {
