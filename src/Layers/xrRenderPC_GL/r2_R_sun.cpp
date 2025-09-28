@@ -729,4 +729,25 @@ void render_sun_old::render_sun_filtered() const
     PIX_EVENT(SE_SUN_LUMINANCE);
     RImplementation.Target->accum_direct(RCache, SE_SUN_LUMINANCE);
 }
+
+void render_sun_old::render()
+{
+    if (!o.active)
+        return;
+
+    render_sun_near();
+    render_sun();
+    render_sun_filtered();
+}
+
+void render_sun_old::flush()
+{
+    if (!o.active)
+        return;
+
+    auto& dsgraph = RImplementation.get_context(context_id);
+    dsgraph.cmd_list.submit();
+    RImplementation.release_context(context_id);
+    RImplementation.get_imm_command_list().Invalidate();
+}
 } // namespace xray::render::RENDER_NAMESPACE

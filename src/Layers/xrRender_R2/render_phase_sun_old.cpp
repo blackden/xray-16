@@ -709,16 +709,31 @@ void render_sun_old::render_sun_near()
 
 void render_sun_old::render_sun_filtered() const
 {
+    if (!RImplementation.o.sunfilter)
+        return;
+    auto& dsgraph = RImplementation.get_context(context_id);
+    RImplementation.Target->phase_accumulator(dsgraph.cmd_list);
+    PIX_EVENT(SE_SUN_LUMINANCE);
+    RImplementation.Target->accum_direct(dsgraph.cmd_list, SE_SUN_LUMINANCE);
+}
 
-    if (RImplementation.o.sunfilter)
-    {
-        auto& dsgraph = RImplementation.get_context(context_id);
-        auto& cmd_list_imm = RImplementation.get_imm_command_list();
-        RImplementation.Target->phase_accumulator(cmd_list_imm);
-        PIX_EVENT(SE_SUN_LUMINANCE);
-        RImplementation.Target->accum_direct(cmd_list_imm, SE_SUN_LUMINANCE);
-    }
+void render_sun_old::render()
+{
+    if (!o.active)
+        return;
 
+    render_sun_near();
+    render_sun();
+    render_sun_filtered();
+}
+
+void render_sun_old::flush()
+{
+    if (!o.active)
+        return;
+
+    auto& dsgraph = RImplementation.get_context(context_id);
+    dsgraph.cmd_list.submit();
     RImplementation.release_context(context_id);
     RImplementation.get_imm_command_list().Invalidate();
 }

@@ -155,15 +155,8 @@ struct render_sun_old : public i_render_phase
 
     void init() override;
     void calculate() override {}
-    void render() override
-    {
-        if (!o.active)
-            return;
-
-        render_sun_near();
-        render_sun();
-        render_sun_filtered();
-    }
+    void render() override;
+    void flush() override;
 
     void render_sun();
     void render_sun_near();
