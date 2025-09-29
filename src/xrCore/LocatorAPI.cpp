@@ -10,6 +10,7 @@
 #include <sys/stat.h>
 #include <sys/utime.h>
 #elif defined(XR_PLATFORM_POSIX)
+#include <SDL.h>
 #include <glob.h>
 #endif
 
