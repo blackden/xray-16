@@ -637,11 +637,11 @@ void render_sun_old::render_sun_near()
             scissor.modify(xf);
         }
         s32 limit = RImplementation.o.smapsize - 1;
-        sun->X.D[0].minX = clampr(iFloor(scissor.vMin.x), 0, limit);
-        sun->X.D[0].maxX = clampr(iCeil(scissor.vMax.x), 0, limit);
-        sun->X.D[0].minY = clampr(iFloor(scissor.vMin.y), 0, limit);
-        sun->X.D[0].maxY = clampr(iCeil(scissor.vMax.y), 0, limit);
-        sun->X.D[0].combine = cull_xform;
+        sun->X.D[SE_SUN_NEAR].minX = clampr(iFloor(scissor.vMin.x), 0, limit);
+        sun->X.D[SE_SUN_NEAR].maxX = clampr(iCeil(scissor.vMax.x), 0, limit);
+        sun->X.D[SE_SUN_NEAR].minY = clampr(iFloor(scissor.vMin.y), 0, limit);
+        sun->X.D[SE_SUN_NEAR].maxY = clampr(iCeil(scissor.vMax.y), 0, limit);
+        sun->X.D[SE_SUN_NEAR].combine = cull_xform;
 
         // full-xform
     }
@@ -674,14 +674,14 @@ void render_sun_old::render_sun_near()
             RImplementation.Target->phase_smap_direct(dsgraph.cmd_list, sun, SE_SUN_NEAR);
             dsgraph.cmd_list.set_xform_world(Fidentity);
             dsgraph.cmd_list.set_xform_view(Fidentity);
-            dsgraph.cmd_list.set_xform_project(sun->X.D[0].combine);
+            dsgraph.cmd_list.set_xform_project(sun->X.D[SE_SUN_NEAR].combine);
             dsgraph.render_graph(0);
             if (ps_r2_ls_flags.test(R2FLAG_SUN_DETAILS))
                 RImplementation.Details->Render(dsgraph.cmd_list);
-            sun->X.D[0].transluent = FALSE;
+            sun->X.D[SE_SUN_NEAR].transluent = FALSE;
             if (bSpecial)
             {
-                sun->X.D[0].transluent = TRUE;
+                sun->X.D[SE_SUN_NEAR].transluent = TRUE;
                 RImplementation.Target->phase_smap_direct_tsh(dsgraph.cmd_list, sun, SE_SUN_NEAR);
                 dsgraph.render_graph(1); // normal level, secondary priority
                 dsgraph.render_sorted(); // strict-sorted geoms
