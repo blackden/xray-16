@@ -69,10 +69,6 @@
 #define XR_NOEXCEPT_OP(x)
 #endif
 
-#ifndef _MT
-#error Please enable multi-threaded library...
-#endif
-
 #if !defined(DEBUG) && (defined(_DEBUG) || defined(MIXED))
 #define DEBUG
 #endif
