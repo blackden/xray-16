@@ -215,11 +215,8 @@ void CRender::create()
 
     m_skinning = -1;
     m_MSAASample = -1;
-    m_SMAPSize = ps_r2_smapsize;
 
     // hardware
-    o.smapsize = ps_r2_smapsize;
-    o.rain_smapsize = ps_r3_dyn_wet_surf_sm_res;
     o.mrt = (HW.Caps.raster.dwMRT_count >= 3);
     o.mrtmixdepth = (HW.Caps.raster.b_MRT_mixdepth);
 
@@ -347,18 +344,20 @@ void CRender::create()
     // options (smap-pool-size)
     if (strstr(Core.Params, "-smap1024"))
         o.smapsize = 1024;
-    if (strstr(Core.Params, "-smap1536"))
+    else if (strstr(Core.Params, "-smap1536"))
         o.smapsize = 1536;
-    if (strstr(Core.Params, "-smap2048"))
+    else if (strstr(Core.Params, "-smap2048"))
         o.smapsize = 2048;
-    if (strstr(Core.Params, "-smap2560"))
+    else if (strstr(Core.Params, "-smap2560"))
         o.smapsize = 2560;
-    if (strstr(Core.Params, "-smap3072"))
+    else if (strstr(Core.Params, "-smap3072"))
         o.smapsize = 3072;
-    if (strstr(Core.Params, "-smap4096"))
+    else if (strstr(Core.Params, "-smap4096"))
         o.smapsize = 4096;
-    if (strstr(Core.Params, "-smap8192"))
+    else if (strstr(Core.Params, "-smap8192"))
         o.smapsize = 8192;
+    else
+        o.smapsize = ps_r2_smapsize;
 
     // gloss
     cpcstr g = strstr(Core.Params, "-gloss ");

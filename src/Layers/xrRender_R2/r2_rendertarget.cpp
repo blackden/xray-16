@@ -212,6 +212,12 @@ CRenderTarget::CRenderTarget()
 
     static constexpr pcstr SAMPLE_DEFS[] = { "0", "1", "2", "3", "4", "5", "6", "7" };
 
+    if (!strstr(Core.Params, "-smap"))
+        RImplementation.o.smapsize = ps_r2_smapsize;
+
+    RImplementation.m_SMAPSize = RImplementation.o.smapsize;
+    RImplementation.o.rain_smapsize = ps_r3_dyn_wet_surf_sm_res;
+
     const auto& options = RImplementation.o;
 
     const u32 SampleCount  = options.msaa ? options.msaa_samples : 1u;
