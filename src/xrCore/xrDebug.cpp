@@ -35,7 +35,6 @@
 #   endif
 
 #   include "Debug/dxerr.h"
-#   include "Debug/MiniDump.h"
 #endif
 
 #if defined(XR_PLATFORM_LINUX) || defined(XR_PLATFORM_APPLE) || defined(XR_PLATFORM_BSD)

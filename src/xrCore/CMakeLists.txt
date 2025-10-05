@@ -132,8 +132,6 @@ target_sources_grouped(
     TARGET xrCore
     NAME "Debug core"
     FILES
-    #Debug/MiniDump.cpp
-    #Debug/MiniDump.h
     xrDebug.cpp
     xrDebug.h
     xrDebug_macros.h
