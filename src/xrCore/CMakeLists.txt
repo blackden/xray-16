@@ -150,6 +150,14 @@ target_sources_grouped(
 
 target_sources_grouped(
     TARGET xrCore
+    NAME "Debug core\\StackTrace"
+    FILES
+    Debug/StackTrace.cpp
+    Debug/StackTrace.h
+)
+
+target_sources_grouped(
+    TARGET xrCore
     NAME "Events"
     FILES
     Events/Notifier.h
