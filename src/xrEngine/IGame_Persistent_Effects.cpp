@@ -417,8 +417,8 @@ void IGame_Persistent::UpdateRainGloss() const
     const float waterfall_size = fmax(2.0f - ssfx_default_settings.waterfall_size, 0.01f); // Change how the value works to be more intuitive(<1.0 smaller |> 1.0 bigger) get_console()
     ps_ssfx_wetsurfaces_2.set(waterfall_size, ssfx_default_settings.waterfall_speed, ssfx_default_settings.waterfall_min_speed, ssfx_default_settings.waterfall_intensity);
 
-    const int wet_resolution = (int)pow(2, ssfx_default_settings.cover_res + 6);
-    ps_r3_dyn_wet_surf_sm_res = wet_resolution;
+    //const int wet_resolution = (int)pow(2, ssfx_default_settings.cover_res + 6);
+    //ps_r3_dyn_wet_surf_sm_res = wet_resolution;
 
-    ps_r3_dyn_wet_surf_far = ssfx_default_settings.cover_distance;
+    //ps_r3_dyn_wet_surf_far = ssfx_default_settings.cover_distance;
 }
