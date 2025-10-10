@@ -328,8 +328,8 @@ float dm_current_fade = 47.5; //float(2*dm_current_size)-.5f;
 float ps_current_detail_density = 0.6f;
 float ps_current_detail_height = 1.f;
 
-int ps_r2_mt_calculate = 0;
-int ps_r2_mt_render = 0;
+int ps_r2_mt_calculate = 1;
+int ps_r2_mt_render = 1;
 
 xr_token ext_quality_token[] = {{"qt_off", 0}, {"qt_low", 1}, {"qt_medium", 2},
     {"qt_high", 3}, {"qt_extreme", 4}, {nullptr, 0}};
