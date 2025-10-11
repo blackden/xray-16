@@ -614,7 +614,7 @@ ENGINE_API Fvector4 ps_ssfx_lightsetup_1 = { 0.35f, 0.5f, 0.0f, 0.0f }; // Spec 
 
 ENGINE_API float ps_r3_dyn_wet_surf_near = 10.f;
 ENGINE_API float ps_r3_dyn_wet_surf_far  = 30.f;
-ENGINE_API int ps_r3_dyn_wet_surf_sm_res = 2048;
+ENGINE_API int ps_r3_dyn_wet_surf_sm_res = 128;
 
 int ps_disable_lens_flare = 1;
 
