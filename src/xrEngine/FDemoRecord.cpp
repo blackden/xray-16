@@ -525,6 +525,10 @@ void CDemoRecord::IR_OnKeyboardPress(int dik)
         MakeScreenshot();
         break;
 
+    case kEDITOR:
+        Device.editor().SwitchToNextState();
+        break;
+
     case kQUIT:
         fLifeTime = -1;
         break;
