@@ -419,7 +419,7 @@ bool CUIActorMenu::OnKeyboardAction(int dik, EUIMessages keyboard_action)
         return true;
     }
 
-    if (IsBinded(kUSE, dik) || IsBinded(kINVENTORY, dik))
+    if (IsBinded(kINVENTORY, dik))
     {
         if (WINDOW_KEY_PRESSED == keyboard_action)
         {
