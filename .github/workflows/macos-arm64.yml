@@ -1,0 +1,27 @@
+name: macOS ARM64 Build (manual)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    # Requires a self-hosted runner tagged with macos + arm64.
+    runs-on: [self-hosted, macos, arm64]
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Bootstrap dependencies
+        run: ./scripts/bootstrap-macos.sh
+
+      - name: Build RelWithDebInfo configuration
+        run: ./scripts/build.sh RelWithDebInfo
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-arm64-relwithdebinfo
+          path: build/macos-arm64/RelWithDebInfo/bin
