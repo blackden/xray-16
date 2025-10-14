@@ -2,12 +2,32 @@ include_guard()
 
 if (APPLE)
     if (NOT CMAKE_OSX_DEPLOYMENT_TARGET)
-        if ($ENV{MACOSX_DEPLOYMENT_TARGET})
-            set(CMAKE_OSX_DEPLOYMENT_TARGET $ENV{MACOSX_DEPLOYMENT_TARGET})
+        if (DEFINED ENV{MACOSX_DEPLOYMENT_TARGET} AND NOT "$ENV{MACOSX_DEPLOYMENT_TARGET}" STREQUAL "")
+            set(_XRAY_DEFAULT_OSX_TARGET "$ENV{MACOSX_DEPLOYMENT_TARGET}")
         else()
-            message(NOTICE "CMAKE_OSX_DEPLOYMENT_TARGET is not set, defaulting it to your system's version: ${CMAKE_SYSTEM_VERSION}")
-            set(CMAKE_OSX_DEPLOYMENT_TARGET ${CMAKE_SYSTEM_VERSION})
+            execute_process(
+                COMMAND sw_vers -productVersion
+                OUTPUT_VARIABLE _XRAY_SW_VERS
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                ERROR_QUIET
+            )
+            if (_XRAY_SW_VERS)
+                string(REGEX MATCH "^[0-9]+\\.[0-9]+" _XRAY_SW_VERS_MAJOR_MINOR "${_XRAY_SW_VERS}")
+                if (_XRAY_SW_VERS_MAJOR_MINOR)
+                    set(_XRAY_DEFAULT_OSX_TARGET "${_XRAY_SW_VERS_MAJOR_MINOR}")
+                endif()
+            endif()
+            if (NOT _XRAY_DEFAULT_OSX_TARGET)
+                # Fallback to a safe baseline supported by the engine.
+                set(_XRAY_DEFAULT_OSX_TARGET "11.0")
+            endif()
         endif()
+
+        set(CMAKE_OSX_DEPLOYMENT_TARGET "${_XRAY_DEFAULT_OSX_TARGET}" CACHE STRING "Minimum macOS version to target" FORCE)
+
+        unset(_XRAY_DEFAULT_OSX_TARGET)
+        unset(_XRAY_SW_VERS)
+        unset(_XRAY_SW_VERS_MAJOR_MINOR)
     endif()
     message(STATUS "CMAKE_OSX_DEPLOYMENT_TARGET: ${CMAKE_OSX_DEPLOYMENT_TARGET}")
 endif()
