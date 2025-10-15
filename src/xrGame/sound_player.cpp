@@ -17,6 +17,7 @@
 #include "xrEngine/profiler.h"
 #include "sound_collection_storage.h"
 #include "Common/object_broker.h"
+#include "xrSound/SoundRender_Core.h"
 
 CSoundPlayer::CSoundPlayer(IGameObject* object)
 {
@@ -159,6 +160,9 @@ bool CSoundPlayer::need_bone_data() const
 void CSoundPlayer::play(
     u32 internal_type, u32 max_start_time, u32 min_start_time, u32 max_stop_time, u32 min_stop_time, u32 id)
 {
+    if (!SoundRender || !SoundRender->bPresent)
+        return;
+
     if (!check_sound_legacy(internal_type))
         return;
 
@@ -197,7 +201,13 @@ void CSoundPlayer::play(
         sg_SourceType
     );
     **/
-    sound_single.m_sound->clone((*I).second.second->random(id), st_Effect, sg_SourceType);
+    const ref_sound& template_sound = (*I).second.second->random(id);
+    sound_single.m_sound->clone(template_sound, st_Effect, sg_SourceType);
+    if (!sound_single.m_sound->_get() || !sound_single.m_sound->_handle())
+    {
+        xr_delete(sound_single.m_sound);
+        return;
+    }
 
     sound_single.m_sound->_get()->g_object = m_object;
     sound_single.m_sound->_get()->g_userdata = (*I).second.first.m_data;
