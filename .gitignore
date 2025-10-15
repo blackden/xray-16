@@ -26,3 +26,5 @@ doc/doxygen/html/*
 # macOS bootstrap artifacts
 scripts/.macos-build-env
 Brewfile.lock.json
+logs/
+CMakeUserPresets.json
