@@ -25,3 +25,9 @@
 ## Process Notes
 - `Бриф для codex.md` codifies macOS ARM64-only policy, expected automation artifacts, and commit ordering for incremental history.
 - Log-centric scripting, environment snapshots, and preset alignment reflect emphasis on reproducibility and newcomer-friendly workflow.
+
+## Runtime Log Snapshot (2025-10-15)
+- `logs/openxray_backtrace-2025_10_15-18_49.log:10` records an LLDB launch of `/Users/ragnar/stalker_cop/bin/xr_3da` with `-fsltx ./fsgame.ltx -w -nosound -nointro -log`.
+- `logs/openxray_backtrace-2025_10_15-18_49.log:28` reports only `renderer_r3` as an available render mode, matching the sparse scene (sky and weapon silhouette).
+- `logs/openxray_backtrace-2025_10_15-18_49.log:60` captures GLSL compilation failures for `gl\accum_sun_near_nomsaa_nominmax.ps`, preventing proper lighting.
+- `/Users/ragnar/stalker_cop/_appdata_/logs/openxray_ragnar.log:75081` lists missing UI textures and OpenGL errors for resource bindings during the same session.
