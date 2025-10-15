@@ -3,9 +3,13 @@ name: macOS ARM64 Build (manual)
 on:
   workflow_dispatch:
 
+concurrency:
+  group: macos-arm64-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
-    # Requires a self-hosted runner tagged with macos + arm64.
+    # Requires a self-hosted runner tagged with macos + arm64 and preinstalled Xcode CLT + Homebrew.
     runs-on: [self-hosted, macos, arm64]
 
     steps:
