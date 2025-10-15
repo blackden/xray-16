@@ -30,29 +30,37 @@ Use the helper script (defaults to `RelWithDebInfo`):
 ./scripts/build.sh Release            # Release
 ```
 
-Artifacts appear under `build/macos-arm64/<Config>/`. The presets behind the script can also be triggered manually with `cmake --preset macos-arm64-relwithdebinfo` and `cmake --build --preset macos-arm64-relwithdebinfo-build`.
+Artifacts appear under `build/macos-arm64/<Config>/`. Presets use Ninja and honor `CMAKE_BUILD_PARALLEL_LEVEL`, so the bootstrap default (`sysctl -n hw.ncpu`) gives the same effect as `make -j$(sysctl -n hw.ncpu)`. You can also call them manually with `cmake --preset macos-arm64-relwithdebinfo` and `cmake --build --preset macos-arm64-relwithdebinfo-build`.
 
-## Portable layout & Run
-1. Copy the engine resources to the build output:
+## Game data & Run
+1. Keep the repository `res/` directory in place. If you want resources alongside the build output, create a symlink instead of copying:
    ```bash
    CONFIG=RelWithDebInfo
-   BUILD_DIR="build/macos-arm64/${CONFIG}"
-   cp -R res "${BUILD_DIR}/"
+   BUILD_DIR="${PWD}/build/macos-arm64/${CONFIG}"
+   ln -sfn "${PWD}/res" "${BUILD_DIR}/res"
    ```
-2. Place your S.T.A.L.K.E.R. game data (e.g. `gamedata`, `.db` archives) next to `res/fsgame.ltx`.
-3. Launch the engine from the build directory:
+2. Place your S.T.A.L.K.E.R. Windows game assets (e.g. `gamedata`, `.db*`, `levels`, `localization`, `resources`) next to `res/fsgame.ltx`. Copy or symlink them from the Windows installation. Shaders shipped in this repository already live under `res/gamedata/shaders/`.
+3. Launch the engine (from any directory):
    ```bash
-   cd "${BUILD_DIR}/bin"
-   ./xr_3da -fsltx "${BUILD_DIR}/res/fsgame.ltx" -renderer gl4
+   "${BUILD_DIR}/bin/xr_3da" -fsltx "${PWD}/res/fsgame.ltx" -renderer gl4
    ```
+   `-renderer gl4` is the supported option on macOS; other renderers usually fail with “Can't setup renderer”.
+
+## Logs & diagnostics
+- Every helper script writes a timestamped log under `logs/` (e.g. `logs/build_YYYYMMDD_HHMMSS.log`). The latest build log is also symlinked to `logs/latest_build.log`.
+- Use `NO_LOG=1` to disable log capture temporarily.
+- After configure, copies of `CMakeOutput.log` / `CMakeError.log` (if produced) are stored alongside the build log for quick sharing.
+- `ci/local-build.sh` chains bootstrap + build and keeps its own log.
+- Optional runtime helper: `scripts/run-with-log.sh --config RelWithDebInfo -- -fsltx ./res/fsgame.ltx -renderer gl4` launches the engine with `-log` and copies generated `xray_*.log` files into `logs/run_<timestamp>/`.
 
 ## Troubleshooting
 - Collect a backtrace with LLDB:
   ```bash
-  lldb -- "${PWD}/build/macos-arm64/RelWithDebInfo/bin/xr_3da" --args -fsltx "${PWD}/build/macos-arm64/RelWithDebInfo/res/fsgame.ltx" -renderer gl4
+  lldb -- "${PWD}/build/macos-arm64/RelWithDebInfo/bin/xr_3da" --args -fsltx "${PWD}/res/fsgame.ltx" -renderer gl4
   ```
 - Ensure `brew bundle` completed successfully; missing libraries cause CMake configuration errors.
 - Delete `build/macos-arm64/` if you need a clean reconfigure.
+- “Can't setup renderer” typically means the data path is incorrect. Verify `-fsltx` points to the repository `res/fsgame.ltx` and the required game archives are present.
 
 ## Architecture policy
 ARM64-only. x86_64, Rosetta, and universal binaries are out of scope for this workflow.

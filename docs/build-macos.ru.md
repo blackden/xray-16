@@ -30,29 +30,37 @@
 ./scripts/build.sh Release            # Release
 ```
 
-Готовые бинарники появляются в `build/macos-arm64/<Config>/`. При необходимости можно обратиться напрямую к пресетам CMake: `cmake --preset macos-arm64-relwithdebinfo` и `cmake --build --preset macos-arm64-relwithdebinfo-build`.
+Готовые бинарники появляются в `build/macos-arm64/<Config>/`. Пресеты используют Ninja и учитывают `CMAKE_BUILD_PARALLEL_LEVEL`, поэтому значение по умолчанию (`sysctl -n hw.ncpu` из bootstrap) эквивалентно `make -j$(sysctl -n hw.ncpu)`. При необходимости можно обратиться напрямую к пресетам CMake: `cmake --preset macos-arm64-relwithdebinfo` и `cmake --build --preset macos-arm64-relwithdebinfo-build`.
 
-## Портативный запуск
-1. Скопируйте ресурсы движка рядом с бинарями:
+## Игровые данные и запуск
+1. Сохраните каталог `res/` из репозитория. При необходимости выведите его рядом со сборкой символической ссылкой, а не копированием:
    ```bash
    CONFIG=RelWithDebInfo
-   BUILD_DIR="build/macos-arm64/${CONFIG}"
-   cp -R res "${BUILD_DIR}/"
+   BUILD_DIR="${PWD}/build/macos-arm64/${CONFIG}"
+   ln -sfn "${PWD}/res" "${BUILD_DIR}/res"
    ```
-2. Поместите ресурсы игры (каталог `gamedata`, файлы `.db*`) рядом с `res/fsgame.ltx`.
-3. Запустите движок из каталога сборки:
+2. Разместите ресурсы версии игры для Windows (каталоги `gamedata`, `.db*`, `levels`, `localization`, `resources` и т.п.) рядом с `res/fsgame.ltx`. Можно скопировать файлы или создать символические ссылки. Шейдеры из этого репозитория уже лежат в `res/gamedata/shaders/`.
+3. Запустите движок (из любой директории):
    ```bash
-   cd "${BUILD_DIR}/bin"
-   ./xr_3da -fsltx "${BUILD_DIR}/res/fsgame.ltx" -renderer gl4
+   "${BUILD_DIR}/bin/xr_3da" -fsltx "${PWD}/res/fsgame.ltx" -renderer gl4
    ```
+   На macOS следует использовать `-renderer gl4`; другие режимы обычно завершаются ошибкой «Can't setup renderer».
+
+## Логи и диагностика
+- Каждый вспомогательный скрипт сохраняет лог с меткой времени в каталоге `logs/` (например, `logs/build_YYYYMMDD_HHMMSS.log`). Последний лог сборки доступен по симлинку `logs/latest_build.log`.
+- Можно временно отключить логирование, установив `NO_LOG=1`.
+- После конфигурации копии `CMakeOutput.log` и `CMakeError.log` (если появились) автоматически помещаются в `logs/` рядом с логом сборки.
+- Скрипт `ci/local-build.sh` последовательно выполняет bootstrap и сборку, сохраняя отдельный лог.
+- Дополнительный помощник для запуска: `scripts/run-with-log.sh --config RelWithDebInfo -- -fsltx ./res/fsgame.ltx -renderer gl4` добавляет флаг `-log` и копирует файлы `xray_*.log` в `logs/run_<timestamp>/`.
 
 ## Отладка
 - Для получения бэктрейса воспользуйтесь LLDB:
   ```bash
-  lldb -- "${PWD}/build/macos-arm64/RelWithDebInfo/bin/xr_3da" --args -fsltx "${PWD}/build/macos-arm64/RelWithDebInfo/res/fsgame.ltx" -renderer gl4
+  lldb -- "${PWD}/build/macos-arm64/RelWithDebInfo/bin/xr_3da" --args -fsltx "${PWD}/res/fsgame.ltx" -renderer gl4
   ```
 - Убедитесь, что `brew bundle` завершился без ошибок; отсутствие библиотек приведёт к проблемам конфигурации CMake.
 - При необходимости полной пересборки удалите каталог `build/macos-arm64/`.
+- Сообщение «Can't setup renderer» чаще всего означает, что путь к данным указан неверно. Проверьте аргумент `-fsltx` и наличие игровых архивов в `res/`.
 
 ## Политика по архитектуре
 Только ARM64. Поддержка x86_64, Rosetta и universal-билдов в рамках этого пайплайна не рассматривается.
