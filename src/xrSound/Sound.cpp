@@ -1,6 +1,7 @@
 #include "stdafx.h"
 
 #include "SoundRender_CoreA.h"
+#include "SoundRender_CoreNull.h"
 
 XRSOUND_API u32 snd_device_id = u32(-1);
 
@@ -10,12 +11,14 @@ void CSoundManager::CreateDevicesList()
 {
     ZoneScoped;
 
-    static bool noSound = strstr(Core.Params, "-nosound");
+    static const bool noSound = strstr(Core.Params, "-nosound");
 
-    SoundRender = xr_new<CSoundRender_CoreA>(*this);
+    if (noSound)
+        SoundRender = xr_new<CSoundRender_CoreNull>(*this);
+    else
+        SoundRender = xr_new<CSoundRender_CoreA>(*this);
 
-    if (!noSound)
-        SoundRender->_initialize_devices_list();
+    SoundRender->_initialize_devices_list();
 
     if (!SoundRender->bPresent)
         soundDevices.emplace_back(nullptr, -1);

@@ -6,6 +6,8 @@ target_sources_grouped(
     FILES
     SoundRender_Core.cpp
     SoundRender_Core.h
+    SoundRender_CoreNull.cpp
+    SoundRender_CoreNull.h
     SoundRender_Core_Processor.cpp
     SoundRender_Core_SourceManager.cpp
     SoundRender_Core_StartStop.cpp
