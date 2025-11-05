@@ -193,18 +193,6 @@ static bool must_enable_old_cascades()
     return exist;
 }
 
-void CRender::OnDeviceCreate(pcstr shName)
-{
-    o.new_shader_support = 0;
-
-#if defined(USE_DX11)
-    o.new_shader_support = HW.FeatureLevel >= D3D_FEATURE_LEVEL_11_0 && ps_r2_ls_flags_ext.test(R4FLAGEXT_NEW_SHADER_SUPPORT);
-    Msg("- NEW SHADER SUPPORT ENABLED %i", o.new_shader_support);
-#endif
-
-    D3DXRenderBase::OnDeviceCreate(shName);
-}
-
 //////////////////////////////////////////////////////////////////////////
 // Just two static storage
 void CRender::create()
@@ -649,9 +637,6 @@ void CRender::OnFrame()
 
     if (g_pGamePersistent->MainMenuActiveOrLevelNotExist())
         return;
-
-    if (Details)
-        g_pGamePersistent->GrassBendersUpdateAnimations();
 }
 
 #ifdef USE_OGL
