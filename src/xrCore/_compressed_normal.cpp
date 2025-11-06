@@ -44,6 +44,9 @@ void pvInitializeStatics(void)
 
 u16 pvCompress(const Fvector& vec)
 {
+    if (fis_zero(vec.x) && fis_zero(vec.y) && fis_zero(vec.z))
+        return 0;
+
     // save copy
     Fvector tmp = vec;
 
