@@ -335,6 +335,8 @@ public:
 
     bool m_bFirstFrameAfterReset{}; // Determines weather the frame is the first after resetting device.
 
+    bool m_fast_geom_loaded{};
+
 private:
     // Loading / Unloading
     void LoadBuffers(CStreamReader* fs, bool alternative);
@@ -403,6 +405,12 @@ public:
 #else
 #   error No graphics API selected or enabled!
 #endif
+
+    [[nodiscard]]
+    bool IsFastGeomSupported() const
+    {
+        return m_fast_geom_loaded;
+    }
 
     // Loading / Unloading
     void create() override;
