@@ -62,7 +62,7 @@ setup: ## Install brew deps, update git submodules, verify toolchain
 
 check-configure-prereqs:
 	@command -v cmake >/dev/null || { echo "ERROR: cmake not in PATH (run 'make setup')"; exit 1; }
-	@[ -f Externals/luabind-deboostified/CMakeLists.txt ] || \
+	@[ -f Externals/luabind/CMakeLists.txt ] || \
 		{ echo "ERROR: submodules missing (run 'make setup' or 'git submodule update --init --recursive')"; exit 1; }
 
 $(CONFIG_STAMP): | check-configure-prereqs
