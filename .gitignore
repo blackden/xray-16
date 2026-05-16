@@ -22,3 +22,6 @@
 
 # exclude doxygen output
 doc/doxygen/html/*
+
+# per-run macOS session artifacts created by `make run`
+notes/session-*/
