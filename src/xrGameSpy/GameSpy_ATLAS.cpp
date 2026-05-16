@@ -18,9 +18,12 @@ CGameSpy_ATLAS::~CGameSpy_ATLAS()
 void CGameSpy_ATLAS::Init()
 {
     SCResult init_res = scInitialize(GAMESPY_GAMEID, &m_interface);
-    VERIFY(init_res == SCResult_NO_ERROR);
     if (init_res != SCResult_NO_ERROR)
     {
+        // GameSpy was shut down in 2014; matchmaking always fails. Don't
+        // abort — single-player must keep working. MP code paths guard on
+        // m_interface anyway.
+        m_interface = NULL;
         Msg("! GameSpy ATLAS: failed to initialize, error code: %d", init_res);
     }
 }
