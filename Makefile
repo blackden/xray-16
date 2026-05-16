@@ -8,15 +8,18 @@ SHELL := /bin/bash
 BUILD_DIR    ?= build
 BUILD_TYPE   ?= Mixed
 PARALLEL     ?= 4
-FSGAME_LTX   ?=
+GAME_DIR     ?= $(HOME)/Games/STALKER-CoP
+FSGAME_LTX   ?= $(GAME_DIR)/fsgame.ltx
 EXTRA_ARGS   ?= -nointro
 SESSION_DIR  ?= notes/session-$(shell date +%Y%m%d-%H%M%S)
 HOST_ARCH    := $(shell uname -m)
+STEAM_LOGIN  ?=
+APPID        ?= 41700
 
 CONFIG_STAMP := $(BUILD_DIR)/CMakeCache.txt
 
 .DEFAULT_GOAL := help
-.PHONY: help setup check-configure-prereqs configure build run all clean rebuild
+.PHONY: help setup check-configure-prereqs configure build run all clean rebuild install-game
 
 help: ## Show this help and current settings
 	@echo "OpenXRay macOS automation"
@@ -28,10 +31,13 @@ help: ## Show this help and current settings
 	@echo "  BUILD_DIR    = $(BUILD_DIR)"
 	@echo "  BUILD_TYPE   = $(BUILD_TYPE)  (Debug | Mixed | Release | ReleaseMasterGold)"
 	@echo "  PARALLEL     = $(PARALLEL)"
-	@echo "  FSGAME_LTX   = $(FSGAME_LTX)  (required for 'run')"
+	@echo "  GAME_DIR     = $(GAME_DIR)  (where steamcmd installs the game)"
+	@echo "  FSGAME_LTX   = $(FSGAME_LTX)  (defaults to GAME_DIR/fsgame.ltx)"
 	@echo "  EXTRA_ARGS   = $(EXTRA_ARGS)"
 	@echo "  SESSION_DIR  = $(SESSION_DIR)"
 	@echo "  HOST_ARCH    = $(HOST_ARCH)"
+	@echo "  STEAM_LOGIN  = $(STEAM_LOGIN)  (required for 'install-game')"
+	@echo "  APPID        = $(APPID)  (41700 = Call of Pripyat, 20510 = Clear Sky)"
 
 setup: ## Install brew deps, update git submodules, verify toolchain
 	@echo "==> Host architecture: $(HOST_ARCH)"
@@ -125,6 +131,20 @@ run: build ## Launch xr_3da with FSGAME_LTX=... and capture logs to SESSION_DIR
 	echo "  exit    : $$rc"; \
 	echo "  crashes : $$([ -d '$(SESSION_DIR)/crash-reports' ] && ls '$(SESSION_DIR)/crash-reports' | wc -l | tr -d ' ' || echo 0)"; \
 	exit $$rc
+
+install-game: ## Install CoP/CS via steamcmd into GAME_DIR (needs STEAM_LOGIN)
+	@if [ -z "$(STEAM_LOGIN)" ]; then \
+		echo "ERROR: STEAM_LOGIN is empty. Examples:"; \
+		echo "  make install-game STEAM_LOGIN=yourname"; \
+		echo "  make install-game STEAM_LOGIN=yourname APPID=20510 GAME_DIR=\$$HOME/Games/STALKER-CS"; \
+		exit 1; \
+	fi
+	@command -v steamcmd >/dev/null || { \
+		echo "ERROR: steamcmd not in PATH. Install with: brew install --cask steamcmd"; \
+		exit 1; \
+	}
+	STEAM_LOGIN="$(STEAM_LOGIN)" INSTALL_DIR="$(GAME_DIR)" APPID="$(APPID)" \
+		./scripts/mac/install-cop-steamcmd.sh
 
 all: setup build run ## Run setup + build + run end-to-end
 

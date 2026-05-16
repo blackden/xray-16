@@ -16,16 +16,23 @@ through `steamcmd`.
 
 ### Install
 
+Preferred — via the top-level Makefile:
+
 ```bash
-STEAM_LOGIN=yourname scripts/mac/install-cop-steamcmd.sh
+make install-game STEAM_LOGIN=yourname
 ```
 
-Overrides:
+Override target / install dir:
 
 ```bash
-STEAM_LOGIN=yourname \
-INSTALL_DIR=$HOME/Games/STALKER-CS \
-APPID=20510 \
+make install-game STEAM_LOGIN=yourname APPID=20510 GAME_DIR=$HOME/Games/STALKER-CS
+```
+
+Or call the script directly (same env-var interface):
+
+```bash
+STEAM_LOGIN=yourname scripts/mac/install-cop-steamcmd.sh
+STEAM_LOGIN=yourname INSTALL_DIR=$HOME/Games/STALKER-CS APPID=20510 \
   scripts/mac/install-cop-steamcmd.sh
 ```
 
@@ -34,11 +41,17 @@ for it. Credentials are cached, later runs are non-interactive.
 
 ### After install
 
-The script prints the resolved `fsgame.ltx` path. Plug it into the
-top-level `Makefile`:
+If you used the default `GAME_DIR` (`$HOME/Games/STALKER-CoP`), `make run`
+already points `FSGAME_LTX` there — just:
 
 ```bash
-make run FSGAME_LTX="$HOME/Games/STALKER-CoP/fsgame.ltx"
+make run
+```
+
+If you installed elsewhere, pass it explicitly:
+
+```bash
+make run FSGAME_LTX="$HOME/Games/STALKER-CS/fsgame.ltx"
 ```
 
 ### Notes
