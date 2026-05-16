@@ -22,7 +22,7 @@ APPID        ?= 41700
 CONFIG_STAMP := $(BUILD_DIR)/CMakeCache.txt
 
 .DEFAULT_GOAL := help
-.PHONY: help setup check-configure-prereqs configure build run all clean rebuild install-game
+.PHONY: help setup check-configure-prereqs configure build run run-lldb all clean rebuild install-game link-gamedata
 
 help: ## Show this help and current settings
 	@echo "OpenXRay macOS automation"
@@ -73,8 +73,8 @@ configure: $(CONFIG_STAMP) ## Run cmake configure step (idempotent)
 build: configure ## Build and verify the binary is native Mach-O for HOST_ARCH
 	cmake --build $(BUILD_DIR) --parallel $(PARALLEL)
 	@echo "==> Verifying built binary"
-	@bin=$$(find $(BUILD_DIR) -name xr_3da -type f | head -1); \
-	if [ -z "$$bin" ]; then echo "ERROR: xr_3da not found under $(BUILD_DIR)"; exit 1; fi; \
+	@bin=$$(find bin -name xr_3da -type f 2>/dev/null | head -1); \
+	if [ -z "$$bin" ]; then echo "ERROR: xr_3da not found under bin/"; exit 1; fi; \
 	echo "  binary: $$bin"; \
 	file "$$bin"; \
 	if ! file "$$bin" | grep -q "Mach-O 64-bit executable $(HOST_ARCH)"; then \
@@ -92,8 +92,8 @@ run: build ## Launch xr_3da with FSGAME_LTX=... and capture logs to SESSION_DIR
 		echo "ERROR: FSGAME_LTX=$(FSGAME_LTX) does not exist"; exit 1; \
 	fi
 	@set -o pipefail; \
-	bin=$$(find $(BUILD_DIR) -name xr_3da -type f | head -1); \
-	if [ -z "$$bin" ]; then echo "ERROR: xr_3da not found under $(BUILD_DIR)"; exit 1; fi; \
+	bin=$$(find bin -name xr_3da -type f 2>/dev/null | head -1); \
+	if [ -z "$$bin" ]; then echo "ERROR: xr_3da not found under bin/"; exit 1; fi; \
 	abs_bin=$$(cd "$$(dirname "$$bin")" && pwd)/$$(basename "$$bin"); \
 	mkdir -p "$(SESSION_DIR)"; \
 	echo "==> Session: $(SESSION_DIR)"; \
@@ -112,12 +112,18 @@ run: build ## Launch xr_3da with FSGAME_LTX=... and capture logs to SESSION_DIR
 		| tee "$(SESSION_DIR)/stdout.log" \
 		|| rc=$$?; \
 	echo "==> Process exited with code: $$rc"; \
-	logs_dir="$$(dirname "$(FSGAME_LTX)")/logs"; \
-	if [ -d "$$logs_dir" ]; then \
-		echo "==> Copying engine logs from $$logs_dir"; \
-		cp -R "$$logs_dir" "$(SESSION_DIR)/engine-logs"; \
-	else \
-		echo "==> No engine logs dir at $$logs_dir"; \
+	fs_root="$$(dirname "$(FSGAME_LTX)")"; \
+	copied_any=0; \
+	for logs_dir in "$$fs_root/_appdata_/logs" "$$fs_root/logs"; do \
+		if [ -d "$$logs_dir" ]; then \
+			echo "==> Copying engine logs from $$logs_dir"; \
+			mkdir -p "$(SESSION_DIR)/engine-logs"; \
+			cp -R "$$logs_dir"/* "$(SESSION_DIR)/engine-logs/" 2>/dev/null || true; \
+			copied_any=1; \
+		fi; \
+	done; \
+	if [ "$$copied_any" = "0" ]; then \
+		echo "==> No engine logs found under $$fs_root/{_appdata_/logs,logs}"; \
 	fi; \
 	echo "==> Looking for new crash reports under ~/Library/Logs/DiagnosticReports"; \
 	new_reports=$$(find "$$HOME/Library/Logs/DiagnosticReports" -name 'xr_3da*.ips' -newer "$(SESSION_DIR)/.start" 2>/dev/null || true); \
@@ -135,6 +141,26 @@ run: build ## Launch xr_3da with FSGAME_LTX=... and capture logs to SESSION_DIR
 	echo "  crashes : $$([ -d '$(SESSION_DIR)/crash-reports' ] && ls '$(SESSION_DIR)/crash-reports' | wc -l | tr -d ' ' || echo 0)"; \
 	exit $$rc
 
+run-lldb: build ## Launch xr_3da under lldb to capture a backtrace on crash
+	@if [ -z "$(FSGAME_LTX)" ] || [ ! -f "$(FSGAME_LTX)" ]; then \
+		echo "ERROR: FSGAME_LTX must point to an existing fsgame.ltx"; exit 1; \
+	fi
+	@bin=$$(find bin -name xr_3da -type f 2>/dev/null | head -1); \
+	if [ -z "$$bin" ]; then echo "ERROR: xr_3da not found under bin/"; exit 1; fi; \
+	abs_bin=$$(cd "$$(dirname "$$bin")" && pwd)/$$(basename "$$bin"); \
+	mkdir -p "$(SESSION_DIR)"; \
+	touch "$(SESSION_DIR)/.start"; \
+	echo "==> lldb session: $(SESSION_DIR)"; \
+	echo "==> Inside lldb, type 'run' to start, interact with the game,"; \
+	echo "    and on crash run 'bt all' then 'quit'. Output goes to"; \
+	echo "    $(SESSION_DIR)/lldb.log."; \
+	cd "$$(dirname "$$abs_bin")" && \
+		lldb --batch \
+		     -o "process launch -- -fsltx $(FSGAME_LTX) $(EXTRA_ARGS)" \
+		     -k "bt all" \
+		     -k "quit" \
+		     -- ./xr_3da 2>&1 | tee "$(SESSION_DIR)/lldb.log"
+
 install-game: ## Install CoP/CS via steamcmd into GAME_DIR (needs STEAM_LOGIN)
 	@if [ -z "$(STEAM_LOGIN)" ]; then \
 		echo "ERROR: STEAM_LOGIN is empty. Examples:"; \
@@ -149,9 +175,26 @@ install-game: ## Install CoP/CS via steamcmd into GAME_DIR (needs STEAM_LOGIN)
 	STEAM_LOGIN="$(STEAM_LOGIN)" INSTALL_DIR="$(GAME_DIR)" APPID="$(APPID)" \
 		./scripts/mac/install-cop-steamcmd.sh
 
+link-gamedata: ## Symlink res/gamedata into GAME_DIR (GL shaders, OpenXRay configs)
+	@target="$(GAME_DIR)/gamedata"; \
+	source="$(CURDIR)/res/gamedata"; \
+	if [ ! -d "$$source" ]; then \
+		echo "ERROR: $$source does not exist"; exit 1; \
+	fi; \
+	if [ ! -d "$(GAME_DIR)" ]; then \
+		echo "ERROR: GAME_DIR=$(GAME_DIR) does not exist (run 'make install-game' first)"; exit 1; \
+	fi; \
+	if [ -L "$$target" ]; then \
+		echo "==> Replacing existing symlink at $$target"; rm "$$target"; \
+	elif [ -e "$$target" ]; then \
+		echo "ERROR: $$target exists and is not a symlink — refusing to overwrite"; exit 1; \
+	fi; \
+	ln -s "$$source" "$$target"; \
+	echo "==> Linked $$target -> $$source"
+
 all: setup build run ## Run setup + build + run end-to-end
 
-clean: ## Remove the build directory
-	rm -rf $(BUILD_DIR)
+clean: ## Remove the build and binary output directories
+	rm -rf $(BUILD_DIR) bin
 
 rebuild: clean build ## Wipe build directory and rebuild from scratch
