@@ -172,6 +172,44 @@ Process 70827 exited with status = 0 (0x00000000)
 
 Косметический фикс по дороге: `run-lldb` теперь `--batch` с `-k` (run-on-error), чтобы не плеваться `Command requires a process which is currently stopped` при чистом выходе.
 
+### 10. Дальше: «краш» оказался чистым exit'ом
+
+Контекст: после фикса compressed-3D-текстур (коммит `b00e9c786`) `make run` стабильно «вылетает» во время prefetch'а нового загружаемого уровня (NPC face-текстуры, потом weapon-текстуры — точка движется). lldb-прогон всё так же воспроизводит без крашей.
+
+Подписали бинарь через `make codesign` (новый таргет, [scripts/mac/debug.entitlements](../scripts/mac/debug.entitlements) с `com.apple.security.get-task-allow=true`) — `.ips` всё равно не появился. Полезли в `log show`.
+
+Что нашли в unified log (PID 83346 = xr_3da):
+
+```
+01:19:58.4  WindowServer: normalDeathNotification ... xr_3da
+01:19:58.5  WindowServer: Closing conn 0xac28f, PID 83346
+01:20:00.9  runningboardd: termination reported by proc_exit
+            launchservicesd: LSExitStatus=0
+```
+
+Выводы:
+- **Не краш.** Никакого сигнала, никакого SIGSEGV/jetsam. `proc_exit` + `exitStatus=0` — это штатный `exit()` (или `_exit()`).
+- **Window connection** закрылся за **~2 секунды до** `proc_exit`. То есть GL-окно отвалилось от WindowServer'а, а движок ещё успел доделать что-то в памяти и потом тихо вышел.
+- Engine-лог обрывается посреди строки потому, что `_exit()` не сбрасывает stdio-буферы. Это не «убит сигналом», как мы думали; это «вышел через путь, минующий нормальный shutdown».
+- `.ips` нет потому, что **краша нет** — ReportCrash нечего записывать. Codesign-таргет всё равно полезен для будущих *настоящих* падений.
+
+**Ложный шаг по дороге:** в `log show` сначала я увидел `ReportCrash: PID 83348 exceeded the memory high watermark` и поспешил объявить OOM-jetsam. Оказалось, **83348 — это `XprotectService`** (Apple-овский антивирус), а xr_3da был PID **83346**. Разные процессы. Перепроверять PID — must.
+
+**Что искать дальше:** во время prefetch'а кто-то из этих путей триггерится:
+- Alt-F4 — не наш случай (пользователь не нажимал).
+- Window close button (`SDL_WINDOWEVENT_CLOSE` → `device.cpp:388 Event.Defer("KERNEL:quit")`) — окно ведь само закрылось, могло быть.
+- Console-команда `quit` (`xr_ioc_cmd.cpp:71`).
+- Прямой `exit()` / `_exit()` из движка/драйвера/SDL2 в ответ на ошибку GL.
+
+Гипотеза №1: **Apple GL/Metal во время prefetch'а ловит ошибку (out-of-memory на GPU, или внутренний assert), драйвер закрывает GL-контекст → SDL2 получает window-close → `KERNEL:quit` → штатный shutdown без вывода `FATAL ERROR`**. Под lldb проходит, потому что lldb меняет тайминги/планирование Metal так, что предел не достигается.
+
+Гипотеза №2: где-то в `xrCore`/`xrEngine` есть прямой `exit()` на условие, которое теперь срабатывает. Грепнуть `exit(` / `_exit(` в этих модулях.
+
+**Инструментация на следующий заход:**
+- В [src/xrEngine/Engine.cpp:102](../src/xrEngine/Engine.cpp:102) (handler eQuit) добавить `Msg("==> KERNEL:quit fired"); FlushLog();` чтобы знать, что вообще через эту ветку прошло.
+- В `SDL_WINDOWEVENT_CLOSE` в [device.cpp:380](../src/xrEngine/device.cpp:380) — то же самое.
+- `grep -rn 'exit(\|_exit(' src/xrEngine src/xrCore src/Layers/xrRenderGL` — найти все возможные ранние выходы.
+
 ## Состояние репо к концу сессии
 
 Закоммичено и запушено:
