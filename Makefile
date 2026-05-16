@@ -22,7 +22,7 @@ APPID        ?= 41700
 CONFIG_STAMP := $(BUILD_DIR)/CMakeCache.txt
 
 .DEFAULT_GOAL := help
-.PHONY: help setup check-configure-prereqs configure build run run-lldb all clean rebuild install-game link-gamedata
+.PHONY: help setup check-configure-prereqs configure build run run-lldb all clean rebuild install-game link-gamedata codesign
 
 help: ## Show this help and current settings
 	@echo "OpenXRay macOS automation"
@@ -174,6 +174,15 @@ install-game: ## Install CoP/CS via steamcmd into GAME_DIR (needs STEAM_LOGIN)
 	}
 	STEAM_LOGIN="$(STEAM_LOGIN)" INSTALL_DIR="$(GAME_DIR)" APPID="$(APPID)" \
 		./scripts/mac/install-cop-steamcmd.sh
+
+codesign: ## Ad-hoc sign xr_3da with get-task-allow so macOS writes .ips on crash
+	@bin=$$(find bin -name xr_3da -type f 2>/dev/null | head -1); \
+	if [ -z "$$bin" ]; then echo "ERROR: xr_3da not found under bin/"; exit 1; fi; \
+	abs_bin=$$(cd "$$(dirname "$$bin")" && pwd)/$$(basename "$$bin"); \
+	echo "==> codesign --force -s - --entitlements scripts/mac/debug.entitlements $$abs_bin"; \
+	codesign --force -s - --entitlements scripts/mac/debug.entitlements "$$abs_bin"; \
+	echo "==> Verifying entitlements on $$abs_bin"; \
+	codesign --display --entitlements - "$$abs_bin" 2>&1 | sed 's/^/    /'
 
 link-gamedata: ## Symlink res/gamedata into GAME_DIR (GL shaders, OpenXRay configs)
 	@target="$(GAME_DIR)/gamedata"; \
