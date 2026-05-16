@@ -5,6 +5,9 @@
 
 SHELL := /bin/bash
 
+# Per-developer overrides. .env is gitignored; copy .env.example to .env.
+-include .env
+
 BUILD_DIR    ?= build
 BUILD_TYPE   ?= Mixed
 PARALLEL     ?= 4
