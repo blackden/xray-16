@@ -15,7 +15,18 @@ set(RELVER 5)
 set(ABIVER 5.1)
 set(NODOTABIVER 51)
 
-set(CMAKE_OSX_SYSROOT "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk")
+if (APPLE)
+    # Discover the SDK via xcrun so we work with Command Line Tools too,
+    # not just a full Xcode.app install.
+    execute_process(
+        COMMAND xcrun --sdk macosx --show-sdk-path
+        OUTPUT_VARIABLE _xr_luajit_macos_sdk
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE _xr_luajit_xcrun_result)
+    if (_xr_luajit_xcrun_result EQUAL 0 AND IS_DIRECTORY "${_xr_luajit_macos_sdk}")
+        set(CMAKE_OSX_SYSROOT "${_xr_luajit_macos_sdk}")
+    endif()
+endif()
 set(LUAJIT_DIR ${CMAKE_SOURCE_DIR}/Externals/LuaJIT/src CACHE PATH "Location of luajit sources")
 
 option(BUILD_SHARED_LIBS "Build as shared library" ON)
