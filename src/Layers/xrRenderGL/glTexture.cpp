@@ -129,6 +129,17 @@ GLuint CRender::texture_load(LPCSTR fRName, u32& ret_msize, GLenum& ret_desc)
 
     glm::tvec3<GLsizei> const tex_extent(texture.extent());
 
+    // Apple's OpenGL 4.1 driver (Metal-backed) fails glTexStorage3D for
+    // compressed 3D targets with GL_INVALID_OPERATION. Fall back to the
+    // legacy glCompressedTexImage3D per-level path, which allocates and
+    // uploads in one call and doesn't rely on immutable storage.
+    bool const use_immutable_storage =
+#if defined(XR_PLATFORM_APPLE)
+        !(texture.target() == gli::TARGET_3D && gli::is_compressed(texture.format()));
+#else
+        true;
+#endif
+
     GLenum err;
     switch (texture.target())
     {
@@ -145,13 +156,16 @@ GLuint CRender::texture_load(LPCSTR fRName, u32& ret_msize, GLenum& ret_desc)
         break;
     case gli::TARGET_3D:
     case gli::TARGET_CUBE_ARRAY:
-        glTexStorage3D(target, static_cast<GLint>(texture.levels()), format.Internal,
-                       tex_extent.x, tex_extent.y, tex_extent.z);
-        err = glGetError();
-        if (err != GL_NO_ERROR)
+        if (use_immutable_storage)
         {
-            VERIFY(err == GL_NO_ERROR);
-            Msg("! OpenGL: 0x%x: Invalid 3D texture: '%s'", err, fn);
+            glTexStorage3D(target, static_cast<GLint>(texture.levels()), format.Internal,
+                           tex_extent.x, tex_extent.y, tex_extent.z);
+            err = glGetError();
+            if (err != GL_NO_ERROR)
+            {
+                VERIFY(err == GL_NO_ERROR);
+                Msg("! OpenGL: 0x%x: Invalid 3D texture: '%s'", err, fn);
+            }
         }
         break;
     default:
@@ -209,10 +223,22 @@ GLuint CRender::texture_load(LPCSTR fRName, u32& ret_msize, GLenum& ret_desc)
                 {
                     if (gli::is_compressed(texture.format()))
                     {
-                        glCompressedTexSubImage3D(target, static_cast<GLint>(level),
-                                    0, 0, 0, tex_level_extent.x, tex_level_extent.y, tex_level_extent.z,
-                                    format.Internal, static_cast<GLsizei>(texture.size(level)),
-                                    texture.data(layer, face, level));
+                        if (use_immutable_storage)
+                        {
+                            glCompressedTexSubImage3D(target, static_cast<GLint>(level),
+                                        0, 0, 0, tex_level_extent.x, tex_level_extent.y, tex_level_extent.z,
+                                        format.Internal, static_cast<GLsizei>(texture.size(level)),
+                                        texture.data(layer, face, level));
+                        }
+                        else
+                        {
+                            glCompressedTexImage3D(target, static_cast<GLint>(level),
+                                        format.Internal,
+                                        tex_level_extent.x, tex_level_extent.y, tex_level_extent.z,
+                                        0 /* border */,
+                                        static_cast<GLsizei>(texture.size(level)),
+                                        texture.data(layer, face, level));
+                        }
                         err = glGetError();
                         if (err != GL_NO_ERROR)
                         {
