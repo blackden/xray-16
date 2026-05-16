@@ -149,17 +149,17 @@ run-lldb: build ## Launch xr_3da under lldb to capture a backtrace on crash
 	if [ -z "$$bin" ]; then echo "ERROR: xr_3da not found under bin/"; exit 1; fi; \
 	abs_bin=$$(cd "$$(dirname "$$bin")" && pwd)/$$(basename "$$bin"); \
 	mkdir -p "$(SESSION_DIR)"; \
-	touch "$(SESSION_DIR)/.start"; \
-	echo "==> lldb session: $(SESSION_DIR)"; \
-	echo "==> Inside lldb, type 'run' to start, interact with the game,"; \
-	echo "    and on crash run 'bt all' then 'quit'. Output goes to"; \
-	echo "    $(SESSION_DIR)/lldb.log."; \
+	abs_session=$$(cd "$(SESSION_DIR)" && pwd); \
+	touch "$$abs_session/.start"; \
+	echo "==> lldb session: $$abs_session"; \
+	echo "==> lldb runs in batch mode: 'bt all' fires on crash, then quits."; \
+	echo "    Full lldb+stdout transcript -> $$abs_session/lldb.log"; \
 	cd "$$(dirname "$$abs_bin")" && \
 		lldb --batch \
 		     -o "process launch -- -fsltx $(FSGAME_LTX) $(EXTRA_ARGS)" \
 		     -k "bt all" \
 		     -k "quit" \
-		     -- ./xr_3da 2>&1 | tee "$(SESSION_DIR)/lldb.log"
+		     -- ./xr_3da 2>&1 | tee "$$abs_session/lldb.log"
 
 install-game: ## Install CoP/CS via steamcmd into GAME_DIR (needs STEAM_LOGIN)
 	@if [ -z "$(STEAM_LOGIN)" ]; then \
