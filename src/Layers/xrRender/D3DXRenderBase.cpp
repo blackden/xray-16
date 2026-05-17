@@ -233,6 +233,18 @@ void D3DXRenderBase::ResourcesDeferredUpload()
 {
     Resources->DeferredUpload();
 }
+void D3DXRenderBase::ResourcesDeferredUploadBegin()
+{
+    Resources->DeferredUploadBegin();
+}
+bool D3DXRenderBase::ResourcesDeferredUploadStep(u32 max_count)
+{
+    return Resources->DeferredUploadStep(max_count);
+}
+bool D3DXRenderBase::ResourcesIsUploading() const
+{
+    return Resources->IsUploading();
+}
 void D3DXRenderBase::ResourcesDeferredUnload()
 {
     Resources->DeferredUnload();

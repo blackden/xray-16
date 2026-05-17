@@ -99,6 +99,10 @@ private:
 
     bool loaded{};
 
+    bool m_prefetching{};
+    CTimer m_prefetch_timer;
+    u32 m_prefetch_memory_before{};
+
     // Levels
     struct sLevelInfo
     {
@@ -134,6 +138,13 @@ public:
     CEnvironment* pEnvironment;
     CEnvironment& Environment() { return *pEnvironment; };
     void Prefetch();
+    // Multi-frame variant: kick off prefetch asynchronously, then tick each frame.
+    // Objects + models are uploaded synchronously inside Begin; textures stream
+    // across frames so the main loop keeps pumping events (matters on macOS
+    // where hang detection kills processes whose main thread blocks >2s).
+    void Prefetch_Begin();
+    bool Prefetch_Tick();
+    bool IsPrefetching() const { return m_prefetching; }
 #endif
     ILoadingScreen* m_pLoadingScreen{};
     ISoundScene* m_pSound{};

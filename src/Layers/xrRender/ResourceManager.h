@@ -95,6 +95,8 @@ public:
     xr_vector<std::pair<shared_str, R_constant_setup*>> v_constant_setup;
     BOOL bDeferredLoad;
     bool m_shader_fallback_allowed;
+    bool m_upload_in_progress = false;
+    map_Texture::iterator m_upload_iterator;
     CScriptEngine ScriptEngine;
     Lock ScriptEngineLock;
 
@@ -239,6 +241,9 @@ public:
     void DeleteGeom(const SGeometry* VS);
     void DeferredLoad(BOOL E) { bDeferredLoad = E; }
     void DeferredUpload();
+    void DeferredUploadBegin();
+    bool DeferredUploadStep(u32 max_count);
+    bool IsUploading() const { return m_upload_in_progress; }
     void DeferredUnload();
     void Evict();
     void StoreNecessaryTextures();
