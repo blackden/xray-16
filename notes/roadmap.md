@@ -6,7 +6,7 @@
 
 - **Упаковка нашей сборки в `.app` бандл** — Info.plist, copy dylibs, install_name_tool rpath, codesign. Шаблон взят у [Mac Source Ports build script](https://github.com/MacSourcePorts/MSPBuildSystem/blob/main/xray-16/macsourceports_arm64.sh). **Готово**: `make package` → `dist/OpenXRay.app` с иконкой Monolith и launcher-shim'ом. См. [notes/macos-build-guide.md](macos-build-guide.md).
 - **Локализация мелочей в `res/gamedata/configs/text/rus/openxray.xml`** — "Выйти в Windows" → "Выйти в macOS" (частично сделано; работает в Clear Sky UI style, в дефолтном CoP menu пока остаётся). Подробности в "Известные баги".
-- **DMG для брата с бандленными игровыми данными** — поверх `dist/OpenXRay.app` положить game data файлы (`db/`, `localization/`, `levels/`, `resources/`, etc.) и фиксированный `fsgame.ltx` рядом. Идея: `dist/OpenXRay.app` + `dist/STALKER-CoP/` в одной DMG → пользователь перетаскивает оба в `/Applications/`, launcher знает где искать. Альтернатива: всё внутри `.app/Contents/Resources/STALKER-CoP/` — но это распухает бандл до ~5 GB. Дизайн обсуждается.
+- **DMG для брата с бандленными игровыми данными** — **Готово**. `make all-in-one` собирает `dist/OpenXRay-AllInOne.dmg` (~4.5 GB UDZO): `OpenXRay.app` + `STALKER-CoP/` side-by-side. Получатель перетаскивает обе иконки в `/Applications/`, кликает по `.app`, играет. Сейвы и логи — `~/Library/Application Support/OpenXRay/` через `-overlaypath` (см. [macos-build-guide.md](macos-build-guide.md) раздел «Вариант "всё в одном"»).
 - **Cocoa intervention (Plan B)** — `disableAutomaticTermination` + override `applicationShouldTerminateAfterLastWindowClosed`. Закрывает один из путей смерти на macOS. ~30 минут ObjC.
 
 ## Среднесрочно (недели)

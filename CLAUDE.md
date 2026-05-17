@@ -44,6 +44,7 @@ Runtime-зависимости на Linux: SDL2, lzo, libjpeg-turbo, OpenAL, lib
 - `-cs` — Clear Sky
 - (без флага) — Call of Pripyat
 - `-fsltx <path>` — путь к `fsgame.ltx`, который указывает где лежат игровые данные
+- `-overlaypath <path>` — перенаправляет `$app_data_root$` и `$logs$` на абсолютный путь, не трогая `fsgame.ltx` (реализовано в `src/xrCore/LocatorAPI.cpp:1041-1055`). Парсер использует `sscanf("%[^ ] ", ...)` — путь не должен содержать пробелов; для путей вида `~/Library/Application Support/...` оборачивайте через симлинк без пробелов.
 - `-nogame` — запустить движок без `xrGame.dll`
 - `-nointro` — пропустить интро
 

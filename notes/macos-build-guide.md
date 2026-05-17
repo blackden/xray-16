@@ -123,13 +123,48 @@ Launcher детектирует флаг `--debug`, проверяет нали�
 Нужны только:
 1. macOS 11+ (Big Sur и выше)
 2. Apple Silicon ИЛИ Intel x86_64 (нужен билд под нужную архитектуру; кросс-сборка `-DCMAKE_OSX_ARCHITECTURES=x86_64` на Apple Silicon работает)
-3. Игровые данные. Варианты:
-   - Лицензионный CoP из Steam + `make install-game` на их машине
-   - **Бандлирование gamedata в `.app`** — обсуждаем отдельно, см. roadmap
+3. Игровые данные — либо лицензионный CoP из Steam + `make install-game` на машине получателя, либо см. `make all-in-one` ниже.
 
-Шаги получателю (вариант "положили DMG, играй"):
+### Вариант "всё в одном" — `make all-in-one`
+
+Для случая, когда получателю не нужно ни steamcmd, ни `make`, ни понимания структуры игры:
+
 ```bash
-# 1. Получить и установить .app
+make all-in-one                                       # использует $GAME_DIR (~/Games/STALKER-CoP)
+make all-in-one GAMEDATA_SRC=/path/to/STALKER-CoP     # либо явно указать источник
+```
+
+Результат — `dist/OpenXRay-AllInOne.dmg` (~4.5 ГБ, UDZO zlib compression). Внутри:
+- `OpenXRay.app` — наш бандл движка с дилибами.
+- `STALKER-CoP/` — игровые данные: `gamedata/` (дереференс симлинка на `res/gamedata/`), `levels/`, `localization/`, `mp/`, `patches/`, `resources/`, `fsgame.ltx`, `user.ltx`.
+- `README.txt` — короткая инструкция по-русски.
+
+**НЕ попадает в DMG**: Windows-only хлам (`bin/`, `directx/`, `Stalker-COP.exe`, `helpers/`, `steamapps/`, `41700_install.vdf`, `ReadMe.txt`) и `_appdata_/` (саваам — туда же, куда движок будет писать новые).
+
+**Куда уходят сейвы и логи получателя:** `~/Library/Application Support/OpenXRay/_appdata_/`. Лаунчер передаёт `-overlaypath ~/.openxray-data/` в xr_3da (это симлинк на Application Support, нужен из-за того что `-overlaypath` парсится `sscanf %[^ ]` и не любит пробелов). Папка `STALKER-CoP/_appdata_/` внутри установки остаётся пустой/отсутствующей.
+
+**Шаги получателю:**
+```bash
+# 1. Скачать и смонтировать DMG (двойной клик в Finder тоже работает)
+hdiutil attach OpenXRay-AllInOne.dmg
+
+# 2. Перетащить ОБЕ иконки в /Applications/ (или ~/Applications/)
+cp -R "/Volumes/OpenXRay All-in-One/OpenXRay.app" /Applications/
+cp -R "/Volumes/OpenXRay All-in-One/STALKER-CoP"  /Applications/
+
+# 3. Размонтировать DMG, запустить
+hdiutil detach "/Volumes/OpenXRay All-in-One"
+open /Applications/OpenXRay.app
+```
+
+При первом запуске Gatekeeper может ругнуться (ad-hoc подпись): ПКМ → Открыть → Открыть. Лаунчер ищет `fsgame.ltx` каскадно: `$OPENXRAY_FSGAME_LTX` → рядом с `.app` (для запуска прямо с DMG) → `/Applications/STALKER-CoP/` → `~/Applications/STALKER-CoP/` → забитый при сборке дефолт. Если ни одного нет — показывает алёрт с инструкцией.
+
+### Вариант "без бандленных данных" — `make package`
+
+Старый сценарий: только `.app`, ~80 МБ, получатель сам ставит игру.
+
+```bash
+# 1. Установить .app
 hdiutil attach OpenXRay.dmg && cp -R "/Volumes/OpenXRay/OpenXRay.app" /Applications/
 
 # 2. Игровые данные (если не бандлили):
@@ -151,6 +186,7 @@ make help                           # все цели + текущие пере�
 - `BUILD_TYPE` — `Mixed` (по умолч.), `Release`, `ReleaseMasterGold`, `Debug`
 - `BUILD_DIR` — папка cmake-кэша (по умолч. `build`)
 - `GAME_DIR` — где steamcmd ставит игру (по умолч. `~/Games/STALKER-CoP`)
+- `GAMEDATA_SRC` — откуда `make all-in-one` берёт игровые данные (по умолч. `$GAME_DIR`)
 - `FSGAME_LTX` — путь к fsgame.ltx (по умолч. `$GAME_DIR/fsgame.ltx`)
 - `PARALLEL` — число параллельных задач сборки (по умолч. 4)
 
