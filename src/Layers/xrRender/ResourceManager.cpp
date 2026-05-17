@@ -371,6 +371,42 @@ void CResourceManager::DeferredUpload()
 #endif
 }
 
+void CResourceManager::DeferredUploadBegin()
+{
+    if (!Device.b_is_Ready)
+        return;
+    m_upload_iterator = m_textures.begin();
+    m_upload_in_progress = true;
+}
+
+bool CResourceManager::DeferredUploadStep(u32 max_count)
+{
+    if (!m_upload_in_progress)
+        return true;
+    if (!Device.b_is_Ready)
+    {
+        m_upload_in_progress = false;
+        return true;
+    }
+
+    ZoneScoped;
+
+    u32 count = 0;
+    while (m_upload_iterator != m_textures.end() && count < max_count)
+    {
+        m_upload_iterator->second->Load();
+        ++m_upload_iterator;
+        ++count;
+    }
+
+    if (m_upload_iterator == m_textures.end())
+    {
+        m_upload_in_progress = false;
+        return true;
+    }
+    return false;
+}
+
 void CResourceManager::DeferredUnload()
 {
     if (!Device.b_is_Ready)

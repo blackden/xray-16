@@ -379,7 +379,15 @@ void IGame_Persistent::OnGameStart()
 #ifndef _EDITOR
     LoadTitle("st_prefetching_objects");
     if (!strstr(Core.Params, "-noprefetch"))
+    {
+#if defined(XR_PLATFORM_APPLE)
+        // macOS hang detection kills the process if the main thread blocks
+        // for >2s. Run prefetch incrementally so the main loop keeps pumping.
+        Prefetch_Begin();
+#else
         Prefetch();
+#endif
+    }
 #endif
 }
 
@@ -406,6 +414,47 @@ void IGame_Persistent::Prefetch()
 
     Msg("* [prefetch] time:   %d ms", timer.GetElapsed_ms());
     Msg("* [prefetch] memory: %d Kb", memoryAfter / 1024);
+}
+
+void IGame_Persistent::Prefetch_Begin()
+{
+    ZoneScoped;
+
+    m_prefetch_timer.Start();
+    m_prefetch_memory_before = Memory.mem_usage();
+
+    Log("Loading objects...");
+    ObjectPool.prefetch();
+
+    Log("Loading models...");
+    GEnv.Render->models_Prefetch();
+
+    Log("Loading textures (async)...");
+    GEnv.Render->ResourcesDeferredUploadBegin();
+    m_prefetching = true;
+}
+
+bool IGame_Persistent::Prefetch_Tick()
+{
+    if (!m_prefetching)
+        return true;
+
+    ZoneScoped;
+
+    // Upload a small batch each frame to keep the main loop responsive.
+    // 32 textures per frame on macOS yields ~22 frames for a 700-texture
+    // level prefetch — well under the 2-second hang threshold per frame.
+    constexpr u32 kBatchSize = 32;
+    const bool done = GEnv.Render->ResourcesDeferredUploadStep(kBatchSize);
+
+    if (done)
+    {
+        const auto memoryAfter = Memory.mem_usage() - m_prefetch_memory_before;
+        Msg("* [prefetch] time:   %d ms", m_prefetch_timer.GetElapsed_ms());
+        Msg("* [prefetch] memory: %d Kb", memoryAfter / 1024);
+        m_prefetching = false;
+    }
+    return done;
 }
 #endif
 
@@ -552,6 +601,10 @@ void IGame_Persistent::ShowLoadingScreen(bool show) const
 void IGame_Persistent::OnFrame()
 {
     ZoneScoped;
+
+#ifndef _EDITOR
+    Prefetch_Tick();
+#endif
 
     SpatialSpace.update();
     SpatialSpacePhysic.update();

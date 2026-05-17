@@ -373,6 +373,9 @@ public:
     //	Resources control
     virtual void DeferredLoad(bool E) = 0;
     virtual void ResourcesDeferredUpload() = 0;
+    virtual void ResourcesDeferredUploadBegin() = 0;
+    virtual bool ResourcesDeferredUploadStep(u32 max_count) = 0;
+    virtual bool ResourcesIsUploading() const = 0;
     virtual void ResourcesDeferredUnload() = 0;
     virtual void ResourcesGetMemoryUsage(u32& m_base, u32& c_base, u32& m_lmaps, u32& c_lmaps) = 0;
     virtual void ResourcesDestroyNecessaryTextures() = 0;

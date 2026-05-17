@@ -41,6 +41,9 @@ public:
     //	Resources control
     virtual void DeferredLoad(bool E) override;
     virtual void ResourcesDeferredUpload() override;
+    virtual void ResourcesDeferredUploadBegin() override;
+    virtual bool ResourcesDeferredUploadStep(u32 max_count) override;
+    virtual bool ResourcesIsUploading() const override;
     virtual void ResourcesDeferredUnload() override;
     virtual void ResourcesGetMemoryUsage(u32& m_base, u32& c_base, u32& m_lmaps, u32& c_lmaps) override;
     virtual void ResourcesDestroyNecessaryTextures() override;
