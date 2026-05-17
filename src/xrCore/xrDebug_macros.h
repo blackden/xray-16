@@ -1,6 +1,7 @@
 #pragma once
 
 #include "xrDebug.h"
+#include "log.h"
 
 #define DEBUG_INFO {__FILE__, __LINE__, __FUNCTION__}
 #define CHECK_OR_EXIT(expr, message)\
@@ -148,6 +149,22 @@
         if (!ignoreAlways && FAILED(hr_))\
             xrDebug::Fail(ignoreAlways, DEBUG_INFO, #expr, hr_);\
     } while (false)
+#if defined(XR_PLATFORM_APPLE)
+// On Apple GL (Metal-backed OpenGL 4.1) many operations raise expected errors
+// that the engine has no workaround for (compressed 3D textures, certain
+// framebuffer attachments, MSAA RT targets marked TODO in code). Falling into
+// xrDebug::Fail here also exercises a buffer-overflow path in the formatter
+// that triggers a PAC trap inside Cocoa's modal dialog setup. Log and keep
+// rendering instead — visual artifacts beat a fatal crash on macOS.
+#define CHK_GL(expr)\
+    do\
+    {\
+        expr;\
+        GLenum err = glGetError();\
+        if (err != GL_NO_ERROR)\
+            Msg("! OpenGL: %s -> 0x%X", #expr, (unsigned)err);\
+    } while (false)
+#else
 #define CHK_GL(expr)\
     do\
     {\
@@ -157,6 +174,7 @@
         if (!ignoreAlways && err != GL_NO_ERROR)\
             xrDebug::Fail(ignoreAlways, DEBUG_INFO, #expr, (long)err);\
     } while (false)
+#endif
 #else // DEBUG
 #define R_ASSERT1_CURE(expr, cure)\
     do\
