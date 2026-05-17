@@ -95,6 +95,27 @@ OPENXRAY_FSGAME_LTX=/path/to/fsgame.ltx open dist/OpenXRay.app
 
 Логи: `~/Library/Logs/OpenXRay/openxray.log`. Engine собственные логи (включая `_appdata_/logs/`): внутри `GAME_DIR/_appdata_/logs/`.
 
+### Запуск с отладкой
+
+Если игра падает или зависает, и хочется собрать stack trace для отчёта:
+
+```bash
+open dist/OpenXRay.app --args --debug
+# или напрямую:
+/Applications/OpenXRay.app/Contents/MacOS/OpenXRay --debug
+```
+
+Launcher детектирует флаг `--debug`, проверяет наличие `lldb` в `PATH` и запускает `xr_3da` под отладчиком. Любой crash → полный `thread backtrace all` уходит в `~/Library/Logs/OpenXRay/openxray-debug.log`.
+
+Требования:
+- На машине должен быть установлен `lldb`. На macOS он входит в **Xcode Command Line Tools** — установка одной командой:
+  ```bash
+  xcode-select --install
+  ```
+- Бандл подписан с entitlement `com.apple.security.get-task-allow` (см. [scripts/mac/debug.entitlements](../scripts/mac/debug.entitlements)) — без неё macOS блокирует attach даже к ad-hoc подписанному бинарю.
+
+Если `lldb` не найден, launcher пишет предупреждение в `openxray-debug.log` и запускает обычно, без отладчика.
+
 ## Распространение брату/другому Mac'у
 
 **Бандл самодостаточен по библиотекам**. Homebrew у получателя не требуется.
