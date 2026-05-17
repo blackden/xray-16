@@ -235,10 +235,91 @@ Process 70827 exited with status = 0 (0x00000000)
 - **`renderer_r3` в OpenXRay GL-сборке — это OpenGL**, а не DX10. Названия унаследованы от ванильного движка, не сбивайся.
 - **Шаг verify в Makefile падал не потому что сборка не прошла**, а потому что искал не там. Лог `[100%] Linking ... xr_3da` — он уже про success. Сначала читать лог сборки, потом верить ошибке верификатора.
 
+### 11. Расследование «тихого kill'а» в prefetch (вторая сессия за день)
+
+Бэкграунд: после фиксов bring-up'а игра под `make run-lldb` идёт end-to-end (см. шаг 9). А под чистым `make run` падает посреди load screen'а после «Новая игра → лёгкая → загрузка», без FATAL, без crash report. Сессии: [014042](session-20260517-014042/), [014642](session-20260517-014642/), [015506](session-20260517-015506/), [020020](session-20260517-020020/), [020853](session-20260517-020853/), [031643](session-20260517-031643/), [032109](session-20260517-032109/), [032844](session-20260517-032844/).
+
+Цель — найти и починить. Прошли по systematic-debugging skill (Phase 1–3).
+
+**Что доказано:**
+
+1. **Hang detection срабатывает**. Apple spindump в [unified log сессии 014642] явно:
+   > `spindump: xr_3da [96425]: spin: start`
+   > `[96425] is unresponsive, hasn't responded for 2.1 seconds`
+   Главный тред заблокирован на много секунд в `CResourceManager::DeferredUpload` (загрузка ~700 текстур синхронно одна за другой), не пампит SDL/Cocoa события, WindowServer пингает по Mach IPC, ответа нет → macOS считает приложение зависшим.
+
+2. **`LSExitStatus=0` без kernel-reason** + **WindowServer `normalDeathNotification`** за ~2 секунды до `proc_exit`. То есть это не SIGKILL и не jetsam — выглядит как clean `_exit()` из Cocoa.
+
+3. **Под `lldb` не воспроизводится** — отладчик меняет тайминги/policy. Это **heisenbug по таймингу**, не по содержимому.
+
+4. **Crash point «плывёт»** — то на `act_face_04_bump#`, то на `wpn_aksu_bump#`, то на `act_stalker_dolg_1`. Зависит от того, когда watchdog успеет.
+
+**Аномалия — `atexit` не срабатывает даже из `xrDebug::DoExit`:** мы добавили `atexit()` маркер в `main`. Не сработал ни разу. Даже когда в [сессии 020853] явно был FATAL ERROR + полный stack trace через `xrDebug::DoExit` → `exit(1)`. Гипотеза: внутри `OnFatalError()` ([Device_mode.cpp:259](../src/xrEngine/Device_mode.cpp:259)) вызывается `SDL_HideWindow(m_sdlWnd)` — последнее видимое окно скрывается. Cocoa default `applicationShouldTerminateAfterLastWindowClosed` = YES → `[NSApp terminate:]` → `_exit(0)` → atexit пропускается. Это объясняет и FATAL-выход, и silent kill (где hang detection тоже триггерит закрытие окна).
+
+**Что починено по дороге:**
+- `glTexture.cpp` — все 6 VERIFY вокруг GL ошибок (тот же антипаттерн `VERIFY + Msg`-в-`if` как в GameSpy_ATLAS). Коммит `345d0e2b9`. Apple GL не принимает compressed 3D форматы вообще — теперь движок логирует ошибку и едет дальше с битой water normal-map, вместо FATAL.
+
+**Что НЕ помогло:**
+- `SDL_PumpEvents()` каждые 32 текстуры внутри `DeferredUpload` ([session 015506]) — регресс: краш ещё раньше, на UI меню.
+- `SDL_PumpEvents()` каждую текстуру ([session 032109]) — то же.
+- `SDL_GL_SwapWindow()` каждые 32 текстуры ([session 032844]) — то же.
+
+Гипотеза почему: любая Cocoa-операция изнутри тяжёлого GL-loop'а дёргает nested event dispatch, который зачем-то ломает GL state (или просто меняет тайминги и hang catches earlier). По skill'у: 3-й fail на одной идее → **гипотеза верна, но реализация не годится в принципе. Нужно архитектурное изменение.**
+
+**Реальный фикс — multi-frame prefetch.** Сейчас всё работает так:
+
+```
+ProcessFrame
+  FrameMove
+    eStart event → Prefetch → ResourcesDeferredUpload → 700 textures, ~10 sec
+  DoRender  ← никогда не доходим, frame не закрывается
+```
+
+Нужно:
+
+```
+ProcessFrame N
+  FrameMove → DeferredUpload_Tick (32 текстуры) → return
+  DoRender → отрисовать loading screen
+ProcessFrame N+1
+  FrameMove → DeferredUpload_Tick (ещё 32) → return
+  DoRender → перерисовать loading screen
+...
+ProcessFrame N+M (последний)
+  FrameMove → DeferredUpload_Tick → готово → ставим флаг "prefetch done"
+  DoRender → ...
+ProcessFrame N+M+1
+  FrameMove → eStart продолжается → запуск уровня
+```
+
+Между кадрами движок штатно проходит через `SDL_PollEvent`/`SDL_PumpEvents` (`xr_input.cpp:190` и др.), Cocoa получает свои события на нормальном фрейм-loop'е, не вылетая.
+
+Это требует:
+1. `CResourceManager` — превратить `DeferredUpload()` в pump-state-machine с итератором и `IsUploading()`.
+2. `IGame_Persistent::Prefetch` — превратить в три фазы (objects, models, textures); первые две оставить синхронными, третью — асинхронной.
+3. `IGame_Persistent::OnGameStart` или engine main loop — драйвер: пока `IsUploading()`, не запускать `Start("level")`.
+4. UI loading screen — поверить что `DoRender` нарисует его, пока prefetch идёт.
+
+Объём — несколько часов аккуратной работы. Рискованное место — порядок инициализации мира (`Start("level")` дёргается ПОСЛЕ `Prefetch`).
+
+## Состояние репо к концу второй сессии
+
+Закоммичено локально (но НЕ запушено на этом шаге, см. p.s. внизу):
+- `345d0e2b9` — `glTexture.cpp` VERIFY-фикс. **Кандидат в апстрим** (универсальная починка анти-паттерна).
+- `b2c4e4d2f` — diagnostic markers (atexit, handler_base, KERNEL:quit, main returning, setvbuf). **Не для апстрима**, оставлено для будущего расследования.
+
 ## Следующая сессия
 
-1. Прогнать `make run` ещё раз — теперь должно дойти дальше выбора рендерера. Куда — узнаем.
-2. Закоммитить пачку фиксов из этой сессии (cmake/xrun/sw_vers, Makefile bin/, link-gamedata). Резонно одним коммитом «macOS Tahoe / CLT-only bring-up fixes», или разбить по теме. Предложить пользователю выбор.
-3. Если упало — записать новый `notes/session-NN.md` и категоризировать падение по модулю в стектрейсе (план из [progress.md](progress.md) и [apple-silicon.md](apple-silicon.md)).
+Прямо в multi-frame prefetch:
+1. Спроектировать state machine `CResourceManager::DeferredUpload` (см. план выше).
+2. Реализовать поэтапно: сначала ResourceManager-уровень, потом интегрировать в Prefetch/main loop.
+3. Тестировать после каждого этапа (атомарные коммиты, легко откатить).
+4. Когда заработает на macOS — проверить, что DX/Windows сборка не сломалась (`xr_parallel_for_each` ветка должна жить рядом).
 
-Точка возобновления: «продолжаем по `notes/session-01.md`, последний прогон — `notes/session-<timestamp>/`».
+Альтернативный план Б (если multi-frame окажется слишком тяжёлым): попробовать ObjC-инъекцию `[[NSProcessInfo processInfo] disableAutomaticTermination:@"prefetch"]` + override `applicationShouldTerminateAfterLastWindowClosed:` через subclass NSApplication. Это адресует ВТОРОЙ путь смерти (_exit от Cocoa), но не первый (hang detection). Может частично помочь.
+
+Точка возобновления: «продолжаем по `notes/session-01.md`, multi-frame prefetch — следующий шаг».
+
+---
+
+**P.S. для будущего меня:** перед коммитом я (Claude) дважды поспешил с выводами — сначала про SIGSEGV, потом про jetsam-OOM. В обоих случаях достроил картину на полу-evidence. Урок: PID разных процессов перепутать стыдно, проверять PID перед выводом о процессе — must. И `superpowers:systematic-debugging` skill реально помогает не прыгать на первую правдоподобную теорию — стоит звать его сразу при появлении бага, а не после нескольких циклов.
