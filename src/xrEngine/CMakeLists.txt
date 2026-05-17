@@ -407,6 +407,27 @@ target_sources(xrEngine
     TODO.txt
 )
 
+if(APPLE)
+    target_sources_grouped(
+        TARGET xrEngine
+        NAME "Platform\\macOS"
+        FILES
+        macos_cocoa_shim.mm
+    )
+    set_source_files_properties(
+        macos_cocoa_shim.mm
+        PROPERTIES
+        SKIP_PRECOMPILE_HEADERS ON
+        SKIP_UNITY_BUILD_INCLUSION ON
+        COMPILE_FLAGS "-fobjc-arc"
+    )
+    target_link_libraries(xrEngine
+        PRIVATE
+        "-framework AppKit"
+        "-framework Foundation"
+    )
+endif()
+
 target_include_directories(xrEngine
     PRIVATE
     "${CMAKE_CURRENT_SOURCE_DIR}"
