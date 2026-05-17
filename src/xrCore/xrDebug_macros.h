@@ -218,7 +218,23 @@
 #define VERIFY3(expr, desc, arg1) do {} while (false)
 #define VERIFY4(expr, desc, arg1, arg2) do {} while (false)
 #define CHK_DX(expr) expr
+#if defined(XR_PLATFORM_APPLE)
+// On Apple GL we keep GL error reporting even in MasterGold. Apple's
+// Metal-backed GL 4.1 silently mis-handles several operations (compressed
+// 3D textures, MSAA framebuffers, certain blits); a no-op CHK_GL hides the
+// state where the driver enters its recovery / TX path. Logging is cheap
+// and gives us the only post-mortem we have on a hung machine.
+#define CHK_GL(expr)\
+    do\
+    {\
+        expr;\
+        GLenum err = glGetError();\
+        if (err != GL_NO_ERROR)\
+            Msg("! OpenGL: %s -> 0x%X", #expr, (unsigned)err);\
+    } while (false)
+#else
 #define CHK_GL(expr) expr
+#endif
 #endif // DEBUG
 
 #if XRAY_EXCEPTIONS
