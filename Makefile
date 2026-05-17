@@ -12,6 +12,7 @@ BUILD_DIR    ?= build
 BUILD_TYPE   ?= Mixed
 PARALLEL     ?= 4
 GAME_DIR     ?= $(HOME)/Games/STALKER-CoP
+GAMEDATA_SRC ?= $(GAME_DIR)
 FSGAME_LTX   ?= $(GAME_DIR)/fsgame.ltx
 EXTRA_ARGS   ?= -nointro
 SESSION_DIR  ?= notes/session-$(shell date +%Y%m%d-%H%M%S)
@@ -22,7 +23,7 @@ APPID        ?= 41700
 CONFIG_STAMP := $(BUILD_DIR)/CMakeCache.txt
 
 .DEFAULT_GOAL := help
-.PHONY: help setup check-configure-prereqs configure build run run-lldb all clean rebuild install-game link-gamedata codesign package
+.PHONY: help setup check-configure-prereqs configure build run run-lldb all clean rebuild install-game link-gamedata codesign package all-in-one
 
 help: ## Show this help and current settings
 	@echo "OpenXRay macOS automation"
@@ -35,6 +36,7 @@ help: ## Show this help and current settings
 	@echo "  BUILD_TYPE   = $(BUILD_TYPE)  (Debug | Mixed | Release | ReleaseMasterGold)"
 	@echo "  PARALLEL     = $(PARALLEL)"
 	@echo "  GAME_DIR     = $(GAME_DIR)  (where steamcmd installs the game)"
+	@echo "  GAMEDATA_SRC = $(GAMEDATA_SRC)  (source for 'all-in-one'; defaults to GAME_DIR)"
 	@echo "  FSGAME_LTX   = $(FSGAME_LTX)  (defaults to GAME_DIR/fsgame.ltx)"
 	@echo "  EXTRA_ARGS   = $(EXTRA_ARGS)"
 	@echo "  SESSION_DIR  = $(SESSION_DIR)"
@@ -210,6 +212,20 @@ package: ## Build ReleaseMasterGold and bundle into dist/OpenXRay.app
 		DEFAULT_FSGAME_LTX="$(FSGAME_LTX)" \
 		APP_VERSION="$$(git describe --always --dirty 2>/dev/null || echo dev)" \
 		scripts/mac/package_app.sh
+
+all-in-one: ## Bundle .app + game data side-by-side into dist/OpenXRay-AllInOne.dmg
+	@if [ ! -f "$(GAMEDATA_SRC)/fsgame.ltx" ]; then \
+		echo "ERROR: GAMEDATA_SRC=$(GAMEDATA_SRC) has no fsgame.ltx."; \
+		echo "       Pass GAMEDATA_SRC=/path/to/STALKER-CoP,"; \
+		echo "       or run 'make install-game STEAM_LOGIN=...' first."; \
+		exit 1; \
+	fi
+	@$(MAKE) build BUILD_TYPE=ReleaseMasterGold BUILD_DIR=build-release
+	@GAMEDATA_SRC="$(GAMEDATA_SRC)" \
+		HOST_ARCH=$(HOST_ARCH) \
+		BUILD_TYPE=ReleaseMasterGold \
+		APP_VERSION="$$(git describe --always --dirty 2>/dev/null || echo dev)" \
+		scripts/mac/package_all_in_one.sh
 
 clean: ## Remove the build and binary output directories
 	rm -rf $(BUILD_DIR) build-release bin dist

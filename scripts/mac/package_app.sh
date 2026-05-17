@@ -153,22 +153,60 @@ cat > "${MACOS_DIR}/${PRODUCT_NAME}" <<EOF
 #!/bin/bash
 # OpenXRay macOS launcher.
 #
-# Pass --debug as the first argument to run under lldb (requires Xcode Command
-# Line Tools on the host). Backtraces of any crash land in openxray-debug.log
-# next to the regular game log.
+# Looks for fsgame.ltx in this order:
+#   1. \$OPENXRAY_FSGAME_LTX (env override)
+#   2. STALKER-CoP/ side-by-side with the .app (DMG / all-in-one layout)
+#   3. /Applications/STALKER-CoP/fsgame.ltx
+#   4. \$HOME/Applications/STALKER-CoP/fsgame.ltx
+#   5. Path baked at build time: ${DEFAULT_FSGAME_LTX}
 #
-# Override game data path via env: OPENXRAY_FSGAME_LTX=/path/to/fsgame.ltx
+# Saves, configs, and engine logs go to ~/Library/Application Support/OpenXRay/
+# via the engine's -overlaypath flag. Since -overlaypath is parsed with
+# sscanf("%[^ ] ", ...) it rejects paths with spaces, so we route through a
+# space-free symlink at ~/.openxray-data.
+#
+# Pass --debug as the first argument to run under lldb (requires Xcode Command
+# Line Tools). Backtraces land in openxray-debug.log next to the regular log.
 set -u
 SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
-FSGAME_LTX="\${OPENXRAY_FSGAME_LTX:-${DEFAULT_FSGAME_LTX}}"
 LOG_DIR="\${HOME}/Library/Logs/OpenXRay"
 mkdir -p "\${LOG_DIR}"
 
+# 1. Cascade-locate fsgame.ltx
+FSGAME_LTX=""
+for cand in \\
+    "\${OPENXRAY_FSGAME_LTX:-}" \\
+    "\${SCRIPT_DIR}/../../../STALKER-CoP/fsgame.ltx" \\
+    "/Applications/STALKER-CoP/fsgame.ltx" \\
+    "\${HOME}/Applications/STALKER-CoP/fsgame.ltx" \\
+    "${DEFAULT_FSGAME_LTX}"; do
+    if [ -n "\$cand" ] && [ -f "\$cand" ]; then
+        FSGAME_LTX="\$cand"
+        break
+    fi
+done
+if [ -z "\$FSGAME_LTX" ]; then
+    msg="OpenXRay: не найден fsgame.ltx. Положите STALKER-CoP/ рядом с OpenXRay.app (например в /Applications/), или задайте OPENXRAY_FSGAME_LTX."
+    echo "\$msg" >> "\${LOG_DIR}/openxray.log"
+    osascript -e "display alert \\"OpenXRay\\" message \\"\$msg\\"" >/dev/null 2>&1 || true
+    exit 1
+fi
+
+# 2. Set up writable _appdata_ location outside the bundle
+APPDATA_DIR="\${HOME}/Library/Application Support/OpenXRay"
+mkdir -p "\${APPDATA_DIR}/_appdata_"
+OVERLAY_LINK="\${HOME}/.openxray-data"
+if [ ! -L "\${OVERLAY_LINK}" ] || [ "\$(readlink "\${OVERLAY_LINK}")" != "\${APPDATA_DIR}" ]; then
+    rm -f "\${OVERLAY_LINK}"
+    ln -s "\${APPDATA_DIR}" "\${OVERLAY_LINK}"
+fi
+
+# 3. Launch
 if [ "\${1:-}" = "--debug" ]; then
     shift
     if command -v lldb >/dev/null 2>&1; then
         exec lldb --batch \\
-            -o "process launch -- -fsltx \${FSGAME_LTX} -nointro \$*" \\
+            -o "process launch -- -fsltx \${FSGAME_LTX} -overlaypath \${OVERLAY_LINK}/ -nointro \$*" \\
             -k "thread backtrace all" \\
             -k "quit" \\
             "\${SCRIPT_DIR}/xr_3da" \\
@@ -180,7 +218,10 @@ if [ "\${1:-}" = "--debug" ]; then
         # Fall through to normal launch
     fi
 fi
-exec "\${SCRIPT_DIR}/xr_3da" -fsltx "\${FSGAME_LTX}" -nointro "\$@" \\
+exec "\${SCRIPT_DIR}/xr_3da" \\
+    -fsltx "\${FSGAME_LTX}" \\
+    -overlaypath "\${OVERLAY_LINK}/" \\
+    -nointro "\$@" \\
     >> "\${LOG_DIR}/openxray.log" 2>&1
 EOF
 chmod +x "${MACOS_DIR}/${PRODUCT_NAME}"
