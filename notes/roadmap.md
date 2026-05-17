@@ -4,8 +4,9 @@
 
 ## Краткосрочно (часы-дни)
 
-- **Упаковка нашей сборки в `.app` бандл** — Info.plist, copy dylibs, install_name_tool rpath, codesign, DMG. Шаблон: [Mac Source Ports build script](https://github.com/MacSourcePorts/MSPBuildSystem/blob/main/xray-16/macsourceports_arm64.sh). Польза: нормальные хоткеи, иконка, отправляем DMG брату.
-- **Локализация мелочей в `res/gamedata/configs/text/rus/openxray.xml`** — "Выйти в Windows" → "Выйти в macOS" (сделано).
+- **Упаковка нашей сборки в `.app` бандл** — Info.plist, copy dylibs, install_name_tool rpath, codesign. Шаблон взят у [Mac Source Ports build script](https://github.com/MacSourcePorts/MSPBuildSystem/blob/main/xray-16/macsourceports_arm64.sh). **Готово**: `make package` → `dist/OpenXRay.app` с иконкой Monolith и launcher-shim'ом. См. [notes/macos-build-guide.md](macos-build-guide.md).
+- **Локализация мелочей в `res/gamedata/configs/text/rus/openxray.xml`** — "Выйти в Windows" → "Выйти в macOS" (частично сделано; работает в Clear Sky UI style, в дефолтном CoP menu пока остаётся). Подробности в "Известные баги".
+- **DMG для брата с бандленными игровыми данными** — поверх `dist/OpenXRay.app` положить game data файлы (`db/`, `localization/`, `levels/`, `resources/`, etc.) и фиксированный `fsgame.ltx` рядом. Идея: `dist/OpenXRay.app` + `dist/STALKER-CoP/` в одной DMG → пользователь перетаскивает оба в `/Applications/`, launcher знает где искать. Альтернатива: всё внутри `.app/Contents/Resources/STALKER-CoP/` — но это распухает бандл до ~5 GB. Дизайн обсуждается.
 - **Cocoa intervention (Plan B)** — `disableAutomaticTermination` + override `applicationShouldTerminateAfterLastWindowClosed`. Закрывает один из путей смерти на macOS. ~30 минут ObjC.
 
 ## Среднесрочно (недели)
@@ -29,7 +30,9 @@
 
 ## Известные открытые баги
 
-- **Кириллица в сохранениях** — нужны детали от пользователя. В логе видно что файлы сохраняются с кириллическими именами успешно (`Денис Федоров - arrival at the Skadovsk.scop`), значит проблема не в filesystem. Возможно: рендеринг шрифта, перенос строк, UI-overflow.
+- **"Выйти в Windows" в дефолтном CoP main menu** — наш overlay `ui_mm_quit2windows="Выйти в macOS"` срабатывает только для Clear Sky UI style (`styles_/ui_style_cs/`). Дефолтный CoP main menu (`ui_mm_main.xml`) живёт внутри `.db*` архивов и использует другой string id для quit-кнопки и подтверждающего диалога (`message_box_quit_windows`). Чинится одним из двух:
+  - Распаковать `.db` (упаковщик `src/utils/xrCompress`, распаковщика готового нет — нужно либо использовать сторонний `db_unpacker`, либо проинструментировать движок чтобы он дампил), найти string id, добавить в `res/gamedata/configs/text/rus/openxray.xml`
+  - Положить полный overlay `res/gamedata/configs/ui/ui_mm_main.xml` с нашим caption — но это копия 100+ строк, придётся синхронизировать с апстримом
 - **Light glitches** на Скадовске — зависит от угла камеры. Корень — Apple GL shim.
 - **Cmd+Q крашит** (наследие MSP build известная проблема, наш build тоже подвержен) — это PAC trap в xrDebug::Fail когда движок инициирует terminate.
 
