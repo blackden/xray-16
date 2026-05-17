@@ -82,6 +82,15 @@ int main(int argc, char *argv[])
 {
     int result = EXIT_FAILURE;
 
+#if defined(XR_PLATFORM_APPLE)
+    // Phase 1 diagnostic for the silent-exit issue on macOS. Unbuffer stdout
+    // so nothing is lost on abrupt termination, and register an atexit marker
+    // so we can tell "exit() was called from somewhere" apart from "killed by
+    // a signal (atexit doesn't run)".
+    setvbuf(stdout, nullptr, _IONBF, 0);
+    atexit([]() { fprintf(stderr, "==> ATEXIT fired\n"); fflush(stderr); });
+#endif
+
     try
     {
         char* commandLine = nullptr;
@@ -126,6 +135,11 @@ int main(int argc, char *argv[])
     // this executes if f() throws std::string or int or any other unrelated type
     }
 
+#if defined(XR_PLATFORM_APPLE)
+    // Phase 1 diagnostic: did main reach this point (normal return path)?
+    fprintf(stderr, "==> main returning with code %d\n", result);
+    fflush(stderr);
+#endif
     return result;
 }
 #endif

@@ -609,6 +609,13 @@ void xr_terminate()
 
 static void handler_base(const char* reason)
 {
+#if defined(XR_PLATFORM_APPLE)
+    // Phase 1 diagnostic: write an async-signal-safe marker to stderr so we
+    // can confirm whether any handled signal actually fires on macOS before
+    // attempting xrDebug::Fail (which is NOT async-signal-safe).
+    static const char marker[] = "==> handler_base entered\n";
+    write(STDERR_FILENO, marker, sizeof(marker) - 1);
+#endif
     bool ignoreAlways = false;
     xrDebug::Fail(ignoreAlways, DEBUG_INFO, nullptr, reason, nullptr, nullptr);
 }

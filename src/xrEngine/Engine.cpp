@@ -101,6 +101,11 @@ void CEngine::OnEvent(EVENT E, u64 P1, u64 P2)
 {
     if (E == eQuit)
     {
+#if defined(XR_PLATFORM_APPLE)
+        // Phase 1 diagnostic: did KERNEL:quit fire (engine initiating its own shutdown)?
+        static const char marker[] = "==> KERNEL:quit handler fired (eQuit)\n";
+        ::write(STDERR_FILENO, marker, sizeof(marker) - 1);
+#endif
         if (pInput != nullptr)
             pInput->GrabInput(false);
 
