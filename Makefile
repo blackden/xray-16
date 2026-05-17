@@ -22,7 +22,7 @@ APPID        ?= 41700
 CONFIG_STAMP := $(BUILD_DIR)/CMakeCache.txt
 
 .DEFAULT_GOAL := help
-.PHONY: help setup check-configure-prereqs configure build run run-lldb all clean rebuild install-game link-gamedata codesign
+.PHONY: help setup check-configure-prereqs configure build run run-lldb all clean rebuild install-game link-gamedata codesign package
 
 help: ## Show this help and current settings
 	@echo "OpenXRay macOS automation"
@@ -203,7 +203,15 @@ link-gamedata: ## Symlink res/gamedata into GAME_DIR (GL shaders, OpenXRay confi
 
 all: setup build run ## Run setup + build + run end-to-end
 
+package: ## Build ReleaseMasterGold and bundle into dist/OpenXRay.app
+	@$(MAKE) build BUILD_TYPE=ReleaseMasterGold BUILD_DIR=build-release
+	@BUILD_TYPE=ReleaseMasterGold \
+		HOST_ARCH=$(HOST_ARCH) \
+		DEFAULT_FSGAME_LTX="$(FSGAME_LTX)" \
+		APP_VERSION="$$(git describe --always --dirty 2>/dev/null || echo dev)" \
+		scripts/mac/package_app.sh
+
 clean: ## Remove the build and binary output directories
-	rm -rf $(BUILD_DIR) bin
+	rm -rf $(BUILD_DIR) build-release bin dist
 
 rebuild: clean build ## Wipe build directory and rebuild from scratch
