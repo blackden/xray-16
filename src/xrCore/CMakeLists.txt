@@ -452,6 +452,26 @@ target_include_directories(xrCore
     "${CMAKE_SOURCE_DIR}/Externals/mimalloc/include"
 )
 
+# When XRAY_ENABLE_TRACY is ON the engine references tracy::Profiler symbols
+# via the headers under Externals/tracy/public; the MSBuild project compiles
+# Externals/tracy/public/TracyClient.cpp alongside xrCore (xrCore.vcxproj:49),
+# but the CMake path historically only added the include directory above and
+# omitted the .cpp -- so linking failed on tracy:: symbols. Compile the client
+# here when Tracy is enabled to keep the two build systems in sync.
+if(XRAY_ENABLE_TRACY)
+    target_sources(xrCore PRIVATE
+        "${CMAKE_SOURCE_DIR}/Externals/tracy/public/TracyClient.cpp"
+    )
+    # Tracy's amalgamated client includes vendored libbacktrace headers that
+    # clash with our PCH / unity batches; build it in isolation.
+    set_source_files_properties(
+        "${CMAKE_SOURCE_DIR}/Externals/tracy/public/TracyClient.cpp"
+        PROPERTIES
+            SKIP_UNITY_BUILD_INCLUSION ON
+            SKIP_PRECOMPILE_HEADERS ON
+    )
+endif()
+
 target_link_libraries(xrCore
     PUBLIC
     pthread

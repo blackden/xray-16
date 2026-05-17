@@ -180,7 +180,34 @@ open /Applications/OpenXRay.app
 make clean                          # снести build/, build-release/, bin/, dist/
 make rebuild                        # clean + build
 make help                           # все цели + текущие переменные
+make test                           # regression checks + safe_append unit test
+make profile                        # сборка Mixed с включённым Tracy (см. ниже)
 ```
+
+## Tracy profiler
+
+Tracy client уже vendored (`Externals/tracy/public/`), GUI ставится отдельно:
+
+```bash
+brew install tracy                  # GUI client (wolfpld/tracy 0.13+)
+make profile                        # собирает Mixed-билд с XRAY_ENABLE_TRACY=ON в build-profile/
+tracy &                             # запускаем GUI, ждёт подключения на TCP 8086
+# запускаем движок через make run или прямо открываем .app
+```
+
+Что увидишь в Tracy: `FrameMarkStart/End` маркеры (`x_ray.cpp:214`), `ZoneScoped` блоки в hot paths (`xrCore`, render passes). Полезно для: определения GPU stall'ов, hot path'ов в Lua, identif хеш-коллизий в FS_Path lookup. Trace-файлы Tracy кладёшь в `notes/tracy/` (gitignored).
+
+## Тесты
+
+```bash
+make test
+```
+
+Запускает:
+- `tests/regression_checks.sh` — grep-based static checks что engine-фиксы ещё на месте (`rescan_path` без early-return, `_set_root` нормализует separators, `xrDebug::GatherInfo` использует `safe_append`, CHK_GL логирует на Apple, occlusion queries polling, и т.д.). Дёшево, ловит «случайно откатили коммит» сценарии.
+- `tests/safe_append_test.cpp` — standalone C++ binary, реимплементирует `safe_append` algorithm из `xrDebug.cpp` и тестирует его поведение под overflow. Не линкует против `xrCore` (это потребовало бы Core.Initialize / SDL / Memory init — слишком heavy для unit-теста); вместо этого encode'ит spec.
+
+Если хочешь полноценный integration-тест engine-функций — это уже отдельная задача (нужна минимальная FS init API).
 
 Переменные через окружение или `.env`:
 - `BUILD_TYPE` — `Mixed` (по умолч.), `Release`, `ReleaseMasterGold`, `Debug`
@@ -198,6 +225,33 @@ make help                           # все цели + текущие пере�
 - `xr_utf8_to_cp1251` хелпер + использование в save-уведомлении — кириллическое имя пользователя не превращается в крокозябры
 - "Выйти в macOS" (overlay строки `ui_mm_quit2windows` — пока ловится только для Clear Sky UI style; для дефолтного CoP main menu нужен XML overlay из .db архивов, в roadmap)
 - VERIFY → log conversion в `glTexture.cpp` и `GameSpy_ATLAS.cpp` (антипаттерн "VERIFY + Msg-в-`if`")
+
+## Vanilla compatibility check (procedure для пользователя)
+
+Project ethos из `CLAUDE.md`: ванильные gamedata архивы должны продолжать работать. Наши FS-фиксы (`rescan_path`, `_set_root`) — platform-agnostic, теоретически могли затронуть vanilla path. Проверка:
+
+```bash
+# 1. Убедиться что в game dir нет нашего gamedata overlay (или временно его убрать)
+ls -la /Applications/STALKER-CoP/gamedata 2>/dev/null   # если симлинк -> наш res/gamedata
+# если симлинк есть и указывает на наш repo, временно убрать:
+#   rm /Applications/STALKER-CoP/gamedata
+
+# 2. Запустить с vanilla:
+OPENXRAY_FSGAME_LTX=/Applications/STALKER-CoP/fsgame.ltx open /Applications/OpenXRay.app
+
+# 3. Проверки:
+#    - Главное меню рендерится
+#    - "Новая игра" → "Старт" → первый уровень грузится без FATAL
+#    - 1-2 минуты gameplay'а без крашей
+
+# 4. Проверить лог:
+grep -E "FATAL|ERROR|CHK_GL" ~/Library/Logs/OpenXRay/openxray.log | head -20
+
+# 5. После проверки восстановить overlay если он был:
+#    ln -s /Users/ragnar/fedorov_tech/xray-16/res/gamedata /Applications/STALKER-CoP/gamedata
+```
+
+Если найдёшь регрессию vs vanilla — описать в `notes/roadmap.md` под «Известные баги», в `tests/regression_checks.sh` добавить grep-проверку чтобы не повторилось.
 
 ## Известные ограничения
 
