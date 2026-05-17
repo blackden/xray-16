@@ -696,6 +696,11 @@ public:
         // file-name part before concat so the whole resulting string is in
         // the encoding the renderer expects. S itself is untouched (it has
         // already been sent to the network packet above for the actual save).
+        // Belt and suspenders: if S still carries UTF-8 bytes from some
+        // user-typed name, normalize the file-name part to cp1251 before the
+        // concat so the renderer (which reads cp1251 from XML/scripts) gets a
+        // consistent encoding. ASCII pass-through unchanged. Mixed-encoding
+        // input (rare) leaves iconv with no-op fallback.
         string_path display_S;
         xr_strcpy(display_S, S);
         xr_utf8_to_cp1251(display_S, sizeof(display_S));

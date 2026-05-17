@@ -30,6 +30,8 @@
 
 ## Известные открытые баги
 
+- **Скриншоты сохранений не пишутся на диск на macOS** — APFS отвергает cp1251 байты из localized сохраняющего тега (`начало игры` и т.п.) как невалидный UTF-8 → EILSEQ. Сам `.scop` пишется (отдельным path'ом), но `.dds` thumbnail — нет. Корень: движок передаёт cp1251 строки прямо в `FS.update_path`→`fopen`. Фикс — добавить cp1251→UTF-8 конвертацию на границе FS API на macOS. Несколько часов аккуратного аудита всех write путей с cp1251 строками.
+- **Кириллица в `Core.UserName` отключена на macOS** — берём `pw_name` (ASCII login) вместо `pw_gecos` (UTF-8 real name). Иначе UI рендерит mojibake + EILSEQ на FS-путях. Связано с предыдущим пунктом — после фикса cp1251→UTF-8 на границах можно вернуть `pw_gecos`.
 - **"Выйти в Windows" в дефолтном CoP main menu** — наш overlay `ui_mm_quit2windows="Выйти в macOS"` срабатывает только для Clear Sky UI style (`styles_/ui_style_cs/`). Дефолтный CoP main menu (`ui_mm_main.xml`) живёт внутри `.db*` архивов и использует другой string id для quit-кнопки и подтверждающего диалога (`message_box_quit_windows`). Чинится одним из двух:
   - Распаковать `.db` (упаковщик `src/utils/xrCompress`, распаковщика готового нет — нужно либо использовать сторонний `db_unpacker`, либо проинструментировать движок чтобы он дампил), найти string id, добавить в `res/gamedata/configs/text/rus/openxray.xml`
   - Положить полный overlay `res/gamedata/configs/ui/ui_mm_main.xml` с нашим caption — но это копия 100+ строк, придётся синхронизировать с апстримом

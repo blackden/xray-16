@@ -151,19 +151,51 @@ printf "APPLOPXR" > "${APP_DIR}/Contents/PkgInfo"
 echo "==> Writing launcher shim"
 cat > "${MACOS_DIR}/${PRODUCT_NAME}" <<EOF
 #!/bin/bash
-# OpenXRay macOS launcher. Set OPENXRAY_FSGAME_LTX to override game data path.
+# OpenXRay macOS launcher.
+#
+# Pass --debug as the first argument to run under lldb (requires Xcode Command
+# Line Tools on the host). Backtraces of any crash land in openxray-debug.log
+# next to the regular game log.
+#
+# Override game data path via env: OPENXRAY_FSGAME_LTX=/path/to/fsgame.ltx
 set -u
 SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
 FSGAME_LTX="\${OPENXRAY_FSGAME_LTX:-${DEFAULT_FSGAME_LTX}}"
 LOG_DIR="\${HOME}/Library/Logs/OpenXRay"
 mkdir -p "\${LOG_DIR}"
+
+if [ "\${1:-}" = "--debug" ]; then
+    shift
+    if command -v lldb >/dev/null 2>&1; then
+        exec lldb --batch \\
+            -o "process launch -- -fsltx \${FSGAME_LTX} -nointro \$*" \\
+            -k "thread backtrace all" \\
+            -k "quit" \\
+            "\${SCRIPT_DIR}/xr_3da" \\
+            >> "\${LOG_DIR}/openxray-debug.log" 2>&1
+    else
+        echo "WARNING: --debug requested but lldb not found on PATH." \\
+            "Install Xcode Command Line Tools (xcode-select --install) to enable." \\
+            >> "\${LOG_DIR}/openxray-debug.log"
+        # Fall through to normal launch
+    fi
+fi
 exec "\${SCRIPT_DIR}/xr_3da" -fsltx "\${FSGAME_LTX}" -nointro "\$@" \\
     >> "\${LOG_DIR}/openxray.log" 2>&1
 EOF
 chmod +x "${MACOS_DIR}/${PRODUCT_NAME}"
 
 echo "==> Ad-hoc codesigning bundle"
+# Two-pass sign: first the bundle deep (signs all dylibs, launcher), then
+# re-sign xr_3da with the get-task-allow entitlement so lldb can attach on
+# the user's machine (without that entitlement macOS refuses attach even to
+# an ad-hoc binary the user owns). The entitlement only applies to xr_3da;
+# the rest of the bundle stays under plain ad-hoc sign. This is fine for
+# personal builds, not for App Store distribution.
+ENTITLEMENTS="${REPO_ROOT}/scripts/mac/debug.entitlements"
 codesign --force --deep --sign - "${APP_DIR}" >/dev/null
+codesign --force --sign - --entitlements "${ENTITLEMENTS}" \
+    "${MACOS_DIR}/xr_3da" >/dev/null
 
 echo
 echo "==> Done"
