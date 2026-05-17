@@ -29,3 +29,6 @@ notes/session-*/
 
 # packaged .app bundle output from `make package`
 /dist/
+build-profile/
+build-tests/
+notes/tracy/

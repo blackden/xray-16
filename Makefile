@@ -27,7 +27,7 @@ RELEASE_BIN      := bin/$(HOST_ARCH)/ReleaseMasterGold/xr_3da
 DIST_APP         := dist/OpenXRay.app
 
 .DEFAULT_GOAL := help
-.PHONY: help setup check-configure-prereqs configure build build-release run run-lldb all clean rebuild install-game link-gamedata codesign bundle package install all-in-one
+.PHONY: help setup check-configure-prereqs configure build build-release profile run run-lldb all clean rebuild install-game link-gamedata codesign bundle package install all-in-one test
 
 help: ## Show this help and current settings
 	@echo "OpenXRay macOS automation"
@@ -209,8 +209,32 @@ link-gamedata: ## Symlink res/gamedata into GAME_DIR (GL shaders, OpenXRay confi
 
 all: setup build run ## Run setup + build + run end-to-end
 
+test: ## Run regression checks + safe_append unit test (no xrCore link)
+	@echo "==> Static regression checks"
+	@tests/regression_checks.sh
+	@echo
+	@echo "==> Compiling safe_append unit test"
+	@mkdir -p build-tests
+	@clang++ -std=c++17 -Wall -Wextra tests/safe_append_test.cpp -o build-tests/safe_append_test
+	@echo "==> Running safe_append unit test"
+	@build-tests/safe_append_test
+
 build-release: ## Compile the ReleaseMasterGold binary into bin/$(HOST_ARCH)/ReleaseMasterGold/
 	@$(MAKE) build BUILD_TYPE=ReleaseMasterGold BUILD_DIR=build-release
+
+profile: ## Build with Tracy enabled (Mixed config) -- captures frame markers/ZoneScoped
+	@command -v tracy >/dev/null || command -v Tracy >/dev/null || { \
+		echo "WARNING: 'tracy' GUI client not found on PATH."; \
+		echo "         Install with: brew install tracy"; \
+		echo "         (build will continue; the engine sends data over TCP to the GUI.)"; \
+	}
+	@if [ ! -f build-profile/CMakeCache.txt ]; then \
+		cmake -B build-profile -DCMAKE_BUILD_TYPE=Mixed -DCMAKE_UNITY_BUILD=ON -DXRAY_ENABLE_TRACY=ON; \
+	fi
+	cmake --build build-profile --parallel $(PARALLEL)
+	@echo "==> Tracy-enabled binary:"
+	@find bin -name xr_3da -type f -newer build-profile/CMakeCache.txt 2>/dev/null | head -1 | sed 's/^/  /'
+	@echo "==> Run: 'tracy' (GUI), then launch xr_3da -- it broadcasts on TCP 8086 by default."
 
 bundle: ## Assemble dist/OpenXRay.app from an existing release binary (no compile; idempotent)
 	@if [ ! -f "$(RELEASE_BIN)" ]; then \
