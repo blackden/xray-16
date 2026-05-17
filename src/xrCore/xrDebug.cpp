@@ -150,6 +150,37 @@ void xrDebug::LogStackTrace(const char* header)
 }
 
 
+namespace
+{
+// Safe printf-into-buffer that handles vsnprintf's "would-have-been" return
+// value correctly. The naive `buffer += xr_sprintf(buffer, end - buffer, ...)`
+// pattern advances `buffer` past `end` whenever a single call truncates
+// (vsnprintf returns the length it *would* have written, not what it wrote).
+// On the next call `end - buffer` then underflows as size_t to a huge value,
+// the bounded-write becomes unbounded, and the stack-allocated assertionInfo
+// gets clobbered -- including the saved return address. On ARM64 macOS this
+// trips the PAC trap on Fail()'s return; on Windows it's a latent bug masked
+// by the BugTrap short-circuit.
+void safe_append(char*& buffer, const char* const oneAboveBuffer, const char* fmt, ...)
+{
+    if (!buffer || buffer >= oneAboveBuffer)
+        return;
+    const size_t remaining = static_cast<size_t>(oneAboveBuffer - buffer);
+    if (remaining < 2) // need room for at least one char + NUL
+        return;
+    va_list args;
+    va_start(args, fmt);
+    const int written = vsnprintf(buffer, remaining, fmt, args);
+    va_end(args);
+    if (written < 0)
+        return;
+    const size_t actuallyWritten = (static_cast<size_t>(written) < remaining)
+        ? static_cast<size_t>(written)
+        : remaining - 1; // truncated; advance only by what was actually written
+    buffer += actuallyWritten;
+}
+} // namespace
+
 void xrDebug::GatherInfo(char* assertionInfo, size_t bufferSize, const ErrorLocation& loc, const char* expr,
                          const char* desc, const char* arg1, const char* arg2)
 {
@@ -158,37 +189,37 @@ void xrDebug::GatherInfo(char* assertionInfo, size_t bufferSize, const ErrorLoca
         expr = "<no expression>";
     bool extendedDesc = desc && strchr(desc, '\n');
     pcstr prefix = "[error] ";
-    const char* oneAboveBuffer = assertionInfo + bufferSize;
-    buffer += xr_sprintf(buffer, oneAboveBuffer - buffer, "\nFATAL ERROR\n\n");
-    buffer += xr_sprintf(buffer, oneAboveBuffer - buffer, "%sExpression    : %s\n", prefix, expr);
-    buffer += xr_sprintf(buffer, oneAboveBuffer - buffer, "%sFunction      : %s\n", prefix, loc.Function);
-    buffer += xr_sprintf(buffer, oneAboveBuffer - buffer, "%sFile          : %s\n", prefix, loc.File);
-    buffer += xr_sprintf(buffer, oneAboveBuffer - buffer, "%sLine          : %d\n", prefix, loc.Line);
+    const char* const oneAboveBuffer = assertionInfo + bufferSize;
+    safe_append(buffer, oneAboveBuffer, "\nFATAL ERROR\n\n");
+    safe_append(buffer, oneAboveBuffer, "%sExpression    : %s\n", prefix, expr);
+    safe_append(buffer, oneAboveBuffer, "%sFunction      : %s\n", prefix, loc.Function);
+    safe_append(buffer, oneAboveBuffer, "%sFile          : %s\n", prefix, loc.File);
+    safe_append(buffer, oneAboveBuffer, "%sLine          : %d\n", prefix, loc.Line);
     if (extendedDesc)
     {
-        buffer += xr_sprintf(buffer, oneAboveBuffer - buffer, "\n%s\n", desc);
+        safe_append(buffer, oneAboveBuffer, "\n%s\n", desc);
         if (arg1)
         {
-            buffer += xr_sprintf(buffer, oneAboveBuffer - buffer, "%s\n", arg1);
+            safe_append(buffer, oneAboveBuffer, "%s\n", arg1);
             if (arg2)
-                buffer += xr_sprintf(buffer, oneAboveBuffer - buffer, "%s\n", arg2);
+                safe_append(buffer, oneAboveBuffer, "%s\n", arg2);
         }
     }
     else
     {
-        buffer += xr_sprintf(buffer, oneAboveBuffer - buffer, "%sDescription   : %s\n", prefix, desc);
+        safe_append(buffer, oneAboveBuffer, "%sDescription   : %s\n", prefix, desc);
         if (arg1)
         {
             if (arg2)
             {
-                buffer += xr_sprintf(buffer, oneAboveBuffer - buffer, "%sArgument 0    : %s\n", prefix, arg1);
-                buffer += xr_sprintf(buffer, oneAboveBuffer - buffer, "%sArgument 1    : %s\n", prefix, arg2);
+                safe_append(buffer, oneAboveBuffer, "%sArgument 0    : %s\n", prefix, arg1);
+                safe_append(buffer, oneAboveBuffer, "%sArgument 1    : %s\n", prefix, arg2);
             }
             else
-                buffer += xr_sprintf(buffer, oneAboveBuffer - buffer, "%sArguments     : %s\n", prefix, arg1);
+                safe_append(buffer, oneAboveBuffer, "%sArguments     : %s\n", prefix, arg1);
         }
     }
-    buffer += xr_sprintf(buffer, oneAboveBuffer - buffer, "\n");
+    safe_append(buffer, oneAboveBuffer, "\n");
 
     Log(assertionInfo);
     FlushLog();
@@ -200,13 +231,13 @@ void xrDebug::GatherInfo(char* assertionInfo, size_t bufferSize, const ErrorLoca
 #endif
 
     Log("stack trace:\n");
-    buffer += xr_sprintf(buffer, oneAboveBuffer - buffer, "stack trace:\n\n");
+    safe_append(buffer, oneAboveBuffer, "stack trace:\n\n");
 
     xr_vector<xr_string> stackTrace = BuildStackTrace();
     for (size_t i = 2; i < stackTrace.size(); i++)
     {
         Log(stackTrace[i].c_str());
-        buffer += xr_sprintf(buffer, oneAboveBuffer - buffer, "%s\n", stackTrace[i].c_str());
+        safe_append(buffer, oneAboveBuffer, "%s\n", stackTrace[i].c_str());
     }
 
     FlushLog();
@@ -348,6 +379,13 @@ pcstr xrDebug::ErrorToString(long code)
         FormatMessage(FORMAT_MESSAGE_FROM_SYSTEM, 0, code, 0, descStorage, sizeof(descStorage) - 1, 0);
         result = descStorage;
     }
+#else
+    // No symbolic translator on non-Windows yet. Returning nullptr was unsafe
+    // because GatherInfo passes desc into strchr(desc, '\n') unconditionally;
+    // a non-null placeholder lets the failure path render an honest message
+    // instead of triggering UB en route to the FATAL dialog.
+    (void)code;
+    result = "<error code translation unavailable on this platform>";
 #endif
     return result;
 }
