@@ -1921,11 +1921,16 @@ void CLocatorAPI::set_file_age(pcstr nm, u32 age)
 
 void CLocatorAPI::rescan_path(pcstr full_path, bool bRecurse)
 {
+    // Note: if lower_bound returns end() (e.g. when -overlaypath redirects a
+    // path that wasn't previously indexed), the cleanup loop below is a no-op
+    // and we proceed straight to Recurse to scan the new location. The earlier
+    // version of this function returned early on end() and skipped Recurse,
+    // which left programmatically-added paths (overlay, save redirects)
+    // permanently unindexed — FS.exist would then return false even when the
+    // file existed on disk.
     file desc;
     desc.name = full_path;
     files_it I = m_files.lower_bound(desc);
-    if (I == m_files.end())
-        return;
 
     size_t base_len = xr_strlen(full_path);
     for (; I != m_files.end();)

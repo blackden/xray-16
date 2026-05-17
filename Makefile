@@ -22,8 +22,12 @@ APPID        ?= 41700
 
 CONFIG_STAMP := $(BUILD_DIR)/CMakeCache.txt
 
+INSTALL_APP_DIR  ?= /Applications/OpenXRay.app
+RELEASE_BIN      := bin/$(HOST_ARCH)/ReleaseMasterGold/xr_3da
+DIST_APP         := dist/OpenXRay.app
+
 .DEFAULT_GOAL := help
-.PHONY: help setup check-configure-prereqs configure build run run-lldb all clean rebuild install-game link-gamedata codesign package all-in-one
+.PHONY: help setup check-configure-prereqs configure build build-release run run-lldb all clean rebuild install-game link-gamedata codesign bundle package install all-in-one
 
 help: ## Show this help and current settings
 	@echo "OpenXRay macOS automation"
@@ -205,22 +209,64 @@ link-gamedata: ## Symlink res/gamedata into GAME_DIR (GL shaders, OpenXRay confi
 
 all: setup build run ## Run setup + build + run end-to-end
 
-package: ## Build ReleaseMasterGold and bundle into dist/OpenXRay.app
+build-release: ## Compile the ReleaseMasterGold binary into bin/$(HOST_ARCH)/ReleaseMasterGold/
 	@$(MAKE) build BUILD_TYPE=ReleaseMasterGold BUILD_DIR=build-release
+
+bundle: ## Assemble dist/OpenXRay.app from an existing release binary (no compile; idempotent)
+	@if [ ! -f "$(RELEASE_BIN)" ]; then \
+		echo "ERROR: $(RELEASE_BIN) not found. Run 'make build-release' first."; \
+		exit 1; \
+	fi
+	@if [ -f "$(DIST_APP)/Contents/MacOS/xr_3da" ] && \
+		[ "$(DIST_APP)/Contents/MacOS/xr_3da" -nt "$(RELEASE_BIN)" ]; then \
+		echo "==> $(DIST_APP) is newer than $(RELEASE_BIN) — skip bundle (already up to date)"; \
+		exit 0; \
+	fi
 	@BUILD_TYPE=ReleaseMasterGold \
 		HOST_ARCH=$(HOST_ARCH) \
 		DEFAULT_FSGAME_LTX="$(FSGAME_LTX)" \
 		APP_VERSION="$$(git describe --always --dirty 2>/dev/null || echo dev)" \
 		scripts/mac/package_app.sh
 
-all-in-one: ## Bundle .app + game data side-by-side into dist/OpenXRay-AllInOne.dmg
+package: build-release bundle ## Compile release + assemble dist/OpenXRay.app
+
+install: build-release bundle ## Hot-swap xr_3da + launcher script into $(INSTALL_APP_DIR) (fast iter)
+	@if [ ! -d "$(INSTALL_APP_DIR)" ]; then \
+		echo "ERROR: $(INSTALL_APP_DIR) does not exist."; \
+		echo "       Run 'make package' first, then drag $(DIST_APP) to /Applications/,"; \
+		echo "       or override with INSTALL_APP_DIR=/path/to/OpenXRay.app."; \
+		exit 1; \
+	fi
+	@target_bin="$(INSTALL_APP_DIR)/Contents/MacOS/xr_3da"; \
+	target_launcher="$(INSTALL_APP_DIR)/Contents/MacOS/OpenXRay"; \
+	src_bin="$(RELEASE_BIN)"; \
+	src_launcher="$(DIST_APP)/Contents/MacOS/OpenXRay"; \
+	bin_up_to_date=0; launcher_up_to_date=0; \
+	[ -f "$$target_bin" ] && [ "$$target_bin" -nt "$$src_bin" ] && bin_up_to_date=1; \
+	[ -f "$$target_launcher" ] && [ "$$target_launcher" -nt "$$src_launcher" ] && launcher_up_to_date=1; \
+	if [ "$$bin_up_to_date" = "1" ] && [ "$$launcher_up_to_date" = "1" ]; then \
+		echo "==> $(INSTALL_APP_DIR) is up to date — nothing to install"; \
+		exit 0; \
+	fi; \
+	if [ "$$bin_up_to_date" != "1" ]; then \
+		echo "==> Copying $$src_bin -> $$target_bin"; \
+		cp "$$src_bin" "$$target_bin"; \
+		echo "==> Re-codesigning binary with debug entitlements"; \
+		codesign --force --sign - --entitlements scripts/mac/debug.entitlements "$$target_bin" >/dev/null; \
+	fi; \
+	if [ "$$launcher_up_to_date" != "1" ]; then \
+		echo "==> Copying launcher $$src_launcher -> $$target_launcher"; \
+		cp "$$src_launcher" "$$target_launcher"; \
+	fi; \
+	echo "==> Installed. Launch: open '$(INSTALL_APP_DIR)'"
+
+all-in-one: build-release ## Bundle .app + game data side-by-side into dist/OpenXRay-AllInOne.dmg
 	@if [ ! -f "$(GAMEDATA_SRC)/fsgame.ltx" ]; then \
 		echo "ERROR: GAMEDATA_SRC=$(GAMEDATA_SRC) has no fsgame.ltx."; \
 		echo "       Pass GAMEDATA_SRC=/path/to/STALKER-CoP,"; \
 		echo "       or run 'make install-game STEAM_LOGIN=...' first."; \
 		exit 1; \
 	fi
-	@$(MAKE) build BUILD_TYPE=ReleaseMasterGold BUILD_DIR=build-release
 	@GAMEDATA_SRC="$(GAMEDATA_SRC)" \
 		HOST_ARCH=$(HOST_ARCH) \
 		BUILD_TYPE=ReleaseMasterGold \

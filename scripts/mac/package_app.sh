@@ -201,6 +201,27 @@ if [ ! -L "\${OVERLAY_LINK}" ] || [ "\$(readlink "\${OVERLAY_LINK}")" != "\${APP
     ln -s "\${APPDATA_DIR}" "\${OVERLAY_LINK}"
 fi
 
+# 2a. Force windowed mode in user.ltx (stability escape hatch).
+# Exclusive fullscreen makes the GPU driver hard to recover from on macOS:
+# if the engine hangs, Cmd+Tab / Force Quit dialog / Activity Monitor are
+# the only ways to recover, and they all need the window to be a normal
+# NSWindow (not a fullscreen layer). Set OPENXRAY_ALLOW_FULLSCREEN=1 to
+# opt out and let user.ltx control the window mode normally.
+if [ "\${OPENXRAY_ALLOW_FULLSCREEN:-0}" != "1" ]; then
+    USER_LTX="\${APPDATA_DIR}/_appdata_/user.ltx"
+    touch "\$USER_LTX"
+    # Replace if present, append if absent — handles fresh installs (empty
+    # user.ltx) and existing configs alike.
+    for kv in "vid_window_mode st_opt_windowed" "rs_fullscreen off"; do
+        key="\${kv%% *}"
+        if grep -qE "^\$key " "\$USER_LTX"; then
+            sed -i '' -e "s|^\$key .*|\$kv|" "\$USER_LTX"
+        else
+            printf '%s\\n' "\$kv" >> "\$USER_LTX"
+        fi
+    done
+fi
+
 # 3. Launch
 if [ "\${1:-}" = "--debug" ]; then
     shift
