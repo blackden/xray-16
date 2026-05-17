@@ -472,6 +472,14 @@ if (NOT CMAKE_SYSTEM_NAME STREQUAL "OpenBSD" AND NOT CMAKE_SYSTEM_NAME STREQUAL 
     )
 endif()
 
+if (APPLE)
+    # libiconv ships with macOS but lives outside libSystem. xr_utf8_to_cp1251
+    # uses iconv to bridge POSIX-native UTF-8 strings into the engine's cp1251
+    # font tables (save notification, etc).
+    target_link_libraries(xrCore PRIVATE iconv)
+endif()
+
+
 target_compile_definitions(xrCore
     PRIVATE
     XRCORE_EXPORTS

@@ -12,6 +12,9 @@
 #include <sys/stat.h>
 #include <pwd.h>
 #include <unistd.h>
+#if defined(XR_PLATFORM_APPLE)
+#include <iconv.h>
+#endif
 #endif
 #include "xrCore.h"
 #include "xrCore/_std_extensions.h"
@@ -27,6 +30,34 @@
 extern compression::ppmd::stream* trained_model;
 
 XRCORE_API xrCore Core;
+
+XRCORE_API void xr_utf8_to_cp1251(char* buf, size_t buf_size)
+{
+#if defined(XR_PLATFORM_APPLE)
+    if (!buf || buf_size == 0)
+        return;
+    iconv_t cd = iconv_open("CP1251//TRANSLIT", "UTF-8");
+    if (cd == (iconv_t)-1)
+        return;
+    char tmp[1024] = {};
+    char* in = buf;
+    char* out = tmp;
+    size_t in_left = strnlen(buf, buf_size);
+    size_t out_left = sizeof(tmp) - 1;
+    if (iconv(cd, &in, &in_left, &out, &out_left) != (size_t)-1)
+    {
+        *out = '\0';
+        const size_t copy = std::min<size_t>(sizeof(tmp) - 1, buf_size - 1);
+        memcpy(buf, tmp, copy);
+        buf[copy] = '\0';
+    }
+    iconv_close(cd);
+#else
+    // Windows ANSI APIs already return cp1251, no conversion required.
+    (void)buf;
+    (void)buf_size;
+#endif
+}
 
 static u32 init_counter = 0;
 

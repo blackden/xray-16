@@ -689,7 +689,17 @@ public:
         StaticDrawableWrapper* _s = CurrentGameUI()->AddCustomStatic("game_saved", true, compat ? 3.0f : -1.0f);
 
         pstr save_name;
-        STRCONCAT(save_name, StringTable().translate("st_game_saved").c_str(), ": ", S);
+        // Save name comes from POSIX UTF-8 sources (Core.UserName via
+        // pw_gecos, or user-typed filename via SDL_TEXTINPUT). The font
+        // tables expect cp1251, so concatenating directly produces mojibake
+        // in the on-screen "Игра сохранена: ..." notification. Convert the
+        // file-name part before concat so the whole resulting string is in
+        // the encoding the renderer expects. S itself is untouched (it has
+        // already been sent to the network packet above for the actual save).
+        string_path display_S;
+        xr_strcpy(display_S, S);
+        xr_utf8_to_cp1251(display_S, sizeof(display_S));
+        STRCONCAT(save_name, StringTable().translate("st_game_saved").c_str(), ": ", display_S);
         _s->wnd()->TextItemControl()->SetText(save_name);
 
         xr_strcat(S, ".dds");
