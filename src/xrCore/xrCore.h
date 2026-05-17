@@ -137,3 +137,10 @@ private:
 };
 
 extern XRCORE_API xrCore Core;
+
+// Convert a UTF-8 string in-place to cp1251. Used to bridge POSIX UTF-8
+// strings (filesystem, getpwuid) into the engine's cp1251 font tables for
+// display. On Windows this is a no-op since OS APIs already return cp1251 in
+// ANSI mode. Characters outside cp1251 are transliterated (//TRANSLIT). On
+// failure the buffer is left unchanged.
+XRCORE_API void xr_utf8_to_cp1251(char* buf, size_t buf_size);

@@ -108,6 +108,14 @@ for binary in "${MACOS_DIR}"/*; do
 done
 
 echo "==> Writing Info.plist + PkgInfo"
+ICON_FRAGMENT=""
+ICON_SRC="${REPO_ROOT}/scripts/mac/openxray.icns"
+if [ -f "${ICON_SRC}" ]; then
+    cp "${ICON_SRC}" "${APP_DIR}/Contents/Resources/openxray.icns"
+    ICON_FRAGMENT="    <key>CFBundleIconFile</key>
+    <string>openxray</string>
+"
+fi
 cat > "${APP_DIR}/Contents/Info.plist" <<EOF
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -115,7 +123,7 @@ cat > "${APP_DIR}/Contents/Info.plist" <<EOF
 <dict>
     <key>CFBundleExecutable</key>
     <string>${PRODUCT_NAME}</string>
-    <key>CFBundleIdentifier</key>
+${ICON_FRAGMENT}    <key>CFBundleIdentifier</key>
     <string>${BUNDLE_ID}</string>
     <key>CFBundleInfoDictionaryVersion</key>
     <string>6.0</string>
