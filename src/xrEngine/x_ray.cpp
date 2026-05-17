@@ -35,6 +35,10 @@
 #include "xrCore/Text/StringConversion.hpp"
 #endif
 
+#if defined(XR_PLATFORM_APPLE)
+extern "C" void OpenXRay_InstallCocoaShim(void);
+#endif
+
 // global variables
 constexpr size_t MAX_WINDOW_EVENTS = 32;
 
@@ -220,6 +224,14 @@ CApplication::CApplication(pcstr commandLine, GameModule* game, const std::array
             flags |= SDL_INIT_GAMECONTROLLER;
         R_ASSERT3(SDL_Init(flags) == 0, "Unable to initialize SDL", SDL_GetError());
     }
+
+#if defined(XR_PLATFORM_APPLE)
+    // Install Cocoa shim that wraps SDL's NSApplicationDelegate. Required to
+    // intercept Cmd+Q before it drives the engine into an unsafe shutdown path
+    // (see src/xrEngine/macos_cocoa_shim.mm for details). Must happen AFTER
+    // SDL_InitSubSystem(SDL_INIT_VIDEO) because SDL only sets its delegate then.
+    OpenXRay_InstallCocoaShim();
+#endif
 
 #ifdef XR_PLATFORM_WINDOWS
     AccessibilityShortcuts shortcuts;
