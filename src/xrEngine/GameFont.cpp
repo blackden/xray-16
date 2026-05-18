@@ -3,6 +3,7 @@
 
 #include "GameFont.h"
 #include "xr_level_controller.h"
+#include "xrCore/xrCore.h" // xr_cp1251_to_unicode table
 #include "xrCore/Text/StringConversion.hpp"
 #include "Render.h"
 #include "StringTable/StringTable.h"
@@ -165,8 +166,42 @@ void CGameFont::Initialize(pcstr cShader, pcstr cTextureName)
 
     CInifile::Destroy(ini);
 
+    // Build the codepoint -> atlas-slot map for single-byte fonts. The
+    // multi-byte case uses TCMap directly indexed by BMP wide-char, so
+    // no map is needed there. We populate from the cp1251 reference
+    // table because every shipped CoP font atlas was authored against
+    // cp1251 byte order.
+    m_codepointToSlot.clear();
+    if (!IsMultibyte())
+    {
+        m_codepointToSlot.reserve(256);
+        for (u32 i = 0; i < 256; ++i)
+        {
+            const u16 cp = xr_cp1251_to_unicode[i];
+            if (cp == 0xFFFD)
+                continue; // unassigned (0x98) — leave unmapped
+            m_codepointToSlot[cp] = static_cast<u16>(i);
+        }
+    }
+
     // Shading
     pFontRender->Initialize(cShader, cTexture);
+}
+
+bool CGameFont::s_utf8_mode = false;
+
+u16 CGameFont::SlotForCodepoint(u32 cp) const
+{
+    if (IsMultibyte())
+    {
+        // Multi-byte fonts: TCMap is keyed directly by BMP codepoint.
+        // Non-BMP codepoints fall back to '?'.
+        return (cp < 0x10000) ? static_cast<u16>(cp) : static_cast<u16>('?');
+    }
+    auto it = m_codepointToSlot.find(cp);
+    if (it != m_codepointToSlot.end())
+        return it->second;
+    return static_cast<u16>('?'); // visible fallback for missing glyphs
 }
 
 CGameFont::~CGameFont()
