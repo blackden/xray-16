@@ -29,6 +29,7 @@
 
 ## Долгосрочно (месяцы)
 
+- **UTF-8 как внутренний text encoding во всём движке** — сейчас движок наследует cp1251 от Windows-1.6.02 эры: локализация XML в cp1251, font tables рендерят cp1251, save names собираются в cp1251 из Lua и проходят через FS API. На POSIX-платформах это не работает: APFS/ext4/Btrfs ждут UTF-8 во всех именах файлов; SDL TextInput выдаёт UTF-8 события; getpwuid возвращает UTF-8. Сейчас мы латаем границы (`xr_cp1251_to_utf8` в alife_storage_manager + null-checks + retries), но это не решение, а размазывание сложности. Объём миграции: (1) перекодировать res/gamedata/configs/text/* в UTF-8 (sed-конвертация + re-export); (2) font tables в xrUICore переписать с byte-lookup на UTF-8 sequence decode (или подключить ImGui font); (3) Lua-биндинги перевести на UTF-8 на C++ стороне; (4) Windows-сборка получит conversion-bridge UTF-8→cp1251 ТОЛЬКО на границе с Windows ANSI API (ровно противоположный текущему направлению). 4-6 месяцев одного разработчика, **сильный upstream-кандидат** — все портеры на nix/macOS этим страдают.
 - **Новый рендер: Metal или Vulkan через MoltenVK** — единственный путь к "max settings" без glitch'ей света и без compatibility-патчей. Сейчас Apple OpenGL 4.1 (Metal-backed) — это shim с дырами:
   - Compressed 3D textures не поддерживаются → water_sbumpvolume FATAL
   - MSAA framebuffer attachments кривые → set_RT FATAL
