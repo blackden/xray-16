@@ -429,16 +429,23 @@ void xrCore::Initialize(pcstr _ApplicationName, pcstr commandLine, bool init_fs,
         struct passwd *pw = getpwuid(uid);
         if (pw)
         {
-            // Prefer the POSIX login name (pw_name, ASCII by convention) over
-            // the full real name (pw_gecos, often UTF-8 with non-ASCII chars).
-            // The engine mixes this value with cp1251 localized tags into
-            // save filenames and on-screen text. A UTF-8 UserName produces
-            // mojibake in the cp1251 renderer and EILSEQ on APFS file writes
-            // (APFS rejects raw cp1251 byte sequences as invalid UTF-8).
-            // ASCII makes the whole pipeline byte-safe.
-            strncpy(UserName, pw->pw_name, sizeof(UserName) - 1);
+            // Prefer pw_gecos (the full real name, "Илья Иванов" on a RU
+            // account) so save filename prefixes and log headers carry the
+            // human-readable identity. Falls back to pw_name (the ASCII
+            // login) if gecos is empty.
+            //
+            // Pre-utf8 migration this was inverted: pw_name was preferred
+            // because the cp1251 renderer turned UTF-8 cyrillic into
+            // mojibake and APFS rejected the resulting cp1251 path bytes
+            // with EILSEQ. After Phase 1 the renderer is codepoint-aware
+            // and Phase 3.1 handles APFS retries, so pw_gecos is safe again.
+            strncpy(UserName, pw->pw_gecos, sizeof(UserName) - 1);
+            // pw_gecos can legitimately be empty (server accounts, some
+            // distros); also some systems append ",,," fields to it -- trim.
+            if (char* comma = strchr(UserName, ','))
+                *comma = '\0';
             if (UserName[0] == '\0')
-                strncpy(UserName, pw->pw_gecos, sizeof(UserName) - 1);
+                strncpy(UserName, pw->pw_name, sizeof(UserName) - 1);
         }
         else
             Msg("! Failed to get user name");
