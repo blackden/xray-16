@@ -257,11 +257,14 @@ void CObjectFactory::on_tool_frame()
             {
             case DisplayGameNames:
             {
-                const std::locale locale("");
+                // StringTable().translate() already returns UTF-8 after the
+                // Phase 2 read shim. The previous StringToUTF8(narrow_locale)
+                // round-tripped UTF-8 through the C locale, which on macOS
+                // dropped any non-ASCII codepoint -- ImGui debug overlay then
+                // displayed cyrillic NPC/item names as '?'.
                 if (cpcstr inv_name = pSettings->read_if_exists<pcstr>(section->Name.c_str(), "inv_name", nullptr))
                 {
-                    const auto translated = StringTable().translate(inv_name);
-                    name = StringToUTF8(translated.c_str(), locale);
+                    name = StringTable().translate(inv_name).c_str();
                     break;
                 }
                 if (cpcstr character_profile = pSettings->read_if_exists<pcstr>(section->Name.c_str(), "character_profile", nullptr))
@@ -273,8 +276,7 @@ void CObjectFactory::on_tool_frame()
                         cpcstr character_name = character.Name();
                         if (character_name[0] && !strstr(character_name, "GENERATE_NAME"))
                         {
-                            const auto translated = StringTable().translate(character_name);
-                            name = StringToUTF8(translated.c_str(), locale);
+                            name = StringTable().translate(character_name).c_str();
                             break;
                         }
                     }
