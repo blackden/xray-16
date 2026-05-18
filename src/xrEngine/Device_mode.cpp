@@ -260,15 +260,23 @@ void CRenderDevice::SelectResolution(const bool windowed)
     // that only fires after the first broken frame.
     if (windowed && !GEnv.isDedicatedServer)
     {
-        SDL_Rect usable;
-        if (SDL_GetDisplayUsableBounds(psDeviceMode.Monitor, &usable) == 0
-            && usable.w > 0 && usable.h > 0)
+        SDL_Rect usable, full;
+        const bool gotUsable = SDL_GetDisplayUsableBounds(psDeviceMode.Monitor, &usable) == 0
+            && usable.w > 0 && usable.h > 0;
+        const bool gotFull = SDL_GetDisplayBounds(psDeviceMode.Monitor, &full) == 0
+            && full.w > 0 && full.h > 0;
+        Msg("* SelectResolution: requested=%ux%u monitor=%u usable=%dx%d full=%dx%d",
+            psDeviceMode.Width, psDeviceMode.Height, psDeviceMode.Monitor,
+            gotUsable ? usable.w : -1, gotUsable ? usable.h : -1,
+            gotFull ? full.w : -1, gotFull ? full.h : -1);
+        if (gotUsable)
         {
             if (psDeviceMode.Width > static_cast<u32>(usable.w))
                 psDeviceMode.Width = static_cast<u32>(usable.w);
             if (psDeviceMode.Height > static_cast<u32>(usable.h))
                 psDeviceMode.Height = static_cast<u32>(usable.h);
         }
+        Msg("* SelectResolution: after clamp=%ux%u", psDeviceMode.Width, psDeviceMode.Height);
     }
 
     dwWidth = psDeviceMode.Width;
