@@ -198,6 +198,13 @@ bool XMLDocument::SetWithEncodingShim(pcstr body, size_t /*body_size*/, bool fat
     if (!body)
         return Set(body, fatal);
 
+    // r__legacy_encoding 0 disables the cp1251->UTF-8 fallback entirely
+    // (intended for fully UTF-8-native mod packs). When off, anything
+    // not valid UTF-8 reaches tinyxml as-is and renders as '?' in the
+    // codepoint-aware renderer.
+    if (!g_r__legacy_encoding)
+        return Set(body, fatal);
+
     if (xr_is_valid_utf8(body))
         return Set(body, fatal);
 

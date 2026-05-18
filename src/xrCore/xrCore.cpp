@@ -32,6 +32,7 @@ extern compression::ppmd::stream* trained_model;
 XRCORE_API xrCore Core;
 
 XRCORE_API int g_r__trace_encoding = 0;
+XRCORE_API int g_r__legacy_encoding = 1;
 
 XRCORE_API void xr_utf8_to_cp1251(char* buf, size_t buf_size)
 {

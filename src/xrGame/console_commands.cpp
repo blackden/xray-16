@@ -2243,6 +2243,11 @@ void CCC_RegisterCommands()
     // XML/INI file that was loaded as cp1251 and transcoded on the fly.
     CMD4(CCC_Integer, "r__trace_encoding", &g_r__trace_encoding, 0, 1);
 
+    // Master switch for the Phase 2 read shim. Default ON for vanilla CoP
+    // gamedata (cp1251 inside gamedata.db). Modders with a fully UTF-8
+    // pack can set this to 0 to skip the per-line UTF-8 validator.
+    CMD4(CCC_Integer, "r__legacy_encoding", &g_r__legacy_encoding, 0, 1);
+
     CMD1(CCC_LuaProfiler, CCC_LuaProfiler::COMMAND_LUA_PROFILER_STATUS);
     CMD1(CCC_LuaProfiler, CCC_LuaProfiler::COMMAND_LUA_PROFILER_START);
     CMD1(CCC_LuaProfiler, CCC_LuaProfiler::COMMAND_LUA_PROFILER_START_SAMPLING_MODE);
