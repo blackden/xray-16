@@ -136,6 +136,38 @@ check "alife_storage_manager mirrors the conversion on load" \
     "awk '/bool CALifeStorageManager::load/,/^void CALifeStorageManager::save/' src/xrGame/alife_storage_manager.cpp | \
         grep -q 'xr_cp1251_to_utf8'"
 
+# Phase 2 read shims: XML and INI loaders must auto-transcode legacy
+# cp1251/cp1250 bodies to UTF-8 on read, otherwise menu / dialog text
+# regresses to '?' after the Phase 1 codepoint renderer flip.
+check "XMLDocument::Load uses SetWithEncodingShim" \
+    "awk '/XMLDocument::Load.*xml_filename, bool fatal/,/^bool XMLDocument::Set/' \
+        src/xrCore/XML/XMLDocument.cpp | grep -q 'SetWithEncodingShim'"
+
+check "XMLDocument::SetWithEncodingShim transcodes via xr_legacy_to_utf8_alloc" \
+    "grep -q 'xr_legacy_to_utf8_alloc' src/xrCore/XML/XMLDocument.cpp"
+
+check "CInifile::Load auto-transcodes cp1251 lines" \
+    "awk '/^void CInifile::Load/,/^void CInifile::save_as/' src/xrCore/xr_ini.cpp | \
+        grep -q 'xr_cp1251_to_utf8'"
+
+# Save-side compatibility shim: CSE_ALifeTraderAbstract::m_character_name
+# and CInventoryOwner::m_game_name are serialized strings; legacy cp1251
+# saves must be transcoded on load or NPC labels show '???'.
+check "CSE_ALifeTraderAbstract::STATE_Read transcodes m_character_name" \
+    "awk '/CSE_ALifeTraderAbstract::STATE_Read/,/^void CSE_ALifeTraderAbstract::OnChangeProfile/' \
+        src/xrServerEntities/xrServer_Objects_ALife_Monsters.cpp | grep -q 'xr_cp1251_to_utf8'"
+
+check "CInventoryOwner::load transcodes m_game_name" \
+    "awk '/CInventoryOwner::load/,/^void CInventoryOwner::UpdateInventoryOwner/' \
+        src/xrGame/InventoryOwner.cpp | grep -q 'xr_cp1251_to_utf8'"
+
+# Key bindings: use SDL_GetScancodeName (layout-independent) so prompts
+# stay Latin even on RU keyboards, while text input keeps respecting the
+# active layout.
+check "KbdKeyToButtonName uses SDL_GetScancodeName" \
+    "awk '/^bool KbdKeyToButtonName/,/^bool OtherDevicesKeyToButtonName/' \
+        src/xrEngine/xr_input.cpp | grep -q 'SDL_GetScancodeName'"
+
 # Fixtures should be present and well-formed. Stale or missing fixtures will
 # cause the test-encoding target to fail before anyone reaches the C++ tests.
 check "encoding fixture phrase.utf8 exists" \
