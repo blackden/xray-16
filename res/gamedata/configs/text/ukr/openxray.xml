@@ -1,127 +1,127 @@
-<?xml version="1.0" encoding="windows-1251" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <string_table>
 	<string id="st_unload_magazine_after_pickup">
-		<text>Розряд. зброю при піднятті</text>
+		<text>Р РѕР·СЂСЏРґ. Р·Р±СЂРѕСЋ РїСЂРё РїС–РґРЅСЏС‚С‚С–</text>
 	</string>
 	<string id="st_unload_magazine_all">
-		<text>розрядити всю зброю</text>
+		<text>СЂРѕР·СЂСЏРґРёС‚Рё РІСЃСЋ Р·Р±СЂРѕСЋ</text>
 	</string>
 	<string id="st_unequip">
-		<text>сховати в рюкзак</text>
+		<text>СЃС…РѕРІР°С‚Рё РІ СЂСЋРєР·Р°Рє</text>
 	</string>
 	<string id="st_donate">
-		<text>Подарувати</text>
+		<text>РџРѕРґР°СЂСѓРІР°С‚Рё</text>
 	</string>
 	<string id="st_loading_lights">
-		<text>Завантаження освітлення</text>
+		<text>Р—Р°РІР°РЅС‚Р°Р¶РµРЅРЅСЏ РѕСЃРІС–С‚Р»РµРЅРЅСЏ</text>
 	</string>
 	<string id="st_client_connecting_to">
-		<text>Клієнт: З'єднання с</text>
+		<text>РљР»С–С”РЅС‚: Р—'С”РґРЅР°РЅРЅСЏ СЃ</text>
 	</string>
 	<string id="st_client_spawning">
-		<text>Клієнт: Створення</text>
+		<text>РљР»С–С”РЅС‚: РЎС‚РІРѕСЂРµРЅРЅСЏ</text>
 	</string>
 	<string id="st_client_synchronising">
-		<text>Клієнт: Синхронізація</text>
+		<text>РљР»С–С”РЅС‚: РЎРёРЅС…СЂРѕРЅС–Р·Р°С†С–СЏ</text>
 	</string>
 	<string id="st_creating_new_game">
-		<text>Створення нової гри</text>
+		<text>РЎС‚РІРѕСЂРµРЅРЅСЏ РЅРѕРІРѕС— РіСЂРё</text>
 	</string>
 	<string id="ui_mm_always_active">
-		<text>Не ставити гру на пазу при Alt+Tab</text>
+		<text>РќРµ СЃС‚Р°РІРёС‚Рё РіСЂСѓ РЅР° РїР°Р·Сѓ РїСЂРё Alt+Tab</text>
 	</string>
 	<string id="ui_mm_detail_radius">
-		<text>Відстань промальовування трави</text>
+		<text>Р’С–РґСЃС‚Р°РЅСЊ РїСЂРѕРјР°Р»СЊРѕРІСѓРІР°РЅРЅСЏ С‚СЂР°РІРё</text>
 	</string>
 	<string id="ui_mm_ui_style">
-		<text>Стиль інтерфейсу</text>
+		<text>РЎС‚РёР»СЊ С–РЅС‚РµСЂС„РµР№СЃСѓ</text>
 	</string>
 	<string id="ui_style_default">
-		<text>Поклик Прип'яті</text>
+		<text>РџРѕРєР»РёРє РџСЂРёРї'СЏС‚С–</text>
 	</string>
 	<string id="ui_mm_simplified_item_pickup">
-		<text>Спрощ. підбір предметів</text>
+		<text>РЎРїСЂРѕС‰. РїС–РґР±С–СЂ РїСЂРµРґРјРµС‚С–РІ</text>
 	</string>
 	<string id="ui_mm_multi_item_pickup">
-		<text>Множ. підбір предметів</text>
+		<text>РњРЅРѕР¶. РїС–РґР±С–СЂ РїСЂРµРґРјРµС‚С–РІ</text>
 	</string>
 	<string id="ui_mm_loadingstages">
-		<text>Стадії завантаження</text>
+		<text>РЎС‚Р°РґС–С— Р·Р°РІР°РЅС‚Р°Р¶РµРЅРЅСЏ</text>
 	</string>
 	<string id="renderer_rgl">
-		<text>Покр. повне освітлення (OpenGL)</text>
+		<text>РџРѕРєСЂ. РїРѕРІРЅРµ РѕСЃРІС–С‚Р»РµРЅРЅСЏ (OpenGL)</text>
 	</string>
 	<string id="ui_mm_window_mode">
-		<text>Режим вікна</text>
+		<text>Р РµР¶РёРј РІС–РєРЅР°</text>
 	</string>
 	<string id="st_opt_windowed">
-		<text>Віконний</text>
+		<text>Р’С–РєРѕРЅРЅРёР№</text>
 	</string>
 	<string id="st_opt_windowed_borderless">
-		<text>Віконний без рамок</text>
+		<text>Р’С–РєРѕРЅРЅРёР№ Р±РµР· СЂР°РјРѕРє</text>
 	</string>
 	<string id="st_opt_fullscreen">
-		<text>Повноекранний</text>
+		<text>РџРѕРІРЅРѕРµРєСЂР°РЅРЅРёР№</text>
 	</string>
 	<string id="st_opt_fullscreen_borderless">
-		<text>Повноекранний (швидкий Alt+Tab)</text>
+		<text>РџРѕРІРЅРѕРµРєСЂР°РЅРЅРёР№ (С€РІРёРґРєРёР№ Alt+Tab)</text>
 	</string>
 	<string id="ui_mm_r2_fxaa">
 		<text>FXAA</text>
 	</string>
 	<string id="ui_mm_r2_smap_size">
-		<text>Якість карт тіней</text>
+		<text>РЇРєС–СЃС‚СЊ РєР°СЂС‚ С‚С–РЅРµР№</text>
 	</string>
 	<string id="ui_mm_r3_dynamic_wet_surfaces_opt">
-		<text>Оптимізація намокання</text>
+		<text>РћРїС‚РёРјС–Р·Р°С†С–СЏ РЅР°РјРѕРєР°РЅРЅСЏ</text>
 	</string>
 	<string id="ui_mm_r3_dynamic_wet_surfaces_near">
-		<text>Намокання поблизу</text>
+		<text>РќР°РјРѕРєР°РЅРЅСЏ РїРѕР±Р»РёР·Сѓ</text>
 	</string>
 	<string id="ui_mm_r3_dynamic_wet_surfaces_far">
-		<text>Намокання вдалині</text>
+		<text>РќР°РјРѕРєР°РЅРЅСЏ РІРґР°Р»РёРЅС–</text>
 	</string>
 	<string id="ui_mm_r3_dynamic_wet_surfaces_sm_res">
-		<text>Якість намокання</text>
+		<text>РЇРєС–СЃС‚СЊ РЅР°РјРѕРєР°РЅРЅСЏ</text>
 	</string>
 	<string id="ui_mm_fov">
-		<text>Кут огляду</text>
+		<text>РљСѓС‚ РѕРіР»СЏРґСѓ</text>
 	</string>
 	<string id="ui_mm_hud_fov">
-		<text>Кут огляду HUD</text>
+		<text>РљСѓС‚ РѕРіР»СЏРґСѓ HUD</text>
 	</string>
 	<string id="ui_mm_localization">
-		<text>Мова</text>
+		<text>РњРѕРІР°</text>
 	</string>
 	<string id="ui_mm_gamepad_setup">
-		<text>Налаштування геймпаду</text>
+		<text>РќР°Р»Р°С€С‚СѓРІР°РЅРЅСЏ РіРµР№РјРїР°РґСѓ</text>
 	</string>
 	<string id="ui_mm_fps_limit">
-		<text>Обмеження FPS у грі</text>
+		<text>РћР±РјРµР¶РµРЅРЅСЏ FPS Сѓ РіСЂС–</text>
 	</string>
 	<string id="ui_mm_fps_limit_in_menu">
-		<text>Обмеження FPS в меню</text>
+		<text>РћР±РјРµР¶РµРЅРЅСЏ FPS РІ РјРµРЅСЋ</text>
 	</string>
 	<string id="ui_mm_shader_preset">
-		<text>Режим графіки</text>
+		<text>Р РµР¶РёРј РіСЂР°С„С–РєРё</text>
 	</string>
 	<string id="ui_mm_shader_preset_vanilla">
-		<text>оригінальна</text>
+		<text>РѕСЂРёРіС–РЅР°Р»СЊРЅР°</text>
 	</string>
 	<string id="ui_mm_shader_preset_enhanced_default">
-		<text>покращена (стандарт)</text>
+		<text>РїРѕРєСЂР°С‰РµРЅР° (СЃС‚Р°РЅРґР°СЂС‚)</text>
 	</string>
 	<string id="ui_mm_shader_preset_enhanced_high">
-		<text>покращена (високо)</text>
+		<text>РїРѕРєСЂР°С‰РµРЅР° (РІРёСЃРѕРєРѕ)</text>
 	</string>
 	<string id="ui_mm_color_grading_preset">
-		<text>Градація кольорів</text>
+		<text>Р“СЂР°РґР°С†С–СЏ РєРѕР»СЊРѕСЂС–РІ</text>
 	</string>
 	<string id="ui_mm_color_grading_default">
-		<text>стандартна</text>
+		<text>СЃС‚Р°РЅРґР°СЂС‚РЅР°</text>
 	</string>
 	<string id="ui_mm_color_grading_cold">
-		<text>холодна</text>
+		<text>С…РѕР»РѕРґРЅР°</text>
 	</string>
 	<string id="ui_mm_color_grading_filmic_01">
 		<text>Filmic 1</text>
@@ -136,42 +136,42 @@
 		<text>Hollywood</text>
 	</string>
 	<string id="ui_mm_color_grading_vanilla">
-		<text>оригінальна</text>
+		<text>РѕСЂРёРіС–РЅР°Р»СЊРЅР°</text>
 	</string>
 	<string id="ui_mm_color_grading_vibrant">
 		<text>Vibrant</text>
 	</string>
 	<string id="ui_mm_color_grading_warm">
-		<text>тепла</text>
+		<text>С‚РµРїР»Р°</text>
 	</string>
 	<string id="cze">
-    	<text>Чеська (Czech)</text>
+    	<text>Р§РµСЃСЊРєР° (Czech)</text>
 	</string>
 	<string id="eng">
-		<text>Англійська (English)</text>
+		<text>РђРЅРіР»С–Р№СЃСЊРєР° (English)</text>
 	</string>
 	<string id="fra">
-		<text>Французька (French)</text>
+		<text>Р¤СЂР°РЅС†СѓР·СЊРєР° (French)</text>
 	</string>
 	<string id="ger">
-		<text>Німецька (German)</text>
+		<text>РќС–РјРµС†СЊРєР° (German)</text>
 	</string>
 	<string id="ita">
-		<text>Італійська (Italian)</text>
+		<text>Р†С‚Р°Р»С–Р№СЃСЊРєР° (Italian)</text>
 	</string>
 	<string id="pol">
-		<text>Польська (Polish)</text>
+		<text>РџРѕР»СЊСЃСЊРєР° (Polish)</text>
 	</string>
 	<string id="rus">
-		<text>Російська (Russian)</text>
+		<text>Р РѕСЃС–Р№СЃСЊРєР° (Russian)</text>
 	</string>
 	<string id="spa">
-		<text>Іспанська (Spanish)</text>
+		<text>Р†СЃРїР°РЅСЃСЊРєР° (Spanish)</text>
 	</string>
 	<string id="ukr">
-		<text>Українська (Ukrainian)</text>
+		<text>РЈРєСЂР°С—РЅСЃСЊРєР° (Ukrainian)</text>
 	</string>
 	<string id="jpn">
-		<text>Японська (Japanese)</text>
+		<text>РЇРїРѕРЅСЃСЊРєР° (Japanese)</text>
 	</string>
 </string_table>
