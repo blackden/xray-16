@@ -521,13 +521,16 @@ bool KbdKeyToButtonName(const int dik, xr_string& result)
 {
     if (dik >= 0)
     {
-        cpcstr name = SDL_GetKeyName(SDL_GetKeyFromScancode((SDL_Scancode)dik));
+        // SDL_GetScancodeName gives the physical-key label, always in
+        // English ("E", "Space", "Left Ctrl"), independent of the active
+        // keyboard layout. That's what the binding UI wants:
+        // "press [E] to open door" should stay Latin even when the player
+        // is typing save names in Russian -- text input keeps using
+        // SDL_TEXTINPUT which respects the layout, so this only affects
+        // the binding labels.
+        cpcstr name = SDL_GetScancodeName((SDL_Scancode)dik);
         if (name && name[0])
         {
-            // SDL returns UTF-8 already. The previous path ran it through
-            // StringFromUTF8(... C-locale) which narrowed cyrillic key
-            // labels ("Е" on RU layout) into '?'. After the Phase 1 UTF-8
-            // renderer migration we can keep the bytes verbatim.
             result = name;
             return true;
         }
