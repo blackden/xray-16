@@ -225,6 +225,9 @@ bool XMLDocument::SetWithEncodingShim(pcstr body, size_t /*body_size*/, bool fat
         return Set(body, fatal);
     }
 
+    if (g_r__trace_encoding)
+        Msg("* utf8 shim: transcoded XML '%s' from %s", m_xml_file_name, codepage);
+
     // Patch the encoding attribute so tinyxml doesn't try to decode again.
     // We do a substring replace of the first encoding="..." -> encoding="utf-8".
     auto patch_attr = [](xr_string& s, pcstr quoted_value) {
