@@ -201,6 +201,9 @@ CRenderTarget::CRenderTarget()
 {
     ZoneScoped;
 
+    Msg("* CRenderTarget(): Device.dwWidth=%u Device.dwHeight=%u",
+        Device.dwWidth, Device.dwHeight);
+
     static constexpr pcstr SAMPLE_DEFS[] = { "0", "1", "2", "3", "4", "5", "6", "7" };
 
     if (!strstr(Core.Params, "-smap"))
