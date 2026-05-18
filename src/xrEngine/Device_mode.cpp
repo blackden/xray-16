@@ -159,6 +159,21 @@ void CRenderDevice::UpdateWindowProps()
     SDL_PumpEvents();
     UpdateWindowRects();
 
+    // Replace point-sized dwWidth/dwHeight (set in SelectResolution from
+    // psDeviceMode) with physical pixel drawable size. On HiDPI/Retina with
+    // SDL_WINDOW_ALLOW_HIGHDPI this is 2x the points; on non-HiDPI it equals
+    // the window size, so this is a no-op cross-platform. Render path (RT
+    // sizes, glViewport, Present blit) consumes dwWidth/dwHeight as pixels.
+    {
+        int pxW = 0, pxH = 0;
+        SDL_GL_GetDrawableSize(m_sdlWnd, &pxW, &pxH);
+        if (pxW > 0 && pxH > 0)
+        {
+            dwWidth = static_cast<u32>(pxW);
+            dwHeight = static_cast<u32>(pxH);
+        }
+    }
+
     ImGuiIO& io = ImGui::GetIO();
 
     io.DisplaySize = { static_cast<float>(psDeviceMode.Width), static_cast<float>(psDeviceMode.Height) };
