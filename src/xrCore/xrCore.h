@@ -171,6 +171,14 @@ XRCORE_API bool xr_legacy_to_utf8_alloc(pcstr src, size_t src_len, pcstr codepag
 // site (one branch).
 XRCORE_API extern int g_r__trace_encoding;
 
+// Master switch for the Phase 2 read shim. Default ON because vanilla
+// CoP gamedata.db archives still ship cp1251 XMLs and the shim is the
+// only thing keeping the menu / dialogs readable. Modders shipping a
+// fully UTF-8-native pack can set this to 0 to skip the per-line
+// xr_is_valid_utf8 check; cost when on is one branch + a strlen-style
+// scan per load, so the saving is small. Exposed as r__legacy_encoding.
+XRCORE_API extern int g_r__legacy_encoding;
+
 // Returns true if the given byte sequence is well-formed UTF-8 (or ASCII,
 // which is a subset). Used to decide whether a filename came from a UTF-8
 // source (POSIX dir-scan, user-typed text) and should be left alone, or
