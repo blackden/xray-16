@@ -179,6 +179,16 @@ void CInventoryOwner::load(IReader& input_packet)
 
     CharacterInfo().load(input_packet);
     load_data(m_game_name, input_packet);
+    // Pre-UTF-8-migration saves stored display names as cp1251. Transcode
+    // so legacy save files still render correctly under the Phase 1
+    // codepoint-aware font path.
+    if (!m_game_name.empty() && !xr_is_valid_utf8(m_game_name.c_str()))
+    {
+        char buf[256];
+        xr_strcpy(buf, sizeof(buf), m_game_name.c_str());
+        xr_cp1251_to_utf8(buf, sizeof(buf));
+        m_game_name = buf;
+    }
     load_data(m_money, input_packet);
 }
 
