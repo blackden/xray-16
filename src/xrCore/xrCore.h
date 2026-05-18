@@ -144,3 +144,15 @@ extern XRCORE_API xrCore Core;
 // ANSI mode. Characters outside cp1251 are transliterated (//TRANSLIT). On
 // failure the buffer is left unchanged.
 XRCORE_API void xr_utf8_to_cp1251(char* buf, size_t buf_size);
+
+// Convert a cp1251 string in-place to UTF-8. The inverse of the above; used
+// to bridge engine-internal cp1251 strings (localization XML, Lua) into APIs
+// that require UTF-8 (POSIX filesystem on macOS). No-op on Windows.
+XRCORE_API void xr_cp1251_to_utf8(char* buf, size_t buf_size);
+
+// Returns true if the given byte sequence is well-formed UTF-8 (or ASCII,
+// which is a subset). Used to decide whether a filename came from a UTF-8
+// source (POSIX dir-scan, user-typed text) and should be left alone, or
+// from a cp1251 source (script localization) and needs conversion before
+// hitting a UTF-8-only FS like APFS.
+XRCORE_API bool xr_is_valid_utf8(pcstr buf);
