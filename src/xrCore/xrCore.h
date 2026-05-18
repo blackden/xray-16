@@ -150,6 +150,19 @@ XRCORE_API void xr_utf8_to_cp1251(char* buf, size_t buf_size);
 // that require UTF-8 (POSIX filesystem on macOS). No-op on Windows.
 XRCORE_API void xr_cp1251_to_utf8(char* buf, size_t buf_size);
 
+// Generic legacy -> UTF-8 in-place. `codepage` is an iconv name, e.g.
+// "CP1251" / "CP1250" / "CP1252". Used by the XML/INI read shim (Phase 2)
+// which needs to swap between cp1251 for rus/ukr and cp1250 for pol. The
+// in-place variant is intended for fixed-size buffers (filenames); use
+// xr_legacy_to_utf8_alloc for file bodies that may inflate past `buf_size`.
+XRCORE_API void xr_legacy_to_utf8(char* buf, size_t buf_size, pcstr codepage);
+
+// Allocating variant. Reads `src_len` bytes from `src` interpreted as
+// `codepage` and writes the UTF-8 result into `out`. Returns false (and
+// leaves `out` empty) on iconv failure. UTF-8 size headroom is 4x the
+// source length; cp1251 -> UTF-8 caps at 3x so this is safe.
+XRCORE_API bool xr_legacy_to_utf8_alloc(pcstr src, size_t src_len, pcstr codepage, xr_string& out);
+
 // Returns true if the given byte sequence is well-formed UTF-8 (or ASCII,
 // which is a subset). Used to decide whether a filename came from a UTF-8
 // source (POSIX dir-scan, user-typed text) and should be left alone, or

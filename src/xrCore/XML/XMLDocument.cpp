@@ -177,7 +177,71 @@ bool XMLDocument::Load(pcstr path, pcstr xml_filename, bool fatal)
     W.w_stringZ("");
     FS.r_close(F);
 
-    return Set(reinterpret_cast<pcstr>(W.pointer()), fatal);
+    return SetWithEncodingShim(reinterpret_cast<pcstr>(W.pointer()), W.size(), fatal);
+}
+
+// Detect cp1251 / cp1250 / cp1252 XML bodies authored before the UTF-8
+// migration and transcode them on the fly. Vanilla CoP gamedata ships
+// localization XMLs with `encoding="windows-1251"` declarations whose
+// bytes are cp1251 on disk; with s_utf8_mode on, the renderer would
+// otherwise show '?' for every cyrillic glyph.
+//
+// Strategy:
+//   1. If the body is already valid UTF-8, pass through unchanged.
+//   2. Otherwise sniff `encoding="..."` from the XML prologue and pick
+//      a codepage. Default to CP1251 (vanilla CoP convention).
+//   3. Transcode the whole body into UTF-8.
+//   4. Patch the encoding attribute to "utf-8" so tinyxml's own parser
+//      doesn't try a second decode and fail.
+bool XMLDocument::SetWithEncodingShim(pcstr body, size_t /*body_size*/, bool fatal)
+{
+    if (!body)
+        return Set(body, fatal);
+
+    if (xr_is_valid_utf8(body))
+        return Set(body, fatal);
+
+    // Sniff encoding= attribute in the first 256 bytes (XML prologue).
+    pcstr codepage = "CP1251";
+    pcstr enc = strstr(body, "encoding=");
+    if (enc && enc - body < 256)
+    {
+        enc += 9; // past "encoding="
+        if (*enc == '"' || *enc == '\'')
+            ++enc;
+        if (strncasecmp(enc, "windows-1250", 12) == 0 || strncasecmp(enc, "cp1250", 6) == 0)
+            codepage = "CP1250";
+        else if (strncasecmp(enc, "windows-1252", 12) == 0 || strncasecmp(enc, "cp1252", 6) == 0)
+            codepage = "CP1252";
+        // windows-1251 / cp1251 / unspecified all fall through to CP1251.
+    }
+
+    xr_string transcoded;
+    const size_t body_len = xr_strlen(body);
+    if (!xr_legacy_to_utf8_alloc(body, body_len, codepage, transcoded))
+    {
+        // iconv failed — fall back to raw bytes so the caller still sees
+        // something (mojibake is better than a hard failure during boot).
+        return Set(body, fatal);
+    }
+
+    // Patch the encoding attribute so tinyxml doesn't try to decode again.
+    // We do a substring replace of the first encoding="..." -> encoding="utf-8".
+    auto patch_attr = [](xr_string& s, pcstr quoted_value) {
+        size_t pos = s.find("encoding=");
+        if (pos == xr_string::npos || pos > 256) return;
+        size_t open = pos + 9;
+        if (open >= s.size()) return;
+        const char quote = s[open];
+        if (quote != '"' && quote != '\'') return;
+        size_t close = s.find(quote, open + 1);
+        if (close == xr_string::npos) return;
+        // Replace contents between quotes.
+        s.replace(open + 1, close - open - 1, quoted_value);
+    };
+    patch_attr(transcoded, "utf-8");
+
+    return Set(transcoded.c_str(), fatal);
 }
 
 bool XMLDocument::Set(pcstr text, bool fatal)
