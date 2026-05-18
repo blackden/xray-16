@@ -59,6 +59,75 @@ XRCORE_API void xr_utf8_to_cp1251(char* buf, size_t buf_size)
 #endif
 }
 
+XRCORE_API void xr_cp1251_to_utf8(char* buf, size_t buf_size)
+{
+#if defined(XR_PLATFORM_APPLE)
+    if (!buf || buf_size == 0)
+        return;
+    iconv_t cd = iconv_open("UTF-8", "CP1251");
+    if (cd == (iconv_t)-1)
+        return;
+    char tmp[1024] = {};
+    char* in = buf;
+    char* out = tmp;
+    size_t in_left = strnlen(buf, buf_size);
+    size_t out_left = sizeof(tmp) - 1;
+    if (iconv(cd, &in, &in_left, &out, &out_left) != (size_t)-1)
+    {
+        *out = '\0';
+        const size_t copy = std::min<size_t>(sizeof(tmp) - 1, buf_size - 1);
+        memcpy(buf, tmp, copy);
+        buf[copy] = '\0';
+    }
+    iconv_close(cd);
+#else
+    (void)buf;
+    (void)buf_size;
+#endif
+}
+
+XRCORE_API bool xr_is_valid_utf8(pcstr buf)
+{
+    if (!buf)
+        return true;
+    const unsigned char* p = reinterpret_cast<const unsigned char*>(buf);
+    while (*p)
+    {
+        if (*p < 0x80)
+        {
+            ++p;
+        }
+        else if ((*p & 0xE0) == 0xC0)
+        {
+            if ((p[1] & 0xC0) != 0x80) return false;
+            // overlong: must be >= 0xC2
+            if (*p < 0xC2) return false;
+            p += 2;
+        }
+        else if ((*p & 0xF0) == 0xE0)
+        {
+            if ((p[1] & 0xC0) != 0x80 || (p[2] & 0xC0) != 0x80) return false;
+            // overlong / surrogate: U+0800..U+FFFF excluding D800..DFFF
+            if (*p == 0xE0 && p[1] < 0xA0) return false;
+            if (*p == 0xED && p[1] >= 0xA0) return false;
+            p += 3;
+        }
+        else if ((*p & 0xF8) == 0xF0)
+        {
+            if ((p[1] & 0xC0) != 0x80 || (p[2] & 0xC0) != 0x80 || (p[3] & 0xC0) != 0x80) return false;
+            if (*p == 0xF0 && p[1] < 0x90) return false; // overlong
+            if (*p == 0xF4 && p[1] >= 0x90) return false; // > U+10FFFF
+            if (*p > 0xF4) return false;
+            p += 4;
+        }
+        else
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 static u32 init_counter = 0;
 
 #define DO_EXPAND(...) __VA_ARGS__##1
