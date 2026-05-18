@@ -289,7 +289,7 @@ inline void dxFontRender::ImprintCharCp(Fvector l, const CGameFont& owner, FVF::
     if (owner.IsMultibyte())
     {
         X -= 2;
-        if (IsNeedSpaceCharacter(static_cast<xr_wide_char>(cp)))
+        if (IsNeedSpaceCharacter(cp))
             X += owner.fXStep;
     }
 }

@@ -294,7 +294,7 @@ u16 CGameFont::GetCutLengthPos(float fTargetWidth, pcstr pszText)
             const char* before = p;
             xr_decode_utf8(p, cp);
             float fDelta = GetCharTC(SlotForCodepoint(cp)).z - 2;
-            if (IsNeedSpaceCharacter(static_cast<xr_wide_char>(cp)))
+            if (IsNeedSpaceCharacter(cp))
                 fDelta += fXStep;
             if ((fCurWidth + fDelta) > fTargetWidth)
                 return static_cast<u16>(before - pszText);
@@ -345,13 +345,13 @@ u16 CGameFont::SplitByWidth(u16* puBuffer, u16 uBufferSize, float fTargetWidth, 
             const char* before = p;
             xr_decode_utf8(p, cp);
             float fDelta = GetCharTC(SlotForCodepoint(cp)).z - 2;
-            if (IsNeedSpaceCharacter(static_cast<xr_wide_char>(cp)))
+            if (IsNeedSpaceCharacter(cp))
                 fDelta += fXStep;
 
             const bool isOverlength = (fCurWidth + fDelta) > fTargetWidth;
-            const bool canStart = !IsBadStartCharacter(static_cast<xr_wide_char>(cp));
+            const bool canStart = !IsBadStartCharacter(cp);
             const bool notLast = (*p != 0);
-            const bool prevOk = !first && !IsBadEndCharacter(static_cast<xr_wide_char>(prev_cp));
+            const bool prevOk = !first && !IsBadEndCharacter(prev_cp);
 
             if (isOverlength && canStart && notLast && prevOk)
             {

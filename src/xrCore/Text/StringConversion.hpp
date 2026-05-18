@@ -54,27 +54,32 @@ inline size_t xr_utf8_lead_size(unsigned char b)
     return 1; // continuation byte or 5/6-byte forbidden lead: step 1 to make progress
 }
 
-IC bool IsNeedSpaceCharacter(xr_wide_char wc)
+// Classification predicates. Widened from xr_wide_char (u16) to xr_codepoint
+// (u32) in Phase 1.7 so UTF-8-aware callers can pass codepoints without a
+// narrowing cast. All reference values live inside the BMP (<= U+FFFF), so
+// legacy callers that pass an xr_wide_char get implicit promotion with no
+// behavior change.
+IC bool IsNeedSpaceCharacter(xr_codepoint cp)
 {
-    return ((wc == 0x0020) || (wc == 0x3000) || (wc == 0xFF01) || (wc == 0xFF0C) ||
-        // ( wc == 0xFF0D ) ||
-        (wc == 0xFF0E) || (wc == 0xFF1A) || (wc == 0xFF1B) || (wc == 0xFF1F) || (wc == 0x2026) || (wc == 0x3002) ||
-        (wc == 0x3001));
+    return ((cp == 0x0020) || (cp == 0x3000) || (cp == 0xFF01) || (cp == 0xFF0C) ||
+        // ( cp == 0xFF0D ) ||
+        (cp == 0xFF0E) || (cp == 0xFF1A) || (cp == 0xFF1B) || (cp == 0xFF1F) || (cp == 0x2026) || (cp == 0x3002) ||
+        (cp == 0x3001));
 }
 
-IC bool IsBadStartCharacter(xr_wide_char wc)
+IC bool IsBadStartCharacter(xr_codepoint cp)
 {
-    return (IsNeedSpaceCharacter(wc) || (wc == 0x0021) || (wc == 0x002C) ||
-        // ( wc == 0x002D ) ||
-        (wc == 0x002E) || (wc == 0x003A) || (wc == 0x003B) || (wc == 0x003F) || (wc == 0x0029) || (wc == 0xFF09));
+    return (IsNeedSpaceCharacter(cp) || (cp == 0x0021) || (cp == 0x002C) ||
+        // ( cp == 0x002D ) ||
+        (cp == 0x002E) || (cp == 0x003A) || (cp == 0x003B) || (cp == 0x003F) || (cp == 0x0029) || (cp == 0xFF09));
 }
 
-IC bool IsBadEndCharacter(xr_wide_char wc) { return ((wc == 0x0028) || (wc == 0xFF08) || (wc == 0x4E00)); }
-IC bool IsAlphaCharacter(xr_wide_char wc)
+IC bool IsBadEndCharacter(xr_codepoint cp) { return ((cp == 0x0028) || (cp == 0xFF08) || (cp == 0x4E00)); }
+IC bool IsAlphaCharacter(xr_codepoint cp)
 {
-    return (((wc >= 0x0030) && (wc <= 0x0039)) || ((wc >= 0x0041) && (wc <= 0x005A)) ||
-        ((wc >= 0x0061) && (wc <= 0x007A)) || ((wc >= 0xFF10) && (wc <= 0xFF19)) ||
-        ((wc >= 0xFF21) && (wc <= 0xFF3A)) || ((wc >= 0xFF41) && (wc <= 0xFF5A)));
+    return (((cp >= 0x0030) && (cp <= 0x0039)) || ((cp >= 0x0041) && (cp <= 0x005A)) ||
+        ((cp >= 0x0061) && (cp <= 0x007A)) || ((cp >= 0xFF10) && (cp <= 0xFF19)) ||
+        ((cp >= 0xFF21) && (cp <= 0xFF3A)) || ((cp >= 0xFF41) && (cp <= 0xFF5A)));
 }
 
 XRCORE_API xr_string StringFromUTF8(const char* string, const std::locale& locale);
