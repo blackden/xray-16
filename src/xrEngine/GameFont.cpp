@@ -463,6 +463,15 @@ float CGameFont::SizeOf_(const char cChar)
     return (GetCharTC((u16)(u8)(((IsMultibyte() && cChar == ' ')) ? 0 : cChar)).z * vInterval.x);
 }
 
+float CGameFont::SizeOfCp(xr_codepoint cp) const
+{
+    // Single-codepoint width for UTF-8 word-wrap callers. Mirrors
+    // SizeOf_(const char) but driven by SlotForCodepoint so cyrillic /
+    // CJK glyphs are measured correctly instead of accumulating per
+    // continuation byte.
+    return (GetCharTC(SlotForCodepoint(cp)).z * vInterval.x);
+}
+
 float CGameFont::SizeOf_(pcstr s)
 {
     if (!(s && s[0]))

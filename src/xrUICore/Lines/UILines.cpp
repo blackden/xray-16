@@ -172,6 +172,80 @@ void CUILines::ParseText(bool force)
             }
         }
     }
+    else if (CGameFont::s_utf8_mode)
+    {
+        // UTF-8 codepoint-aware word-wrap. Mirrors the single-byte branch
+        // below but iterates by codepoint, tracking byte offsets so the
+        // emitted slices stay aligned to UTF-8 boundaries (no continuation
+        // byte ever ends up at the head of a slice).
+        const float max_width = m_wndSize.x;
+        const size_t sbl_cnt = line.m_subLines.size();
+        CUILine tmp_line;
+        string4096 buff;
+        float curr_width = 0.0f;
+
+        float fEps = m_pFont->SizeOfCp(static_cast<xr_codepoint>('o'));
+        UI().ClientToScreenScaledWidth(fEps);
+
+        for (size_t sbl_idx = 0; sbl_idx < sbl_cnt; ++sbl_idx)
+        {
+            const bool b_last_subl = (sbl_idx == sbl_cnt - 1);
+            CUISubLine& sbl = line.m_subLines[sbl_idx];
+            const char* text = sbl.m_text.c_str();
+            const size_t sub_len = sbl.m_text.length();
+            size_t curr_w_pos = 0;      // byte offset of current slice start
+            size_t last_space_pos = 0;  // byte offset (exclusive) of last whitespace
+
+            const char* p = text;
+            xr_codepoint cp = 0;
+            while (*p)
+            {
+                xr_decode_utf8(p, cp);
+                const size_t after_idx = static_cast<size_t>(p - text);
+                const bool b_last_ch = (after_idx >= sub_len);
+
+                if (cp < 0x80 && isspace(static_cast<unsigned char>(cp)))
+                    last_space_pos = after_idx;
+
+                float w1 = m_pFont->SizeOfCp(cp);
+                UI().ClientToScreenScaledWidth(w1);
+                const bool bOver = (curr_width + w1 + fEps > max_width);
+
+                if (bOver || b_last_ch)
+                {
+                    size_t slice_end = after_idx;
+                    if (bOver && last_space_pos && !b_last_ch)
+                    {
+                        slice_end = last_space_pos;
+                        last_space_pos = 0;
+                    }
+                    const size_t slice_len = slice_end - curr_w_pos;
+                    VERIFY(slice_len < sizeof(buff));
+                    strncpy_s(buff, sizeof(buff), text + curr_w_pos, slice_len);
+                    tmp_line.AddSubLine(buff, sbl.m_color);
+                    curr_w_pos = slice_end;
+                    p = text + slice_end; // resume from the new slice start
+                }
+                else
+                {
+                    curr_width += w1;
+                }
+
+                if (bOver || (b_last_ch && sbl.m_last_in_line))
+                {
+                    m_lines.emplace_back(tmp_line);
+                    tmp_line.Clear();
+                    curr_width = 0.0f;
+                }
+            }
+            if (b_last_subl && !tmp_line.IsEmpty())
+            {
+                m_lines.emplace_back(tmp_line);
+                tmp_line.Clear();
+                curr_width = 0.0f;
+            }
+        }
+    }
     else
     {
         float max_width = m_wndSize.x;
