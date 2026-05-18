@@ -23,7 +23,12 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 DIST_DIR="${REPO_ROOT}/dist"
 STAGE_DIR="${DIST_DIR}/all-in-one"
 DMG_PATH="${DIST_DIR}/OpenXRay-AllInOne.dmg"
-VOL_NAME="OpenXRay All-in-One"
+VOL_NAME="OpenXRay-AllInOne"  # No spaces: the engine's -fsltx / -overlaypath
+                              # use sscanf("%[^ ] ", ...) which truncates at
+                              # the first whitespace, so a mount like
+                              # "/Volumes/OpenXRay All-in-One/..." gets parsed
+                              # as "/Volumes/OpenXRay" and the launcher fails
+                              # to find fsgame.ltx.
 
 # --- 1. Validate the game data source --------------------------------------
 
