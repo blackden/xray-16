@@ -45,6 +45,31 @@ void CRenderDevice::InitializeImGui()
 
     io.BackendPlatformName = "OpenXRay";
 
+#if defined(XR_PLATFORM_APPLE)
+    // ImGui ships with ProggyClean which is ASCII only. Debug overlays
+    // that touch any cyrillic string (NPC names, save names, localized
+    // labels surfaced by the same UTF-8 pipeline as the in-game text)
+    // would otherwise render as boxes. macOS bundles Arial.ttf system-
+    // wide; we point ImGui at it and explicitly merge ASCII + Cyrillic
+    // glyph ranges so the atlas covers what the engine actually uses.
+    {
+        static const ImWchar ranges[] = {
+            0x0020, 0x00FF, // Basic Latin + Latin-1 Supplement
+            0x0400, 0x04FF, // Cyrillic
+            0x2010, 0x2030, // Punctuation (em-dash, hellip, ...)
+            0x20AC, 0x20AC, // €
+            0x2116, 0x2116, // №
+            0,
+        };
+        static const char* mac_arial = "/System/Library/Fonts/Supplemental/Arial.ttf";
+        if (!io.Fonts->AddFontFromFileTTF(mac_arial, 14.0f, nullptr, ranges))
+        {
+            Msg("! ImGui: failed to load %s, falling back to ProggyClean (no cyrillic)", mac_arial);
+            io.Fonts->AddFontDefault();
+        }
+    }
+#endif
+
     io.ConfigDebugIsDebuggerPresent = xrDebug::DebuggerIsPresent();
 #ifdef DEBUG
     io.ConfigErrorRecoveryEnableAssert  = true;
