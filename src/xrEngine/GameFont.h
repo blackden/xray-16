@@ -98,6 +98,7 @@ public:
     virtual float SizeOf_(pcstr s) override;
     virtual float SizeOf_(const xr_wide_char* wsStr) override;
     virtual float SizeOf_(const char cChar); // only ANSII
+    float SizeOfCp(xr_codepoint cp) const; // single codepoint, UTF-8-aware callers
     virtual float CurrentHeight_() override;
     virtual void OutSetI(float x, float y) override;
     virtual void OutSet(float x, float y) override;
