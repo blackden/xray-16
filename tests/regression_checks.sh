@@ -101,5 +101,52 @@ check "launcher forces rs_fullscreen off" \
     "grep -q 'rs_fullscreen off' scripts/mac/package_app.sh"
 
 echo
+echo "== UTF-8 migration foundation =="
+
+# The cp1251 <-> UTF-8 helpers are the bridge that every later migration phase
+# leans on. If anyone removes them by accident the autosave EILSEQ retry breaks
+# and the renderer migration loses its boundary normaliser.
+check "xrCore exports xr_cp1251_to_utf8" \
+    "grep -q 'XRCORE_API void xr_cp1251_to_utf8' src/xrCore/xrCore.h"
+
+check "xrCore exports xr_utf8_to_cp1251" \
+    "grep -q 'XRCORE_API void xr_utf8_to_cp1251' src/xrCore/xrCore.h"
+
+check "xrCore exports xr_is_valid_utf8 (RFC 3629 validator)" \
+    "grep -q 'XRCORE_API bool xr_is_valid_utf8' src/xrCore/xrCore.h"
+
+check "xr_is_valid_utf8 has surrogate guard (ED A0..)" \
+    "awk '/XRCORE_API bool xr_is_valid_utf8/,/^}/' src/xrCore/xrCore.cpp | grep -q '0xED' "
+
+check "xr_is_valid_utf8 has overlong guard (C2 minimum for 2-byte)" \
+    "awk '/XRCORE_API bool xr_is_valid_utf8/,/^}/' src/xrCore/xrCore.cpp | grep -q '0xC2'"
+
+# alife_storage_manager uses the helpers at the save/load boundary — removing
+# either call resurrects the EILSEQ silent failure for autosaves with cyrillic
+# event names (Lua-driven).
+check "alife_storage_manager guards save path with xr_is_valid_utf8" \
+    "awk '/CALifeStorageManager::save/,/^void CALifeStorageManager::load/' src/xrGame/alife_storage_manager.cpp | \
+        grep -q 'xr_is_valid_utf8'"
+
+check "alife_storage_manager converts cp1251 save names on save" \
+    "awk '/CALifeStorageManager::save/,/^void CALifeStorageManager::load/' src/xrGame/alife_storage_manager.cpp | \
+        grep -q 'xr_cp1251_to_utf8'"
+
+check "alife_storage_manager mirrors the conversion on load" \
+    "awk '/bool CALifeStorageManager::load/,/^void CALifeStorageManager::save/' src/xrGame/alife_storage_manager.cpp | \
+        grep -q 'xr_cp1251_to_utf8'"
+
+# Fixtures should be present and well-formed. Stale or missing fixtures will
+# cause the test-encoding target to fail before anyone reaches the C++ tests.
+check "encoding fixture phrase.utf8 exists" \
+    "test -s tests/fixtures/encoding/phrase.utf8"
+
+check "encoding fixture phrase.cp1251 exists" \
+    "test -s tests/fixtures/encoding/phrase.cp1251"
+
+check "encoding fixture phrase.cp1250 exists" \
+    "test -s tests/fixtures/encoding/phrase.cp1250"
+
+echo
 echo "Summary: $pass passed, $fail failed"
 exit $fail

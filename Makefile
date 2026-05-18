@@ -27,7 +27,7 @@ RELEASE_BIN      := bin/$(HOST_ARCH)/ReleaseMasterGold/xr_3da
 DIST_APP         := dist/OpenXRay.app
 
 .DEFAULT_GOAL := help
-.PHONY: help setup check-configure-prereqs configure build build-release profile run run-lldb all clean rebuild install-game link-gamedata codesign bundle package install all-in-one test
+.PHONY: help setup check-configure-prereqs configure build build-release profile run run-lldb all clean rebuild install-game link-gamedata codesign bundle package install all-in-one test test-encoding
 
 help: ## Show this help and current settings
 	@echo "OpenXRay macOS automation"
@@ -209,7 +209,7 @@ link-gamedata: ## Symlink res/gamedata into GAME_DIR (GL shaders, OpenXRay confi
 
 all: setup build run ## Run setup + build + run end-to-end
 
-test: ## Run regression checks + safe_append unit test (no xrCore link)
+test: test-encoding ## Run regression checks + safe_append unit test (no xrCore link)
 	@echo "==> Static regression checks"
 	@tests/regression_checks.sh
 	@echo
@@ -218,6 +218,26 @@ test: ## Run regression checks + safe_append unit test (no xrCore link)
 	@clang++ -std=c++17 -Wall -Wextra tests/safe_append_test.cpp -o build-tests/safe_append_test
 	@echo "==> Running safe_append unit test"
 	@build-tests/safe_append_test
+
+test-encoding: ## Run UTF-8 / cp1251 characterization tests (no xrCore link)
+	@mkdir -p build-tests
+	@echo "==> Compiling encoding characterization tests"
+	@clang++ -std=c++17 -Wall -Wextra -Werror tests/utf8_validator_test.cpp -o build-tests/utf8_validator_test
+	@clang++ -std=c++17 -Wall -Wextra -Werror tests/cp1251_roundtrip_test.cpp -liconv -o build-tests/cp1251_roundtrip_test
+	@clang++ -std=c++17 -Wall -Wextra -Werror tests/mb_decode_test.cpp -o build-tests/mb_decode_test
+	@echo "==> Running utf8_validator_test"
+	@build-tests/utf8_validator_test
+	@echo "==> Running cp1251_roundtrip_test"
+	@build-tests/cp1251_roundtrip_test
+	@echo "==> Running mb_decode_test"
+	@build-tests/mb_decode_test
+	@echo "==> Verifying fixtures are well-formed"
+	@iconv -f UTF-8 -t UTF-8 < tests/fixtures/encoding/phrase.utf8 > /dev/null \
+		&& echo "  ✓ phrase.utf8 is valid UTF-8" \
+		|| { echo "  ✗ phrase.utf8 is NOT valid UTF-8"; exit 1; }
+	@! iconv -f UTF-8 -t UTF-8 < tests/fixtures/encoding/phrase.cp1251 > /dev/null 2>&1 \
+		&& echo "  ✓ phrase.cp1251 is correctly NOT valid UTF-8" \
+		|| { echo "  ✗ phrase.cp1251 is unexpectedly valid UTF-8 (regenerate?)"; exit 1; }
 
 build-release: ## Compile the ReleaseMasterGold binary into bin/$(HOST_ARCH)/ReleaseMasterGold/
 	@$(MAKE) build BUILD_TYPE=ReleaseMasterGold BUILD_DIR=build-release
