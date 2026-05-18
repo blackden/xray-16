@@ -168,6 +168,20 @@ check "KbdKeyToButtonName uses SDL_GetScancodeName" \
     "awk '/^bool KbdKeyToButtonName/,/^bool OtherDevicesKeyToButtonName/' \
         src/xrEngine/xr_input.cpp | grep -q 'SDL_GetScancodeName'"
 
+# Phase 4: localization XMLs are UTF-8 on disk + CMake validator catches drift.
+check "localization XMLs declare encoding=utf-8" \
+    "for f in res/gamedata/configs/text/*/openxray.xml; do \
+        head -1 \"\$f\" | grep -q 'encoding=\"utf-8\"' || exit 1; \
+     done"
+
+check "localization XMLs are valid UTF-8 on disk" \
+    "for f in res/gamedata/configs/text/*/openxray.xml; do \
+        iconv -f UTF-8 -t UTF-8 < \"\$f\" >/dev/null 2>&1 || exit 1; \
+     done"
+
+check "res/CMakeLists.txt registers validate-localization-utf8 target" \
+    "grep -q 'validate-localization-utf8' res/CMakeLists.txt"
+
 # Fixtures should be present and well-formed. Stale or missing fixtures will
 # cause the test-encoding target to fail before anyone reaches the C++ tests.
 check "encoding fixture phrase.utf8 exists" \
