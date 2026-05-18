@@ -23,7 +23,7 @@ public:
     IRender::RenderContext GetCurrentContext() const;
     int  MakeContextCurrent(IRender::RenderContext context) const;
 
-    static std::pair<u32, u32> GetSurfaceSize();
+    std::pair<u32, u32> GetSurfaceSize() const;
     DeviceState GetDeviceState() const;
 
 public:
@@ -52,6 +52,7 @@ public:
     u32 CurrentBackBuffer{};
 
     GLuint pFB{};
+    GLuint m_defaultVAO{};
 
     SDL_Window* m_window{};
 

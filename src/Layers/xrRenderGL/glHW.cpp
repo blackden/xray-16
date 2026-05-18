@@ -145,12 +145,26 @@ void CHW::CreateDevice(SDL_Window* hWnd)
 
     ComputeShadersSupported = false; // XXX: Implement compute shaders support
 
+    // Core profile requires a non-zero VAO bound for every draw. Engine flow
+    // binds per-format VAOs via set_Format, but any draw issued before the
+    // first set_Format (or after frame-end Invalidate clears the cache) hit
+    // a GL_INVALID_OPERATION storm on Apple GL 4.1. A persistent default VAO
+    // gives a known-good fallback.
+    glGenVertexArrays(1, &m_defaultVAO);
+    CHK_GL(glBindVertexArray(m_defaultVAO));
+
     if (glGenFramebuffers && glBindFramebuffer)
         UpdateViews();
 }
 
 void CHW::DestroyDevice()
 {
+    if (m_defaultVAO)
+    {
+        glDeleteVertexArrays(1, &m_defaultVAO);
+        m_defaultVAO = 0;
+    }
+
     CHK_GL(glDeleteFramebuffers(1, &pFB));
     pFB = 0;
 
@@ -257,13 +271,20 @@ DeviceState CHW::GetDeviceState() const
     return DeviceState::Normal;
 }
 
-std::pair<u32, u32> CHW::GetSurfaceSize()
+std::pair<u32, u32> CHW::GetSurfaceSize() const
 {
-    return
+    // Drawable size is in physical pixels — on HiDPI / Retina that's 2x the
+    // window points the user picked in vid_mode. The render path (RT
+    // allocation, glViewport, Present blit) needs pixels; mouse / UI input
+    // continues to use point dims via SDL_GetWindowSize elsewhere.
+    if (m_window)
     {
-        psDeviceMode.Width,
-        psDeviceMode.Height
-    };
+        int w = 0, h = 0;
+        SDL_GL_GetDrawableSize(m_window, &w, &h);
+        if (w > 0 && h > 0)
+            return { static_cast<u32>(w), static_cast<u32>(h) };
+    }
+    return { psDeviceMode.Width, psDeviceMode.Height };
 }
 
 bool CHW::ThisInstanceIsGlobal() const
