@@ -81,7 +81,21 @@ void CALifeStorageManager::save(LPCSTR save_name_no_check, bool update_name)
 
     string_path temp;
     FS.update_path(temp, "$game_saves$", m_save_name);
+
+    // Unconditional diagnostic: macOS smoke-test showed autosaves apparently
+    // firing in-session but missing from disk after restart. Log save name
+    // byte length and full path before w_open so we can correlate filename
+    // encoding (cp1251 mixed-byte autosave names) with FS layer outcomes.
+    Msg("* Game save attempt: name='%s' bytes=%u path='%s'",
+        m_save_name, (unsigned)xr_strlen(m_save_name), temp);
+
     IWriter* writer = FS.w_open(temp);
+    if (!writer)
+    {
+        Msg("! Game save FAILED: w_open returned null for '%s'", temp);
+        xr_free(dest_data);
+        return;
+    }
     writer->w_u32(u32(-1));
     writer->w_u32(ALIFE_VERSION);
 
@@ -89,12 +103,8 @@ void CALifeStorageManager::save(LPCSTR save_name_no_check, bool update_name)
     writer->w(dest_data, dest_count);
     xr_free(dest_data);
     FS.w_close(writer);
-#ifdef DEBUG
-    Msg("* Game %s is successfully saved to file '%s' (%d bytes compressed to %d)", m_save_name, temp, source_count,
-        dest_count + 4);
-#else // DEBUG
-    Msg("* Game %s is successfully saved to file '%s'", m_save_name, temp);
-#endif // DEBUG
+    Msg("* Game %s is successfully saved to file '%s' (%d bytes compressed to %d)",
+        m_save_name, temp, source_count, dest_count + 4);
 
 	//Alundaio: To get the savegame fname to make our own custom save states
     luabind::functor<void> funct2;
