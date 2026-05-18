@@ -519,14 +519,16 @@ void CInput::ControllerUpdate()
 
 bool KbdKeyToButtonName(const int dik, xr_string& result)
 {
-    static std::locale locale("");
-
     if (dik >= 0)
     {
         cpcstr name = SDL_GetKeyName(SDL_GetKeyFromScancode((SDL_Scancode)dik));
         if (name && name[0])
         {
-            result = StringFromUTF8(name, locale);
+            // SDL returns UTF-8 already. The previous path ran it through
+            // StringFromUTF8(... C-locale) which narrowed cyrillic key
+            // labels ("Е" on RU layout) into '?'. After the Phase 1 UTF-8
+            // renderer migration we can keep the bytes verbatim.
+            result = name;
             return true;
         }
     }
