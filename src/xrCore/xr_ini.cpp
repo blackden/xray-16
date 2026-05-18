@@ -419,7 +419,11 @@ void CInifile::Load(IReader* F, pcstr path, allow_include_func_t allow_include_f
         // proportional to file size and avoids restructuring the
         // IReader-driven parser.
         if (str[0] && !xr_is_valid_utf8(str))
+        {
+            if (g_r__trace_encoding)
+                Msg("* utf8 shim: cp1251 line in INI '%s'", m_file_name[0] ? m_file_name : "<unnamed>");
             xr_cp1251_to_utf8(str, sizeof str);
+        }
         _Trim(str);
         pstr comm = strchr(str, ';');
         pstr comm_1 = strchr(str, '/');

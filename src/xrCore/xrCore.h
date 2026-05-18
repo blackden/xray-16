@@ -163,6 +163,14 @@ XRCORE_API void xr_legacy_to_utf8(char* buf, size_t buf_size, pcstr codepage);
 // source length; cp1251 -> UTF-8 caps at 3x so this is safe.
 XRCORE_API bool xr_legacy_to_utf8_alloc(pcstr src, size_t src_len, pcstr codepage, xr_string& out);
 
+// Diagnostic flag, exposed as the `r__trace_encoding` console var. When
+// non-zero, every XML / INI file the Phase 2 read shim has to transcode
+// from cp1251/cp1250 logs one Msg() line with its name -- useful when
+// debugging mod packs to confirm what's legacy-encoded and what's
+// already UTF-8. Default off; toggling it costs nothing at the call
+// site (one branch).
+XRCORE_API extern int g_r__trace_encoding;
+
 // Returns true if the given byte sequence is well-formed UTF-8 (or ASCII,
 // which is a subset). Used to decide whether a filename came from a UTF-8
 // source (POSIX dir-scan, user-typed text) and should be left alone, or

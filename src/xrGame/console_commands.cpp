@@ -2248,6 +2248,10 @@ void CCC_RegisterCommands()
     CMD3(CCC_Mask, "lua_debug", &g_LuaDebug, 1);
     CMD4(CCC_Integer, "lua_dump_depth", &g_LuaDumpDepth, 0, 16);
 
+    // Diagnostic for the Phase 2 UTF-8 read shim. Set to 1 to log every
+    // XML/INI file that was loaded as cp1251 and transcoded on the fly.
+    CMD4(CCC_Integer, "r__trace_encoding", &g_r__trace_encoding, 0, 1);
+
     CMD1(CCC_LuaProfiler, CCC_LuaProfiler::COMMAND_LUA_PROFILER_STATUS);
     CMD1(CCC_LuaProfiler, CCC_LuaProfiler::COMMAND_LUA_PROFILER_START);
     CMD1(CCC_LuaProfiler, CCC_LuaProfiler::COMMAND_LUA_PROFILER_START_SAMPLING_MODE);
