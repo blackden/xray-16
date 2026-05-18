@@ -59,12 +59,12 @@ XRCORE_API void xr_utf8_to_cp1251(char* buf, size_t buf_size)
 #endif
 }
 
-XRCORE_API void xr_cp1251_to_utf8(char* buf, size_t buf_size)
+XRCORE_API void xr_legacy_to_utf8(char* buf, size_t buf_size, pcstr codepage)
 {
 #if defined(XR_PLATFORM_APPLE)
-    if (!buf || buf_size == 0)
+    if (!buf || buf_size == 0 || !codepage)
         return;
-    iconv_t cd = iconv_open("UTF-8", "CP1251");
+    iconv_t cd = iconv_open("UTF-8", codepage);
     if (cd == (iconv_t)-1)
         return;
     char tmp[1024] = {};
@@ -83,6 +83,47 @@ XRCORE_API void xr_cp1251_to_utf8(char* buf, size_t buf_size)
 #else
     (void)buf;
     (void)buf_size;
+    (void)codepage;
+#endif
+}
+
+XRCORE_API void xr_cp1251_to_utf8(char* buf, size_t buf_size)
+{
+    xr_legacy_to_utf8(buf, buf_size, "CP1251");
+}
+
+XRCORE_API bool xr_legacy_to_utf8_alloc(pcstr src, size_t src_len, pcstr codepage, xr_string& out)
+{
+    out.clear();
+#if defined(XR_PLATFORM_APPLE)
+    if (!src || !codepage)
+        return false;
+    iconv_t cd = iconv_open("UTF-8", codepage);
+    if (cd == (iconv_t)-1)
+        return false;
+    // UTF-8 expansion factor over single-byte codepages caps at 3x (a single
+    // byte never yields more than three UTF-8 bytes for cp1251/cp1250/cp1252
+    // since all targets are inside the BMP). 4x leaves headroom.
+    out.resize(src_len * 4 + 1);
+    char* inp = const_cast<char*>(src);
+    size_t in_left = src_len;
+    char* outp = &out[0];
+    size_t out_left = out.size() - 1;
+    bool ok = (iconv(cd, &inp, &in_left, &outp, &out_left) != (size_t)-1);
+    iconv_close(cd);
+    if (!ok)
+    {
+        out.clear();
+        return false;
+    }
+    *outp = '\0';
+    out.resize(static_cast<size_t>(outp - &out[0]));
+    return true;
+#else
+    (void)src;
+    (void)src_len;
+    (void)codepage;
+    return false;
 #endif
 }
 
