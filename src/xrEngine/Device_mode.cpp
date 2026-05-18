@@ -248,6 +248,29 @@ void CRenderDevice::SelectResolution(const bool windowed)
         }
     }
 
+    // Clamp the user-requested resolution to what actually fits on the
+    // display in points. macOS otherwise silently shrinks the window after
+    // SDL_SetWindowSize succeeds (e.g. a vid_mode of 2560x1600 ends up as
+    // 1680x907 on an M1 Air at "More Space" scaling), and the RT
+    // allocation we do later from psDeviceMode + drawable becomes 2x larger
+    // than the actual default framebuffer — the engine then renders into a
+    // bottom-left quadrant of the visible area. Doing it here keeps the
+    // engine's state (psDeviceMode, RT sizes, drawable size, blit math) in
+    // agreement instead of relying on a post-resize SIZE_CHANGED round-trip
+    // that only fires after the first broken frame.
+    if (windowed && !GEnv.isDedicatedServer)
+    {
+        SDL_Rect usable;
+        if (SDL_GetDisplayUsableBounds(psDeviceMode.Monitor, &usable) == 0
+            && usable.w > 0 && usable.h > 0)
+        {
+            if (psDeviceMode.Width > static_cast<u32>(usable.w))
+                psDeviceMode.Width = static_cast<u32>(usable.w);
+            if (psDeviceMode.Height > static_cast<u32>(usable.h))
+                psDeviceMode.Height = static_cast<u32>(usable.h);
+        }
+    }
+
     dwWidth = psDeviceMode.Width;
     dwHeight = psDeviceMode.Height;
 }
