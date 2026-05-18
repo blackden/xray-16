@@ -121,20 +121,20 @@ check "xr_is_valid_utf8 has surrogate guard (ED A0..)" \
 check "xr_is_valid_utf8 has overlong guard (C2 minimum for 2-byte)" \
     "awk '/XRCORE_API bool xr_is_valid_utf8/,/^}/' src/xrCore/xrCore.cpp | grep -q '0xC2'"
 
-# alife_storage_manager uses the helpers at the save/load boundary — removing
-# either call resurrects the EILSEQ silent failure for autosaves with cyrillic
-# event names (Lua-driven).
-check "alife_storage_manager guards save path with xr_is_valid_utf8" \
-    "awk '/CALifeStorageManager::save/,/^void CALifeStorageManager::load/' src/xrGame/alife_storage_manager.cpp | \
-        grep -q 'xr_is_valid_utf8'"
+# EILSEQ retry now lives in xrCore: CFileWriter on write, LocatorAPI on read.
+# alife_storage_manager intentionally has no transcoding code — if anyone
+# resurrects it there, both layers run the conversion and the per-callsite
+# normalization is dead code.
+check "CFileWriter retries fopen on EILSEQ after cp1251->utf8 transcode" \
+    "awk '/class CFileWriter/,/^};/' src/xrCore/FS_internal.h | \
+        grep -q 'retry_fopen_after_cp1251'"
 
-check "alife_storage_manager converts cp1251 save names on save" \
-    "awk '/CALifeStorageManager::save/,/^void CALifeStorageManager::load/' src/xrGame/alife_storage_manager.cpp | \
+check "CLocatorAPI::check_for_file retries lookup with utf8-transcoded name" \
+    "grep -A 50 'CLocatorAPI::check_for_file' src/xrCore/LocatorAPI.cpp | \
         grep -q 'xr_cp1251_to_utf8'"
 
-check "alife_storage_manager mirrors the conversion on load" \
-    "awk '/bool CALifeStorageManager::load/,/^void CALifeStorageManager::save/' src/xrGame/alife_storage_manager.cpp | \
-        grep -q 'xr_cp1251_to_utf8'"
+check "alife_storage_manager has no transcoding (handled one layer down)" \
+    "! grep -q 'xr_cp1251_to_utf8' src/xrGame/alife_storage_manager.cpp"
 
 # Phase 2 read shims: XML and INI loaders must auto-transcode legacy
 # cp1251/cp1250 bodies to UTF-8 on read, otherwise menu / dialog text
