@@ -1562,6 +1562,26 @@ bool CLocatorAPI::check_for_file(pcstr path, pcstr _fname, string_path& fname, c
     file desc_f;
     desc_f.name = fname;
     files_it I = m_files.find(desc_f);
+#if defined(XR_PLATFORM_APPLE)
+    // macOS / APFS stores filenames as UTF-8. Callers that hand us a
+    // cp1251-encoded query (Lua-driven save names, legacy resource paths)
+    // never match the indexed UTF-8 entries -- silently. Transcode and
+    // retry once before declaring the file missing.
+    string_path fname_utf8;
+    if (I == m_files.end() && !xr_is_valid_utf8(fname))
+    {
+        xr_strcpy(fname_utf8, sizeof(fname_utf8), fname);
+        xr_cp1251_to_utf8(fname_utf8, sizeof(fname_utf8));
+        desc_f.name = fname_utf8;
+        I = m_files.find(desc_f);
+        if (I != m_files.end())
+        {
+            // Caller will reuse `fname` to actually open the file, so
+            // commit the transcode back into the output buffer.
+            xr_strcpy(fname, fname_utf8);
+        }
+    }
+#endif
     if (I == m_files.end())
     {
         if (!exist(fname, FSType::External))

@@ -79,24 +79,16 @@ void CALifeStorageManager::save(LPCSTR save_name_no_check, bool update_name)
         dest_count = rtc_compress(dest_data, dest_count, source_data, source_count);
     }
 
-    // Autosave names come from Lua localization strings in cp1251 ("ragnar -
-    // прибытие на Скадовск.scop"). APFS rejects non-UTF-8 byte sequences in
-    // fopen() with EILSEQ, so on macOS we convert to UTF-8 when the input is
-    // not already valid UTF-8 — pure-ASCII names (manual quicksaves) and
-    // legacy UTF-8 names from the pw_gecos era both pass the validator and
-    // go through unchanged.
-    string_path save_name_fs;
-    xr_strcpy(save_name_fs, m_save_name);
-#if defined(XR_PLATFORM_APPLE)
-    if (!xr_is_valid_utf8(save_name_fs))
-        xr_cp1251_to_utf8(save_name_fs, sizeof(save_name_fs));
-#endif
-
+    // cp1251 -> UTF-8 normalization for non-UTF-8 save names is now handled
+    // one layer down: CFileWriter retries fopen() with a transcoded path on
+    // EILSEQ (write side), and CLocatorAPI::check_for_file does the same
+    // for the m_files lookup (read side). Keeping the conversion here would
+    // duplicate that logic.
     string_path temp;
-    FS.update_path(temp, "$game_saves$", save_name_fs);
+    FS.update_path(temp, "$game_saves$", m_save_name);
 
     Msg("* Game save attempt: name='%s' bytes=%u path='%s'",
-        save_name_fs, (unsigned)xr_strlen(save_name_fs), temp);
+        m_save_name, (unsigned)xr_strlen(m_save_name), temp);
 
     IWriter* writer = FS.w_open(temp);
     // FS.w_open never returns null in non-_EDITOR builds — CFileWriter
@@ -208,20 +200,12 @@ bool CALifeStorageManager::load(LPCSTR save_name_no_check)
         strconcat(sizeof(m_save_name), m_save_name, save_name, gameSaveExtension);
     }
 
-    // Mirror the save() encoding bridge: if the caller-supplied name is not
-    // valid UTF-8 (cp1251 autosave names from Lua), convert before hitting
-    // FS so the lookup matches the UTF-8 bytes the file landed on disk
-    // with. ASCII and pre-existing UTF-8 names pass the validator
-    // untouched.
-    string_path save_name_fs;
-    xr_strcpy(save_name_fs, m_save_name);
-#if defined(XR_PLATFORM_APPLE)
-    if (!xr_is_valid_utf8(save_name_fs))
-        xr_cp1251_to_utf8(save_name_fs, sizeof(save_name_fs));
-#endif
-
+    // CLocatorAPI::check_for_file now retries the m_files lookup with a
+    // cp1251 -> UTF-8 transcoded query when the exact match fails, so
+    // legacy cp1251 names flow through transparently. No per-callsite
+    // normalization needed.
     string_path file_name;
-    FS.update_path(file_name, "$game_saves$", save_name_fs);
+    FS.update_path(file_name, "$game_saves$", m_save_name);
 
     xr_strcpy(g_last_saved_game, save_name);
     xrDebug::SetBugReportFile(file_name);
