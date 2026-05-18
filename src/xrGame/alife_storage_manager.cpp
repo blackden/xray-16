@@ -90,9 +90,17 @@ void CALifeStorageManager::save(LPCSTR save_name_no_check, bool update_name)
         m_save_name, (unsigned)xr_strlen(m_save_name), temp);
 
     IWriter* writer = FS.w_open(temp);
-    if (!writer)
+    // FS.w_open never returns null in non-_EDITOR builds — CFileWriter
+    // constructs and stores the bad-handle case internally. Probe valid()
+    // explicitly so an EILSEQ from APFS (cp1251 bytes in autosave names)
+    // doesn't get masked by the otherwise-cheerful "successfully saved"
+    // line that follows.
+    if (!writer || !writer->valid())
     {
-        Msg("! Game save FAILED: w_open returned null for '%s'", temp);
+        Msg("! Game save FAILED: w_open could not create file '%s' "
+            "(check earlier 'Can't write file' line for OS errno)", temp);
+        if (writer)
+            FS.w_close(writer);
         xr_free(dest_data);
         return;
     }
