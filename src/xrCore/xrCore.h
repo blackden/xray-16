@@ -156,3 +156,13 @@ XRCORE_API void xr_cp1251_to_utf8(char* buf, size_t buf_size);
 // from a cp1251 source (script localization) and needs conversion before
 // hitting a UTF-8-only FS like APFS.
 XRCORE_API bool xr_is_valid_utf8(pcstr buf);
+
+// Windows-1251 -> Unicode codepoint lookup table. Indexed by the cp1251
+// byte value (0..255). All cp1251 codepoints lie inside the BMP so u16 is
+// enough. 0xFFFD marks the single unassigned byte (0x98).
+//
+// Used by the renderer (Phase 1) to build codepoint -> atlas-slot maps for
+// single-byte fonts whose ini sections were authored as cp1251 indices,
+// and reusable by Phase 2 INI/XML shims that need an in-process cp1251
+// decoder without iconv overhead.
+extern XRCORE_API const u16 xr_cp1251_to_unicode[256];
