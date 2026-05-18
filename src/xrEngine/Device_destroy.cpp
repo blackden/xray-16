@@ -53,7 +53,14 @@ void CRenderDevice::Reset(bool precache /*= true*/)
         PreCache(20, false);
 
     const auto tm_end = TimerAsync();
-    Msg("*** RESET [%d ms]", tm_end - tm_start);
+    int drawableW = 0, drawableH = 0;
+    SDL_GL_GetDrawableSize(m_sdlWnd, &drawableW, &drawableH);
+    Msg("*** RESET [%d ms] mode=%ux%u points=%dx%d drawable=%dx%d engine=%ux%u",
+        tm_end - tm_start,
+        psDeviceMode.Width, psDeviceMode.Height,
+        m_rcWindowClient.w, m_rcWindowClient.h,
+        drawableW, drawableH,
+        dwWidth, dwHeight);
 
     // TODO: Remove this! It may hide crash
     Memory.mem_compact();
