@@ -36,6 +36,24 @@ XRCORE_API u16 mbhMulti2Wide(xr_wide_char* WideStr, xr_wide_char* WidePos, u16 W
 //   - CUILines word-wrap (width measured per codepoint glyph)
 XRCORE_API bool xr_decode_utf8(const char*& p, xr_codepoint& cp);
 
+// True if `b` is a UTF-8 continuation byte (10xxxxxx, 0x80..0xBF). The
+// line-edit cursor uses this to skip past continuation bytes so it never
+// lands mid-codepoint.
+inline bool xr_utf8_is_continuation(unsigned char b) { return (b & 0xC0) == 0x80; }
+
+// Length in bytes of the UTF-8 codepoint starting at lead byte `b`. Returns
+// 1 for ASCII or for malformed leads (so the caller still makes progress
+// and doesn't deadlock on a stray continuation byte). Cursor right-arrow
+// uses this to skip the entire codepoint in one step.
+inline size_t xr_utf8_lead_size(unsigned char b)
+{
+    if (b < 0x80) return 1;
+    if ((b & 0xE0) == 0xC0) return 2;
+    if ((b & 0xF0) == 0xE0) return 3;
+    if ((b & 0xF8) == 0xF0) return 4;
+    return 1; // continuation byte or 5/6-byte forbidden lead: step 1 to make progress
+}
+
 IC bool IsNeedSpaceCharacter(xr_wide_char wc)
 {
     return ((wc == 0x0020) || (wc == 0x3000) || (wc == 0xFF01) || (wc == 0xFF0C) ||

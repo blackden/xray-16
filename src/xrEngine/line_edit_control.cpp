@@ -371,13 +371,37 @@ void line_edit_control::on_text_input(const char *text)
     clear_inserted();
     compute_positions();
 
-    static std::locale locale("");
-    const auto str = StringFromUTF8(text, locale);
+    // SDL feeds us UTF-8 bytes (one TextInput event per IME commit). The
+    // legacy path ran them through StringFromUTF8(... C-locale) which
+    // narrowed to ASCII and dropped cyrillic on POSIX -- exactly the bug
+    // that left the save-name field unable to accept "ё". Now we walk
+    // the codepoints, keep the char_is_allowed filter for ASCII (so
+    // file-name modes still reject '/'), and pass non-ASCII bytes
+    // through verbatim into m_inserted.
+    if (!text || !text[0])
+        return;
 
-    for (char c : str)
+    const char* p = text;
+    while (*p)
     {
-        if (char_is_allowed(c))
-            insert_character(c);
+        const unsigned char b = static_cast<unsigned char>(*p);
+        const size_t step = xr_utf8_lead_size(b);
+        if (b < 0x80)
+        {
+            if (char_is_allowed(static_cast<char>(b)))
+                insert_character(static_cast<char>(b));
+            ++p;
+        }
+        else
+        {
+            // Non-ASCII codepoint: copy all bytes (lead + continuations)
+            // into m_inserted so the cursor's byte arithmetic stays valid.
+            for (size_t i = 0; i < step && *p; ++i)
+            {
+                insert_character(*p);
+                ++p;
+            }
+        }
     }
     add_inserted_text();
 
@@ -587,14 +611,33 @@ void line_edit_control::delete_selected(bool back)
     {
         if (back)
         {
-            u8 dp = ((m_p1 == m_p2) && m_p1 > 0) ? 1 : 0;
+            // Backspace deletes the full previous codepoint, not one byte:
+            // walk back from m_p1 over any continuation bytes, then one
+            // more for the lead. dp is the byte count of that codepoint
+            // (1..4 for valid input).
+            size_t dp = 0;
+            if (m_p1 == m_p2 && m_p1 > 0)
+            {
+                dp = 1;
+                while (dp < m_p1
+                    && xr_utf8_is_continuation(static_cast<unsigned char>(m_edit_str[m_p1 - dp])))
+                    ++dp;
+            }
             strncpy_s(m_undo_buf, m_buffer_size, m_edit_str + m_p1 - dp, m_p2 - m_p1 + dp);
             strncpy_s(m_edit_str + m_p1 - dp, m_buffer_size - (m_p1 - dp), m_edit_str + m_p2, edit_len - m_p2);
             m_cur_pos = m_p1 - dp;
         }
         else
         {
-            u8 dn = ((m_p1 == m_p2) && m_p2 < edit_len) ? 1 : 0;
+            // Forward delete: drop the full codepoint at m_p2 (lead byte
+            // tells us its width, with safe fallback to 1 byte).
+            size_t dn = 0;
+            if (m_p1 == m_p2 && m_p2 < edit_len)
+            {
+                dn = xr_utf8_lead_size(static_cast<unsigned char>(m_edit_str[m_p2]));
+                if (m_p2 + dn > edit_len)
+                    dn = edit_len - m_p2;
+            }
             strncpy_s(m_undo_buf, m_buffer_size, m_edit_str + m_p1, m_p2 - m_p1 + dn);
             strncpy_s(m_edit_str + m_p1, m_buffer_size - m_p1, m_edit_str + m_p2 + dn, edit_len - m_p2 - dn);
             m_cur_pos = m_p1;
@@ -631,10 +674,28 @@ void line_edit_control::move_pos_home() { m_cur_pos = 0; }
 void line_edit_control::move_pos_end() { m_cur_pos = xr_strlen(m_edit_str); }
 void line_edit_control::move_pos_left()
 {
-    if (m_cur_pos > 0)
+    if (m_cur_pos == 0)
+        return;
+    --m_cur_pos;
+    // Step back over any UTF-8 continuation bytes so the cursor lands on
+    // a codepoint boundary instead of slicing a cyrillic glyph in half.
+    while (m_cur_pos > 0
+        && xr_utf8_is_continuation(static_cast<unsigned char>(m_edit_str[m_cur_pos])))
         --m_cur_pos;
 }
-void line_edit_control::move_pos_right() { ++m_cur_pos; }
+void line_edit_control::move_pos_right()
+{
+    const size_t edit_len = xr_strlen(m_edit_str);
+    if (m_cur_pos >= edit_len)
+    {
+        m_cur_pos = edit_len;
+        return;
+    }
+    // Advance by the full codepoint width at the cursor; malformed lead
+    // bytes step 1 (per xr_utf8_lead_size) so the cursor never deadlocks.
+    const size_t step = xr_utf8_lead_size(static_cast<unsigned char>(m_edit_str[m_cur_pos]));
+    m_cur_pos = (m_cur_pos + step <= edit_len) ? (m_cur_pos + step) : edit_len;
+}
 void line_edit_control::move_pos_left_word()
 {
     size_t i = m_cur_pos > 0 ? m_cur_pos - 1 : 0;
@@ -686,7 +747,17 @@ void line_edit_control::compute_positions()
         m_p2 = m_select_start;
 }
 
-void line_edit_control::clamp_cur_pos() { clamp<size_t>(m_cur_pos, 0, xr_strlen(m_edit_str)); }
+void line_edit_control::clamp_cur_pos()
+{
+    const size_t len = xr_strlen(m_edit_str);
+    clamp<size_t>(m_cur_pos, 0, len);
+    // Snap to a codepoint boundary in case word-skip / mouse positioning
+    // dropped the cursor mid-sequence. Walking back over continuation
+    // bytes is bounded by the codepoint length (<=4).
+    while (m_cur_pos > 0 && m_cur_pos < len
+        && xr_utf8_is_continuation(static_cast<unsigned char>(m_edit_str[m_cur_pos])))
+        --m_cur_pos;
+}
 void line_edit_control::SwitchKL()
 {
     cpcstr hint = SDL_GetHint(SDL_HINT_GRAB_KEYBOARD);

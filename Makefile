@@ -227,6 +227,7 @@ test-encoding: ## Run UTF-8 / cp1251 characterization tests (no xrCore link)
 	@clang++ -std=c++17 -Wall -Wextra -Werror tests/mb_decode_test.cpp -o build-tests/mb_decode_test
 	@clang++ -std=c++17 -Wall -Wextra -Werror tests/utf8_decode_test.cpp -o build-tests/utf8_decode_test
 	@clang++ -std=c++17 -Wall -Wextra -Werror tests/cp1251_codepoint_test.cpp -liconv -o build-tests/cp1251_codepoint_test
+	@clang++ -std=c++17 -Wall -Wextra -Werror tests/utf8_boundary_test.cpp -o build-tests/utf8_boundary_test
 	@echo "==> Running utf8_validator_test"
 	@build-tests/utf8_validator_test
 	@echo "==> Running cp1251_roundtrip_test"
@@ -237,6 +238,8 @@ test-encoding: ## Run UTF-8 / cp1251 characterization tests (no xrCore link)
 	@build-tests/utf8_decode_test
 	@echo "==> Running cp1251_codepoint_test"
 	@build-tests/cp1251_codepoint_test
+	@echo "==> Running utf8_boundary_test"
+	@build-tests/utf8_boundary_test
 	@echo "==> Verifying fixtures are well-formed"
 	@iconv -f UTF-8 -t UTF-8 < tests/fixtures/encoding/phrase.utf8 > /dev/null \
 		&& echo "  ✓ phrase.utf8 is valid UTF-8" \
