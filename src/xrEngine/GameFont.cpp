@@ -188,7 +188,11 @@ void CGameFont::Initialize(pcstr cShader, pcstr cTextureName)
     pFontRender->Initialize(cShader, cTexture);
 }
 
-bool CGameFont::s_utf8_mode = false;
+// Flipped to true in Phase 1.8: every renderer call site (SizeOf_,
+// GetCutLengthPos, SplitByWidth, smart_strlen, dxFontRender::OnRender,
+// CUILines::ParseText) is now codepoint-aware. The legacy mbhMulti2Wide /
+// byte-indexed paths stay in the tree as a one-flag-flip fallback.
+bool CGameFont::s_utf8_mode = true;
 
 u16 CGameFont::SlotForCodepoint(u32 cp) const
 {
