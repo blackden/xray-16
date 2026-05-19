@@ -46,34 +46,31 @@ void dxRainRender::Render(CEffect_Rain& owner)
 {
     float factor = g_pGamePersistent->Environment().CurrentEnv.rain_density;
 
-    // Suppress streak emission indoors via sky-visibility smoothing
-    // computed in CEffect_Rain::OnFrame. m_hemi_factor is the fraction
-    // of 5 upward raycasts that hit the open sky (0=fully covered,
-    // 1=open). Vanilla CoP ignored this, so rain still spawned through
-    // roofs (Yanov station etc.).
-    // XXX [ragnar] RAIN_GATE_SYNC: the same smoothstep is duplicated in
-    // r3_rendertarget_draw_rain.cpp (wet shader) and r3_R_rain.cpp
-    // (shadow rain). Keep ranges identical — if tuning, change all 3.
-    {
-        float hemi = owner.get_hemi_factor();
-        float t = (hemi - 0.2f) / 0.4f;
-        clamp(t, 0.f, 1.f);
-        factor *= t * t * (3.f - 2.f * t); // smoothstep over [0.2, 0.6]
-    }
-
     if (factor < EPS_L)
         return;
 
     const u32 desired_items = iFloor(0.5f * (1.f + factor) * float(max_desired_items));
 
-    // born _new_ if needed
+    // born _new_ if needed. Indoor suppression now lives in
+    // CEffect_Rain::Born itself: each spawn point gets a short upward
+    // RayTest, and Born returns false when the point is under static
+    // cover. The previous camera-centric smoothstep was wrong at open
+    // doorways and awning edges — it gated ALL spawns even when part
+    // of the source disc was over open sky. Per-spawn gating is the
+    // correct granularity. We bound the spawn attempts per frame so
+    // a player standing under an awning (where most attempts will be
+    // dropped) doesn't burn CPU re-trying forever.
     if (owner.items.size() < desired_items)
     {
         owner.items.reserve(desired_items);
-        while (owner.items.size() < desired_items)
+        u32 spawn_attempts = 0;
+        const u32 max_attempts_per_frame = desired_items * 2;
+        while (owner.items.size() < desired_items && spawn_attempts < max_attempts_per_frame)
         {
             CEffect_Rain::Item one;
-            owner.Born(one, source_radius);
+            ++spawn_attempts;
+            if (!owner.Born(one, source_radius))
+                continue;
             owner.items.push_back(one);
         }
     }
