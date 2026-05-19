@@ -137,3 +137,42 @@
 - **Playground v3** — GPU timer queries per pipeline stage, frame
   timeline waterfall. Deferred until concrete performance work demands
   this view.
+
+## Live-confirmed (2026-05-19, post-epic infrastructure landed)
+
+- **ALife Inspector v0** (`e399844d1`). Walks `ai().alife().objects().objects()`,
+  categorises via `dynamic_cast` against `CSE_ALifeHumanAbstract` /
+  `CSE_ALifeMonsterAbstract` / `CSE_ALifeInventoryItem` /
+  `CSE_ALifeAnomalousZone`. Shows total / online / offline + per-class
+  counts + current level name. Same `ide_tool` pattern as playground.
+- **`ide::ToggleNamedTool(name)` dispatch** added so xrGame can open
+  named ide_tool overlays without xrEngine knowing the subclass.
+  Enables future dev panels without growing the IRender / ide-virtual
+  surface.
+- **`dev_tools` cvar gate** (`667b87594`, `195b6c152`). Runtime
+  `ENGINE_API int g_dev_tools` (default 0 in MasterGold, 1 elsewhere),
+  registered as `CCC_Integer "dev_tools" 0..1`. All three F-key
+  dispatch sites (ide::IR_OnKeyboardPress, CLevel::IR_OnKeyboardPress,
+  CMainMenu::IR_OnKeyboardPress) early-out when `g_dev_tools == 0`.
+  QA enables in a shipped MasterGold via console `dev_tools 1` — no
+  rebuild.
+- **F6/F7 default binding for dev hotkeys.** F11 grabbed by macOS
+  Mission Control; F12 grabbed by hardware Volume Up media key
+  (intercepted before SDL sees it, even with "Use F1, F2... as standard
+  function keys" enabled — confirmed empirically). F6/F7 reach SDL
+  cleanly. `user.ltx` persists per-user overrides, so the default
+  change only affects fresh installs.
+
+## Deferred from ALife Inspector v0 (next-layer features)
+
+- Per-object detail panel — select an NPC in the list → its task,
+  faction, position, inventory contents. Needs a selection model
+  beyond aggregate counters.
+- Smart-terrain task state visualisation — which terrain runs which
+  scripted task, current job slot occupancy.
+- Faction inventory drift tracking over time — sample on a timer,
+  diff against baseline.
+- NPC dialog memory tied to player reputation — needs schema dump
+  from the ALife dialog system, currently opaque to the inspector.
+- Open-world adaptation (semi-/full-open). Deferred until vanilla CoP
+  is end-to-end stable on macOS.

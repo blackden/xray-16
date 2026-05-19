@@ -329,6 +329,41 @@ need ConsoleVar + persistence + validation).
 
 ---
 
+## 17. `dev_tools` cvar gate, not `#ifdef MASTER_GOLD`, for dev hotkeys
+
+**Decision.** Renderer Playground (F6) and ALife Inspector (F7) are
+gated at runtime by `ENGINE_API int g_dev_tools` — default 0 in
+MasterGold, 1 elsewhere — registered as `CCC_Integer "dev_tools" 0..1`
+in `xr_ioc_cmd.cpp::CCC_Register()`. All three F-key dispatch sites
+(`ide::IR_OnKeyboardPress`, `CLevel::IR_OnKeyboardPress`,
+`CMainMenu::IR_OnKeyboardPress`) early-out when `g_dev_tools == 0`. The
+Tools menu remains `#ifndef MASTER_GOLD` (compile-time strip of UI
+breadcrumb), but the hotkey dispatch is runtime-toggleable.
+
+**Why.** The "debug a MasterGold a player complains about" workflow with
+`#ifdef` requires rebuilding and reshipping a custom binary. With cvar,
+QA types `dev_tools 1` in console and the panels light up — single
+shipped binary covers both modes. Operational friction wins over the
+~50KB code-strip benefit of compile-time gating. Tool construction is
+still unconditional (KB at startup), which keeps `dev_tools 1`
+mid-session working without restart.
+
+**Trade-off.** Dev-only panel code ships in MasterGold binaries
+(visible to determined reverse-engineering). Not a concern for a
+moded-engine fork.
+
+**Revisit if.** Building a true consumer release for end-users where
+binary-size or surface-attack matters; then strip via `#ifdef` and
+accept the rebuild-for-debug cost.
+
+**Pattern for new dev surfaces:** add the hotkey, gate the dispatch
+case with `if (!g_dev_tools) break;` (or early-return for if-chain
+sites), do NOT gate construction. Tools menu (if any) stays under
+`#ifndef MASTER_GOLD`. See `notes/architecture.md` and the cvar
+declaration in `src/xrEngine/xr_level_controller.h`.
+
+---
+
 ## Что хочу добавить в будущем
 
 - Решение по Apple-side keychain / security framework, если полезем в
