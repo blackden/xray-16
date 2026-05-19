@@ -397,6 +397,33 @@ public:
     virtual DeviceState GetDeviceState() = 0;
     virtual bool GetForceGPU_REF() = 0;
     virtual u32 GetCacheStatPolys() = 0;
+
+    // Renderer playground (epic #12) — diagnostic queries exposed to the
+    // in-engine debug overlay. Default to empty / zeroed for backends that
+    // don't implement them.
+    struct PlaygroundGLState
+    {
+        u32 vao{};
+        u32 program{};
+        u32 drawFbo{};
+        u32 readFbo{};
+        u32 drawCalls{};
+        u32 verts{};
+        u32 polys{};
+    };
+    virtual PlaygroundGLState GetPlaygroundGLState() const { return {}; }
+
+    struct PlaygroundRenderTarget
+    {
+        const char* name{};
+        u32         colorId{};   // GLuint / native handle low bits
+        u32         depthId{};
+        u32         width{};
+        u32         height{};
+        bool        hasColor{};
+        bool        hasDepth{};
+    };
+    virtual void EnumerateRenderTargets(xr_vector<PlaygroundRenderTarget>& /*out*/) const {}
     virtual void OnCameraUpdated() = 0;
     virtual void Begin() = 0;
     virtual void Clear() = 0;

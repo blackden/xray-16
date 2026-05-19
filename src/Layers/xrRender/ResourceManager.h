@@ -114,6 +114,16 @@ public:
     //.	BOOL							_GetDetailTexture	(LPCSTR Name, LPCSTR& T, R_constant_setup* &M);
 
     map_Blender& _GetBlenders() { return m_blenders; }
+
+    // Renderer playground accessor — read-only iteration over the live RT
+    // map for the RT picker tab. Invokes fn(name, CRT*) for each entry.
+    template <class Fn>
+    void ForEachRT(Fn&& fn) const
+    {
+        for (const auto& kv : m_rtargets)
+            fn(kv.first, kv.second);
+    }
+
     // Debug
     void DBG_VerifyGeoms();
     void DBG_VerifyTextures();
