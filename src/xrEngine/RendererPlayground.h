@@ -66,6 +66,10 @@ private:
     void DrawRTPickerTab();
     void DrawEventLogTab();
     void DrawPipelineTogglesTab();
+    void DrawHotReloadTab();
+
+    bool      m_hotReloadStarted{ false };
+    xr_string m_shaderCachePath;
 
     int m_lastTabIndex{ 0 };
 
