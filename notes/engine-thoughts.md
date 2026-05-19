@@ -168,3 +168,73 @@ state (здоровье, изоляция от группы, ресурсы) и 
 
 Этот движок не для новых проектов. Он — **дом** для STALKER. И в этом доме
 ещё есть комнаты которые стоит достроить.
+
+---
+
+## GL port as audit pass
+*2026-05-19*
+
+Стандартный нарратив про порты: тяжёлая работа адаптации, ценность — новая
+аудитория. Наш кейс инвертирует это: порт под более строгий toolchain — это
+форма аудита, и его инженерная ценность для *исходного* проекта может
+превышать ценность для target-платформы.
+
+Apple GL parser, ARM64 alignment, clang warnings, PAC stack integrity checks —
+всё это работает как verification pass над кодом который 15 лет считался
+«работающим».
+
+### Шесть классов латентных багов, найденных за одну сессию
+
+1. **SSAO/SSR/SUN/SUN_SHAFTS quality-define cascade** — undefined preprocessor
+   identifiers. fxc принимал как 0 молча; Apple GLSL отвергал. Shader
+   permutation matrix была silently incorrect для всех конфигураций с
+   выключенными фичами. Разработчик не знал что половина кода никогда не
+   доходила до ожидаемого compile path.
+
+2. **VAO cache leak / 0x502 GL_INVALID_OPERATION storm** — race при перевязке
+   RT на смене разрешения. DX state-machine forgiving → тихий микро-stall на
+   Windows. Apple GL через Metal translation → orphan всего pipeline.
+
+3. **pw_gecos vs pw_name для UserName** — POSIX-путь брал display name
+   (non-ASCII, запятые, пробелы) вместо account name. Существовал в
+   Linux-билде столько лет сколько он существует. Apple PRAuth path сделал
+   видимым.
+
+4. **Path separator в LocatorAPI** — `\` implicit-converted на Windows, под
+   POSIX вылез как «saves не персистятся». Ловили под Wine годами, fix landed
+   только когда macOS port потребовал формальной трактовки.
+
+5. **xrDebug::GatherInfo buffer overflow при Cmd+Q** — на x86 Windows выглядел
+   как «crash в crash reporter» и списывался на уже случившуюся ошибку. ARM64
+   PAC trap подсветил явно: return address integrity violation.
+
+6. **accum_omni_* GLSL compile errors** — transitively через SSAO_QUALITY
+   include chain. Opaque на Windows, surfaces under strict GLSL.
+
+Это не «новые баги от порта» — это existing latent bugs которые порт
+разоблачил.
+
+### Sound bites
+
+- *"Cross-platform ports aren't translation work — they're an external audit
+  pass paid for by users instead of QA."*
+- *"fxc permissiveness compounds into 15 years of unverified preprocessor
+  branches."*
+- *"A strict toolchain is a free static analyzer with one downside: it makes
+  you do all the fixing in one weekend instead of spread over a decade."*
+- *"Every undefined-as-zero in HLSL is a Schrödinger feature — it shipped,
+  but nobody knows which compile permutation actually runs."*
+
+### Применение
+
+- При PR в OpenXRay upstream: «porting to GL/macOS revealed N latent bugs in
+  the Windows build, fixes apply universally» — аргумент для maintainers
+  принять изменения которые выглядят как macOS-only.
+- Потенциальный заголовок статьи: не «как портировать X-Ray на Mac», а «что
+  строгий toolchain нашёл в 15-летнем shipping коде» — аудитория шире
+  stalker-community, релевантно для legacy modernization и compiler-strictness
+  дискуссий в целом.
+
+*Entry зафиксирован из /btw-сессии с peer-Claude (claude.ai), который
+сформулировал тезис о порте-как-аудите по нашим находкам. Полный лог:
+`/Users/ragnar/Downloads/xray16-macos-btw-session.md`.*
