@@ -52,8 +52,17 @@ CEffect_Rain::~CEffect_Rain()
     p_destroy();
 }
 
-// Born
-void CEffect_Rain::Born(Item& dest, float radius)
+// Born — pick a spawn point for one rain streak. Returns false when the
+// chosen point is under static cover (a roof, an awning, a balcony),
+// so the caller can drop this would-be particle instead of spawning a
+// streak that would fall through ceiling geometry. Per-spawn-point
+// gating supersedes the v2 camera-centric m_hemi_factor approach:
+// camera-centric wrongly silenced ALL spawns when the camera was under
+// cover, even those over open sky (rain visible through an open door,
+// rain just past an awning edge). See Rain.cpp:OnFrame for the cheap
+// camera-centric probe that's still used to modulate the wet-shader
+// uniform and the ambient sound volume.
+bool CEffect_Rain::Born(Item& dest, float radius)
 {
     ZoneScoped;
 
@@ -76,8 +85,27 @@ void CEffect_Rain::Born(Item& dest, float radius)
     // dest.P.set (x+view.x,height+view.y,z+view.z);
     dest.fSpeed = ::Random.randF(drop_speed_min, drop_speed_max);
 
+#ifndef _EDITOR
+    // Per-spawn-point indoor gate: shoot a short ray straight up from
+    // the chosen spawn point. If static geometry blocks the sky above
+    // this point, drop the spawn. The 5m range is enough to catch
+    // ceilings, awnings and overhangs without false-positives from
+    // tall outdoor occluders far above.
+    if (g_pGameLevel)
+    {
+        IGameObject* E = g_pGameLevel->CurrentViewEntity();
+        Fvector up{0.f, 1.f, 0.f};
+        float r = 5.f;
+        collide::ray_cache cache;
+        bool blocked = g_pGameLevel->ObjectSpace.RayTest(dest.P, up, r, collide::rqtStatic, &cache, E);
+        if (blocked)
+            return false;
+    }
+#endif
+
     float height = max_distance;
     RenewItem(dest, height, RayPick(dest.P, dest.D, height, collide::rqtBoth));
+    return true;
 }
 
 bool CEffect_Rain::RayPick(const Fvector& s, const Fvector& d, float& range, collide::rq_target tgt)
@@ -194,7 +222,12 @@ void CEffect_Rain::OnFrame()
         // Fvector sndP;
         // sndP.mad (Device.vCameraPosition,Fvector().set(0,1,0),source_offset);
         // snd_Ambient.set_position(sndP);
-        snd_Ambient.set_volume(_max(0.1f, factor) * m_hemi_factor);
+        // Volume floor at 30% even when fully covered: m_hemi_factor is
+        // near-binary post-v2 (raycast probe), so the unmodulated
+        // multiplier silenced rain audio entirely under any awning even
+        // when the player was technically outdoors. Rain should remain
+        // audible while raining; dimmed under cover is fine.
+        snd_Ambient.set_volume(_max(0.1f, factor) * _max(0.3f, m_hemi_factor));
     }
 }
 
