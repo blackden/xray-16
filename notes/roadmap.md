@@ -2,6 +2,10 @@
 
 Открытые задачи в порядке убывания пользы для нашей цели (поиграть на macOS, в идеале на максимальных настройках, нативно).
 
+**Shipping definition**: что считать «1.0» этого форка — см.
+[`done-criteria.md`](done-criteria.md). Roadmap описывает «что делаем»,
+done-criteria — «когда останавливаемся».
+
 ## Краткосрочно (часы-дни)
 
 - **Упаковка нашей сборки в `.app` бандл** — Info.plist, copy dylibs, install_name_tool rpath, codesign. Шаблон взят у [Mac Source Ports build script](https://github.com/MacSourcePorts/MSPBuildSystem/blob/main/xray-16/macsourceports_arm64.sh). **Готово**: `make package` → `dist/OpenXRay.app` с иконкой Monolith и launcher-shim'ом. См. [notes/macos-build-guide.md](macos-build-guide.md).

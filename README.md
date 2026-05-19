@@ -18,6 +18,7 @@
 > macOS-specific fixes that path needs.
 >
 > See [`notes/`](notes/) for working docs:
+> [`done-criteria.md`](notes/done-criteria.md) (**what 1.0 means**),
 > [`apple-silicon.md`](notes/apple-silicon.md),
 > [`macos-build-guide.md`](notes/macos-build-guide.md),
 > [`macos-distribution.md`](notes/macos-distribution.md),
