@@ -141,6 +141,16 @@ void CRender::Screenshot(ScreenshotMode mode /*= SM_NORMAL*/, pcstr name /*= nul
     }
 
     default:
+        // XXX [ragnar] GL_SCREENSHOT_MODES: still missing for GL backend:
+        //   SM_FOR_LEVELMAP   — top-down render-to-texture used by the
+        //                       editor minimap exporter
+        //   SM_FOR_CUBEMAP    — six-face capture for env probes (used by
+        //                       cube-textured environment bakes)
+        //   SM_FOR_SEND       — multiplayer screenshot upload (640x480
+        //                       JPEG, never tested on macOS since MP is
+        //                       disabled)
+        // The DX11 backend implements all three in dx11r_screenshot.cpp.
+        // None of these are blockers for single-player CoP playthrough.
         VERIFY(!"CRender::Screenshot. This screenshot type is not supported for OGL.");
     }
 }
