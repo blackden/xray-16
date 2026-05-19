@@ -123,8 +123,12 @@ mapped yet — fill in when first touched:
 
 - Smart-terrain job assignment + reload-state restore (for the NPC-
   frozen-in-column observation).
-- Flashlight / dynamic-source lighting pixel-shader path on OGL
-  (light doesn't fall on surfaces — known GL gap, location TBD).
+- ~~Flashlight / dynamic-source lighting on OGL~~ — **closed
+  2026-05-19**: `accum_omni_*_nomsaa.ps` sat in the same `*_QUALITY`
+  undefined-macro cascade as SSAO; the `rgl_shaders.cpp` unconditional-
+  defines fix healed it. No separate OGL light-gate exists. Lesson:
+  if multiple GL/shader symptoms appear together on Apple, suspect a
+  single preprocessor cascade before chasing N independent bugs.
 - Dialog state machine (`dialog_manager.script` and how pre/post
   conditions on dialog nodes are evaluated) — requires unpacked
   `resources.db?` scripts.
