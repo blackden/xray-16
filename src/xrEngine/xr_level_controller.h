@@ -139,6 +139,7 @@ enum EGameActions : u32
     kKICK, // alpet: kick dynamic objects
 
     kEDITOR,
+    kRENDER_PLAYGROUND,
 
     // Contextual actions:
     // UI

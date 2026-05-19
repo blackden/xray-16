@@ -13,6 +13,14 @@ target_sources_grouped(
 
 target_sources_grouped(
     TARGET xrEngine
+    NAME "editor\\RendererPlayground"
+    FILES
+    RendererPlayground.cpp
+    RendererPlayground.h
+)
+
+target_sources_grouped(
+    TARGET xrEngine
     NAME "Engine"
     FILES
     Properties.h

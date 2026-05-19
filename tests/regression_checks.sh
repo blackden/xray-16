@@ -254,5 +254,34 @@ check "CreateLog caps existing log at 100MB (unlink instead of .bkp)" \
         grep -q 'LOG_ROTATE_LIMIT_BYTES'"
 
 echo
+echo "== Renderer playground (v0) =="
+
+# v0 playground exists and registers an action / hotkey path. The ide_tool
+# pattern is the foundation; the hotkey is the only entry point under
+# MasterGold (#ifndef MASTER_GOLD gates the Tools menu).
+check "RendererPlayground.h exists" \
+    "test -f src/xrEngine/RendererPlayground.h"
+
+check "RendererPlayground.cpp exists" \
+    "test -f src/xrEngine/RendererPlayground.cpp"
+
+check "kRENDER_PLAYGROUND action declared in xr_level_controller.h" \
+    "grep -q 'kRENDER_PLAYGROUND' src/xrEngine/xr_level_controller.h"
+
+check "kRENDER_PLAYGROUND named in xr_level_controller.cpp" \
+    "grep -q '\"render_playground\"' src/xrEngine/xr_level_controller.cpp"
+
+check "kRENDER_PLAYGROUND default-bound to F11" \
+    "awk '/kRENDER_PLAYGROUND,/' src/xrEngine/xr_level_controller.cpp | grep -q 'SDL_SCANCODE_F11'"
+
+check "ide::IR_OnKeyboardPress routes kRENDER_PLAYGROUND" \
+    "awk '/^void ide::IR_OnKeyboardPress/,/^void ide::IR_OnKeyboardRelease/' src/xrEngine/editor_base_input.cpp | \
+        grep -q 'case kRENDER_PLAYGROUND'"
+
+check "RendererPlayground constructed in ide::InitBackend" \
+    "awk '/^void ide::InitBackend/,/^void ide::ProcessEvent/' src/xrEngine/editor_base_input.cpp | \
+        grep -q 'make_unique<RendererPlayground>'"
+
+echo
 echo "Summary: $pass passed, $fail failed"
 exit $fail

@@ -5,8 +5,12 @@
 
 #include <imgui.h>
 
+#include <memory>
+
 namespace xray::editor
 {
+class RendererPlayground; // forward declaration; full include in editor_base_input.cpp
+
 class XR_NOVTABLE ENGINE_API ide_tool
 {
     bool is_opened{};
@@ -120,5 +124,10 @@ private:
     ImGuiBackend m_imgui_backend{};
 
     xr_vector<ide_tool*> m_tools;
+
+    // Renderer playground tool owns its own ImGui window + lifecycle. Held
+    // here so the ide controls construction order (after ImGui context is
+    // ready in InitBackend, before any frame runs).
+    std::unique_ptr<RendererPlayground> m_playground;
 };
 } // namespace xray::editor

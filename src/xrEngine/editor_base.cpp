@@ -2,6 +2,7 @@
 
 #include "editor_base.h"
 #include "editor_helper.h"
+#include "RendererPlayground.h" // required for unique_ptr<RendererPlayground> ~ide()
 #include "XR_IOConsole.h"
 
 namespace xray::editor
