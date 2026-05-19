@@ -45,6 +45,17 @@ void dxRainRender::Copy(IRainRender& _in) { *this = *(dxRainRender*)&_in; }
 void dxRainRender::Render(CEffect_Rain& owner)
 {
     float factor = g_pGamePersistent->Environment().CurrentEnv.rain_density;
+
+    // Suppress streak emission indoors via sky-visibility smoothing
+    // computed in CEffect_Rain::OnFrame. Vanilla CoP ignored this, so
+    // rain still spawned through roofs (Yanov station etc.).
+    {
+        float hemi = owner.get_hemi_factor();
+        float t = (hemi - 0.05f) / 0.20f;
+        clamp(t, 0.f, 1.f);
+        factor *= t * t * (3.f - 2.f * t); // smoothstep
+    }
+
     if (factor < EPS_L)
         return;
 

@@ -6,6 +6,16 @@ void CRenderTarget::draw_rain(CBackend& cmd_list, light& RainSetup)
 {
     float fRainFactor = g_pGamePersistent->Environment().CurrentEnv.rain_density;
 
+    // Gate wet-shader contribution by sky visibility so indoor walls
+    // don't pick up the wet look while it's raining outside.
+    if (auto* eff = g_pGamePersistent->Environment().eff_Rain)
+    {
+        float hemi = eff->get_hemi_factor();
+        float t = (hemi - 0.05f) / 0.20f;
+        clamp(t, 0.f, 1.f);
+        fRainFactor *= t * t * (3.f - 2.f * t); // smoothstep
+    }
+
     // Common calc for quad-rendering
     u32 Offset;
     u32 C = color_rgba(255, 255, 255, 255);

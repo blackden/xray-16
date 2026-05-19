@@ -4,6 +4,7 @@
 
 #include "xrEngine/IGame_Persistent.h"
 #include "xrEngine/IRenderable.h"
+#include "xrEngine/Rain.h"
 #include "Layers/xrRender/FBasicVisual.h"
 
 #if defined(USE_DX11)
@@ -51,6 +52,17 @@ static int facetable[6][4] =
 void render_rain::init()
 {
     rain_factor = g_pGamePersistent->Environment().CurrentEnv.rain_density;
+
+    // Indoor suppression: multiply the rain factor by smoothstep over
+    // the sky-visibility hemi_factor smoothed in CEffect_Rain. This
+    // gates the wet-surface shadow contribution to zero under a roof.
+    if (auto* eff = g_pGamePersistent->Environment().eff_Rain)
+    {
+        float hemi = eff->get_hemi_factor();
+        float t = (hemi - 0.05f) / 0.20f;
+        clamp(t, 0.f, 1.f);
+        rain_factor *= t * t * (3.f - 2.f * t);
+    }
 
     o.active  = ps_r2_ls_flags.test(R3FLAG_DYN_WET_SURF);
     o.active &= rain_factor >= EPS_L;

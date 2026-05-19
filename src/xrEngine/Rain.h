@@ -72,6 +72,12 @@ private:
     // Sounds
     ref_sound snd_Ambient;
 
+    // Sky-visibility smoothing for indoor rain suppression.
+    // Falls toward 0 when the camera enters a covered volume; render
+    // sites multiply rain_density by smoothstep(this) so streaks and
+    // wet-surface contribution fade out under roofs.
+    float m_hemi_factor{0.f};
+
     // Utilities
     void p_create();
     void p_destroy();
@@ -94,6 +100,8 @@ public:
 
     void Render();
     void OnFrame();
+
+    float get_hemi_factor() const { return m_hemi_factor; }
 };
 
 #endif // RainH
