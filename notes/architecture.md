@@ -82,6 +82,10 @@
 | `FlushGpuQueue` | `src/xrEngine/Render.h:386` (virtual), `src/Layers/xrRender/D3DXRenderBase.cpp:257` (glFinish) | called from `IGame_Persistent.cpp:455` |
 | Prefetch loop | `src/xrEngine/IGame_Persistent.cpp::Prefetch_Tick` | calls FlushGpuQueue at end |
 | Apple PreCache | `src/xrGame/game_sv_single.cpp:344-357` | `PRECACHE_FRAMES = 20` on Apple, 60 elsewhere |
+| Renderer playground | `src/xrEngine/RendererPlayground.{h,cpp}` | F11 toggle, 6 tabs, ide_tool subclass |
+| GL error sink hook | `src/xrCore/xrDebug_macros.h:159-` + `xrDebug.cpp:138` | `xr_gl_error_sink` function pointer, nullable; set in `ide::InitBackend` |
+| Debug render toggles | `src/xrEngine/Render.h::DebugRenderToggles` | mutable pointer via `GetDebugToggles()`; gate sites in `r2_R_render.cpp` |
+| FSEvents watcher | `src/xrEngine/RendererPlayground_HotReload.mm` | Apple-only; polled via `FSEventStreamFlushSync` |
 
 ## Invariants
 
@@ -216,8 +220,11 @@ macOS Big Sur+ предоставляет OpenGL **только в core-profile 
 ## Что не покрыто здесь
 
 - Renderer internals (shadow cascades, occlusion query, terrain LOD) —
-  ridge не разобрано. В TODO если/когда полезем в renderer playground
-  (см. `engine-thoughts.md` dream-project #2).
+  частично разобрано через playground (epic #12 closed). RT picker
+  показывает g-buffer / shadow / bloom / lum / generic targets, pipeline
+  toggles контролируют shadows/occq/details/wallmarks. Что осталось
+  непокрытым: r2_R_sun internals, render_lights dispatch, post-process
+  combine — это всё внутри `Target->phase_*` методов.
 - Networking / multiplayer (`xrNetServer`, `xrGameSpy`) — singleplayer
   фокус, не лез.
 - Lua scripting layer details — поверхностно, дойдут руки когда полезем

@@ -265,6 +265,70 @@ codepoint). Не нашли таких сравнений в codebase, но poss
 
 ---
 
+---
+
+## 14. Renderer playground built on `ide_tool` not new subsystem
+
+**Decision.** Playground tabs implemented as `xray::editor::ide_tool`
+subclass (`RendererPlayground`) registered through ide framework, not
+new CMake target.
+
+**Why.** `ide_tool` already provides dockspace integration, settings
+persistence through ImGui ini, auto-register via ctor/dtor. Building a
+parallel subsystem would duplicate all of it. The under-used framework
+was *waiting* for someone to use it.
+
+**Trade-off.** Tied to `ide` lifecycle (constructed in `InitBackend`,
+destructed via `~ide()`). If we ever want playground without ide (e.g.
+standalone overlay), it requires extraction. Unlikely.
+
+**Revisit if.** Need to support tools outside ide context — not on the
+horizon.
+
+---
+
+## 15. CHK_GL sink via xrCore function pointer, not log scrape
+
+**Decision.** Added `xr_gl_error_sink` function pointer to xrCore;
+modified Apple CHK_GL macros to call it. xrEngine writes the callback at
+init time. xrCore stays at the bottom of the dependency DAG.
+
+**Why.** Alternative was scraping `Msg("! ...")` log output via
+`SetLogCB`. Already used by `CStats::FilteredLog` — single global slot,
+overwriting breaks the stats overlay. Function pointer is one-time call
+overhead, null-safe, type-specific.
+
+**Trade-off.** Touches a header in xrCore PCH → one-time full rebuild
+when committed. Subsequent edits to the sink consumer side are
+incremental.
+
+**Revisit if.** Want to track multiple categories of GL events (perf
+warnings vs errors vs deprecation) — would need extension to typed
+events, but starting point stays.
+
+---
+
+## 16. Pipeline toggles via mutable struct pointer, not virtual setters
+
+**Decision.** `IRender::GetDebugToggles()` returns mutable pointer to
+`DebugRenderToggles` struct owned by `D3DXRenderBase`. Playground writes
+fields directly. Render path reads inline at gate sites.
+
+**Why.** Per-toggle virtual setters would mean N virtual calls per
+toggle change (cheap but ugly). Returning a pointer makes the playground
+ImGui code trivial (`ImGui::Checkbox("Shadows", &t->shadows)`) and the
+render-path reads zero-overhead bool checks. Default-all-true means
+non-playground builds render identically.
+
+**Trade-off.** Less encapsulation — anyone with a pointer can flip flags
+silently. Acceptable for debug overlay. Not persisted across runs by
+design (avoid "why is my game dark? oh I forgot shadows off").
+
+**Revisit if.** Toggles become user-facing graphics settings (would
+need ConsoleVar + persistence + validation).
+
+---
+
 ## Что хочу добавить в будущем
 
 - Решение по Apple-side keychain / security framework, если полезем в

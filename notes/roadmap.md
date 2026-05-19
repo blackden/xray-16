@@ -101,3 +101,39 @@
     2. If 1 fails or is unreliable: detect "in level" state and force
        `_exit(0)` from the shim, skipping engine shutdown entirely.
        Dirty but bypasses the kernel-level hang root cause.
+
+## Live-confirmed (2026-05-19, renderer playground done)
+
+- **Playground epic #12 closed, v0+v1+v2 promoted to stable** (`42ec77759`).
+  Six tabs in `/Applications/OpenXRay.app` under F11:
+  - Frame Stats — FPS / RenderFPS / TPS / polys
+  - GL State — VAO / program / draw FBO / read FBO + per-frame draw counters
+  - RT Picker — enumerates `m_rtargets`, ImGui::Image preview of selected
+  - Event Log — last 64 GL errors via xr_gl_error_sink CHK_GL hook
+  - Pipeline Toggles — shadows / occq / details / wallmarks (DebugRenderToggles)
+  - Hot Reload — FSEvents watcher on `$game_shaders$` (Apple-only)
+- **Cmd+Q TX-state fixed via FlushGpuQueue** (`f2b172380`). Renderer drains
+  GPU command queue (glFinish on Apple) at start of OnDeviceDestroy so
+  the glDelete* cascade doesn't compound mach_msg waits. Player tested:
+  in-level Cmd+Q goes to pause menu → Quit → clean shutdown without
+  TX-state. Stage 2 (_exit(0) on double Cmd+Q) remains as fail-safe.
+- **Log rotation cap** (`960ad3043`). Logs > 100MB at boot get unlinked
+  instead of rotated to .bkp — prevents 1GB log accumulation cycle.
+- **Pipeline-toggle constraint observed during testing.** Shadow toggle
+  flips visibility only when sun shadows are enabled in graphics settings.
+  By design: the gate is downstream of the engine's own
+  `RImplementation.o.oldshadowcascades` decision, so if the engine never
+  built shadow maps this frame the toggle has nothing to gate. Acceptable
+  for v2; if we want "override-on" we'd need an upstream gate too.
+
+## Deferred from playground (re-evaluate if/when picked up)
+
+- **Live in-engine shader swap** — FSEvents watcher captures changes; UI
+  surfaces them; engine does NOT yet atomically re-compile and swap
+  SPS::sh / SVS::sh GLuint program objects mid-session. 1-2 days of
+  careful work to do right (include graph tracking, ref_ps/ref_vs
+  refcounting, atomic GL program replacement). Watcher is reusable
+  infrastructure for the future swap.
+- **Playground v3** — GPU timer queries per pipeline stage, frame
+  timeline waterfall. Deferred until concrete performance work demands
+  this view.
