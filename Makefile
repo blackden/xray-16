@@ -27,7 +27,7 @@ RELEASE_BIN      := bin/$(HOST_ARCH)/ReleaseMasterGold/xr_3da
 DIST_APP         := dist/OpenXRay.app
 
 .DEFAULT_GOAL := help
-.PHONY: help setup check-configure-prereqs configure build build-release profile run run-lldb all clean rebuild install-game link-gamedata codesign bundle package install all-in-one test test-encoding ship promote
+.PHONY: help setup check-configure-prereqs configure build build-release profile run run-lldb all clean rebuild install-game link-gamedata codesign bundle package install all-in-one test test-encoding ship promote install-hooks uninstall-hooks
 
 help: ## Show this help and current settings
 	@echo "OpenXRay macOS automation"
@@ -319,6 +319,28 @@ STABLE_WORKTREE ?= ../xray-16-stable
 
 ship: ## Build ReleaseMasterGold and install into DEV_APP_DIR (default /Applications/OpenXRay-Dev.app)
 	@$(MAKE) install INSTALL_APP_DIR="$(DEV_APP_DIR)"
+
+install-hooks: ## Link scripts/git-hooks/* into .git/hooks/* (auto-ship on every commit)
+	@for f in scripts/git-hooks/*; do \
+	    name=$$(basename "$$f"); \
+	    target=".git/hooks/$$name"; \
+	    if [ -L "$$target" ] || [ -f "$$target" ]; then \
+	        echo "==> Replacing existing hook $$target"; \
+	        rm -f "$$target"; \
+	    fi; \
+	    ln -s "$$(pwd)/$$f" "$$target"; \
+	    echo "==> Installed hook: $$target -> $$f"; \
+	done
+
+uninstall-hooks: ## Remove our symlinked git hooks
+	@for f in scripts/git-hooks/*; do \
+	    name=$$(basename "$$f"); \
+	    target=".git/hooks/$$name"; \
+	    if [ -L "$$target" ]; then \
+	        rm -f "$$target"; \
+	        echo "==> Removed hook: $$target"; \
+	    fi; \
+	done
 
 promote: ## Fast-forward STABLE_WORKTREE to current HEAD, then install into STABLE_APP_DIR
 	@head_sha=$$(git rev-parse HEAD); \
