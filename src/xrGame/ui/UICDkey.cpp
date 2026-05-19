@@ -237,14 +237,9 @@ void GetPlayerName_FromRegistry(char* name, u32 const name_size)
 #elif defined(XR_PLATFORM_POSIX)
     uid_t uid = geteuid();
     struct passwd* pw = getpwuid(uid);
-    if (pw)
+    if (pw && pw->pw_name && pw->pw_name[0])
     {
-        strcpy(name, pw->pw_gecos);
-        char* pos = strchr(name, ','); // pw_gecos return string
-        if (NULL != pos)
-            *pos = 0;
-        if (0 == name[0])
-            strcpy(name, pw->pw_name);
+        xr_strcpy(name, name_size, pw->pw_name);
     }
 #else
 #   error Select or add implementation for your platform
