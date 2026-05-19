@@ -12,8 +12,10 @@ namespace xray::editor
 // Lifecycle: constructed once by ide::InitBackend() after the ImGui context
 // exists. Registers itself with Device.editor() through the ide_tool ctor.
 //
-// Toggle: F8 (kRENDER_PLAYGROUND action). F11 was the original pick but is
-// reserved by macOS Mission Control. The MasterGold Tools menu is
+// Toggle: F11 (kRENDER_PLAYGROUND action). macOS users must first disable
+// Mission Control's F11 binding (System Settings -> Keyboard Shortcuts ->
+// Mission Control). This is a developer-only tool, so the global rebind
+// is acceptable. The MasterGold Tools menu is
 // gated #ifndef MASTER_GOLD, so the hotkey is the only entry point in the
 // shipping build. Toggling open also ensures ide is at least in light
 // visible_state so on_tool_frame fires.
