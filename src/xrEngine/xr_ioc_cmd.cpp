@@ -714,6 +714,17 @@ ENGINE_API int ps_r__Supersample = 1;
 ENGINE_API int ps_r__WallmarksOnSkeleton = 0;
 ENGINE_API shared_str current_player_hud_sect{};
 
+// dev_tools cvar — runtime gate for developer-only hotkeys (F11 Renderer
+// Playground, F12 ALife Inspector). Default OFF in MasterGold so shipped
+// builds don't expose dev surfaces to players; ON elsewhere so devs don't
+// have to flip it every session. QA can `dev_tools 1` in console to enable
+// in a MasterGold without rebuild.
+#ifdef MASTER_GOLD
+ENGINE_API int g_dev_tools = 0;
+#else
+ENGINE_API int g_dev_tools = 1;
+#endif
+
 extern int ps_fps_limit;
 extern int ps_fps_limit_in_menu;
 
@@ -726,6 +737,9 @@ void CCC_Register()
     CMD1(CCC_Disconnect, "disconnect");
     CMD1(CCC_SaveCFG, "cfg_save");
     CMD1(CCC_LoadCFG, "cfg_load");
+
+    // Developer-only hotkeys gate (F11 playground, F12 ALife inspector).
+    CMD4(CCC_Integer, "dev_tools", &g_dev_tools, 0, 1);
 
 #ifdef DEBUG
     CMD3(CCC_Mask, "mt_particles", &psDeviceFlags, mtParticles);

@@ -383,11 +383,13 @@ void CMainMenu::IR_OnKeyboardPress(int dik)
         return;
 
     case kRENDER_PLAYGROUND:
-        Device.editor().TogglePlayground();
+        if (g_dev_tools)
+            Device.editor().TogglePlayground();
         return;
 
     case kALIFE_INSPECTOR:
-        Device.editor().ToggleNamedTool("ALife Inspector");
+        if (g_dev_tools)
+            Device.editor().ToggleNamedTool("ALife Inspector");
         return;
     }
 
