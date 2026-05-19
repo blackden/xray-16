@@ -44,6 +44,9 @@ public:
     virtual void ResourcesDeferredUploadBegin() override;
     virtual bool ResourcesDeferredUploadStep(u32 max_count) override;
     virtual bool ResourcesIsUploading() const override;
+#if defined(USE_OGL)
+    virtual void FlushGpuQueue() override;
+#endif
     virtual void ResourcesDeferredUnload() override;
     virtual void ResourcesGetMemoryUsage(u32& m_base, u32& c_base, u32& m_lmaps, u32& c_lmaps) override;
     virtual void ResourcesDestroyNecessaryTextures() override;

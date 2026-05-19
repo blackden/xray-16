@@ -245,6 +245,18 @@ bool D3DXRenderBase::ResourcesIsUploading() const
 {
     return Resources->IsUploading();
 }
+#if defined(USE_OGL)
+void D3DXRenderBase::FlushGpuQueue()
+{
+    // Drain anything the texture-upload phase queued before the first
+    // scene frame asks the same GPU to render. On Apple GL each queued
+    // upload turns into a mach_msg roundtrip; without this, the first
+    // present can compound dozens of pending waits and drive the kernel
+    // into TX-state. Cheap because it's called once at end-of-prefetch,
+    // not per-frame.
+    glFinish();
+}
+#endif
 void D3DXRenderBase::ResourcesDeferredUnload()
 {
     Resources->DeferredUnload();
