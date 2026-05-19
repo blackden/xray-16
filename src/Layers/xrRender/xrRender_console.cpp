@@ -200,7 +200,23 @@ float ps_r2_ls_bloom_kernel_scale = .7f; // r2-only // gauss
 float ps_r2_ls_dsm_kernel = .7f; // r2-only
 float ps_r2_ls_psm_kernel = .7f; // r2-only
 float ps_r2_ls_ssm_kernel = .7f; // r2-only
-float ps_r2_ls_bloom_threshold = .00001f; // r2-only
+// XXX [ragnar] YANOV_BLOOM: vanilla X-Ray default is .00001f, which on
+// DX11 produces soft atmospheric bloom; on Apple GL the same default
+// blows scenes with strong light contrast (Yanov station interior,
+// scientists' bunker lamps) to pure white. Root cause is somewhere
+// in the GL bloom pipeline (bloom_build / bloom_filter shaders
+// amplify contribution differently than DX11 reference, despite
+// near-identical .ps source). User A/B in 2026-05-20 confirmed
+// tonemap is not implicated; only the bloom threshold knob removes
+// the blow-out. Pragmatic fix: bump the default on Apple GL to a
+// value that produces vanilla-comparable subtle bloom (0.05 per
+// user-side A/B). Investigate the shader-level root cause later
+// (see notes/known-divergence.md). Users can override in user.ltx.
+#if defined(XR_PLATFORM_APPLE)
+float ps_r2_ls_bloom_threshold = .05f; // r2-only, Apple GL workaround
+#else
+float ps_r2_ls_bloom_threshold = .00001f; // r2-only, vanilla
+#endif
 Fvector ps_r2_aa_barier = {.8f, .1f, 0}; // r2-only
 Fvector ps_r2_aa_weight = {.25f, .25f, 0}; // r2-only
 float ps_r2_aa_kernel = .5f; // r2-only
