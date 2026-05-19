@@ -345,20 +345,24 @@ HRESULT CRender::shader_compile(pcstr name, IReader* fs, pcstr pFunctionName,
         appendShaderOption(softWater, "USE_SOFT_WATER", "1");
     }
 
-    // Water reflections
-    if (RImplementation.o.advancedpp && ps_r_water_reflection)
+    // Water reflections.
+    // SSR_QUALITY must always be defined: shaders test it with
+    // `#if SSR_QUALITY > N` directives, and Apple GL 4.10 rejects
+    // `#if` on undefined identifiers ("incorrect preprocessor
+    // directive") rather than treating them as 0 per C99. Same pattern
+    // applies to SUN_SHAFTS_QUALITY / SSAO_QUALITY / SUN_QUALITY below.
     {
-        xr_sprintf(c_water_reflection, "%d", ps_r_water_reflection);
+        const u32 q = (RImplementation.o.advancedpp ? ps_r_water_reflection : 0);
+        xr_sprintf(c_water_reflection, "%d", q);
         options.add("SSR_QUALITY", c_water_reflection);
-        sh_name.append(ps_r_water_reflection);
-        const bool sshHalfDepth = ps_r2_ls_flags_ext.test(R3FLAGEXT_SSR_HALF_DEPTH);
-        appendShaderOption(sshHalfDepth, "SSR_HALF_DEPTH", "1");
-        const bool ssrJitter = ps_r2_ls_flags_ext.test(R3FLAGEXT_SSR_JITTER);
-        appendShaderOption(ssrJitter, "SSR_JITTER", "1");
-    }
-    else
-    {
-        sh_name.append(static_cast<u32>(0));
+        sh_name.append(q);
+        if (q)
+        {
+            const bool sshHalfDepth = ps_r2_ls_flags_ext.test(R3FLAGEXT_SSR_HALF_DEPTH);
+            appendShaderOption(sshHalfDepth, "SSR_HALF_DEPTH", "1");
+            const bool ssrJitter = ps_r2_ls_flags_ext.test(R3FLAGEXT_SSR_JITTER);
+            appendShaderOption(ssrJitter, "SSR_JITTER", "1");
+        }
     }
 
     // Soft particles
@@ -373,34 +377,35 @@ HRESULT CRender::shader_compile(pcstr name, IReader* fs, pcstr pFunctionName,
         appendShaderOption(dof, "USE_DOF", "1");
     }
 
-    // Sun shafts
-    if (RImplementation.o.advancedpp && ps_r_sun_shafts)
+    // Sun shafts -- always-defined (see SSR_QUALITY note above).
     {
-        xr_sprintf(c_sun_shafts, "%d", ps_r_sun_shafts);
+        const u32 q = (RImplementation.o.advancedpp ? ps_r_sun_shafts : 0);
+        xr_sprintf(c_sun_shafts, "%d", q);
         options.add("SUN_SHAFTS_QUALITY", c_sun_shafts);
-        sh_name.append(ps_r_sun_shafts);
+        sh_name.append(q);
     }
-    else
-        sh_name.append(static_cast<u32>(0));
 
-    if (RImplementation.o.advancedpp && ps_r_ssao)
+    // SSAO -- always-defined. Skipping the `options.add` when SSAO was
+    // off left SSAO_QUALITY undefined, which on Apple GL 4.10 broke
+    // shader compilation in accum_sun.ps / accum_omni_*.ps /
+    // combine_1.ps with "incorrect preprocessor directive" cascades
+    // that blacked out the level. Defining as 0 makes the `#if
+    // SSAO_QUALITY > 3` / `#if SSAO_QUALITY <= 3` branches evaluate
+    // correctly to the no-SSAO path.
     {
-        xr_sprintf(c_ssao, "%d", ps_r_ssao);
+        const u32 q = (RImplementation.o.advancedpp ? ps_r_ssao : 0);
+        xr_sprintf(c_ssao, "%d", q);
         options.add("SSAO_QUALITY", c_ssao);
-        sh_name.append(ps_r_ssao);
+        sh_name.append(q);
     }
-    else
-        sh_name.append(static_cast<u32>(0));
 
-    // Sun quality
-    if (RImplementation.o.advancedpp && ps_r_sun_quality)
+    // Sun quality -- always-defined (see SSR_QUALITY note above).
     {
-        xr_sprintf(c_sun_quality, "%d", ps_r_sun_quality);
+        const u32 q = (RImplementation.o.advancedpp ? ps_r_sun_quality : 0);
+        xr_sprintf(c_sun_quality, "%d", q);
         options.add("SUN_QUALITY", c_sun_quality);
-        sh_name.append(ps_r_sun_quality);
+        sh_name.append(q);
     }
-    else
-        sh_name.append(static_cast<u32>(0));
 
     // Steep parallax
     {
