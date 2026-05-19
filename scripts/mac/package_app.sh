@@ -207,20 +207,48 @@ fi
 # the only ways to recover, and they all need the window to be a normal
 # NSWindow (not a fullscreen layer). Set OPENXRAY_ALLOW_FULLSCREEN=1 to
 # opt out and let user.ltx control the window mode normally.
+USER_LTX="\${APPDATA_DIR}/_appdata_/user.ltx"
+touch "\$USER_LTX"
+upsert_ltx() {
+    local kv="\$1"; local key="\${kv%% *}"
+    if grep -qE "^\$key " "\$USER_LTX"; then
+        sed -i '' -e "s|^\$key .*|\$kv|" "\$USER_LTX"
+    else
+        printf '%s\\n' "\$kv" >> "\$USER_LTX"
+    fi
+}
 if [ "\${OPENXRAY_ALLOW_FULLSCREEN:-0}" != "1" ]; then
-    USER_LTX="\${APPDATA_DIR}/_appdata_/user.ltx"
-    touch "\$USER_LTX"
-    # Replace if present, append if absent — handles fresh installs (empty
-    # user.ltx) and existing configs alike.
-    for kv in "vid_window_mode st_opt_windowed" "rs_fullscreen off"; do
-        key="\${kv%% *}"
-        if grep -qE "^\$key " "\$USER_LTX"; then
-            sed -i '' -e "s|^\$key .*|\$kv|" "\$USER_LTX"
-        else
-            printf '%s\\n' "\$kv" >> "\$USER_LTX"
-        fi
-    done
+    upsert_ltx "vid_window_mode st_opt_windowed"
+    upsert_ltx "rs_fullscreen off"
 fi
+
+# 2b. Safe-mode boot recovery.
+# A sentinel file is created right before exec and removed by the engine
+# after stable boot (CDevice::Initialize completes successfully, see
+# IGame_Persistent's "boot stable" hook). If we see the sentinel from a
+# previous launch, that means the previous run crashed / hung / was
+# force-killed before reaching the stable point. Drop graphics to the
+# safest minimum so the player can get back into the menu and adjust.
+SAFE_SENTINEL="\${APPDATA_DIR}/_appdata_/.boot_in_progress"
+if [ -f "\$SAFE_SENTINEL" ] && [ "\${OPENXRAY_FORCE_NORMAL_BOOT:-0}" != "1" ]; then
+    echo "==> SAFE MODE: previous launch did not reach stable boot. Resetting graphics to minimal." >> "\${LOG_DIR}/openxray.log"
+    upsert_ltx "vid_mode 1280x720"
+    upsert_ltx "vid_window_mode st_opt_windowed"
+    upsert_ltx "rs_fullscreen off"
+    upsert_ltx "r__supersample 0"
+    upsert_ltx "r2_aa off"
+    upsert_ltx "r2_sun off"
+    upsert_ltx "r2_sun_quality 0"
+    upsert_ltx "r2_shadow_cascade_old on"
+    upsert_ltx "r__detail_density 0.6"
+    upsert_ltx "r__geometry_lod 0.6"
+    upsert_ltx "rs_vis_distance 0.4"
+    upsert_ltx "r2_dof off"
+    upsert_ltx "r2_ls_bloom_fast on"
+fi
+# Drop sentinel so this launch is now "in progress". Engine deletes it
+# after stable boot; if it lingers, next launch hits safe mode.
+touch "\$SAFE_SENTINEL"
 
 # 3. Launch
 if [ "\${1:-}" = "--debug" ]; then

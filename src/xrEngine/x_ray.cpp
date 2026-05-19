@@ -381,6 +381,19 @@ int CApplication::Run()
     HideSplash();
     Device.Run();
 
+    // Safe-mode boot recovery. Launcher dropped a sentinel at
+    // ~/.openxray-data/_appdata_/.boot_in_progress before exec. We
+    // remove it once the engine has run a handful of frames -- by then
+    // the early-init phases (renderer, prefetch, alife, first level
+    // load) have all proven they don't crash. If we crash before this
+    // point the sentinel stays put and the next launch enters safe
+    // mode with reduced graphics. STABLE_BOOT_FRAMES is small but not
+    // tiny: prefetch can run for tens of frames, and we want safe-mode
+    // to trigger on prefetch-stage crashes too.
+    constexpr u32 STABLE_BOOT_FRAMES = 120;
+    bool sentinelCleared = false;
+    u32 framesSinceStart = 0;
+
     while (!SDL_QuitRequested()) // SDL_PumpEvents is here
     {
         FrameMarkStart(FRAME_MARK_APPLICATION_RUN);
@@ -443,6 +456,20 @@ int CApplication::Run()
         }
 
         Device.ProcessFrame();
+
+        if (!sentinelCleared && ++framesSinceStart >= STABLE_BOOT_FRAMES)
+        {
+            string_path sentinel;
+            FS.update_path(sentinel, "$app_data_root$", ".boot_in_progress");
+            if (FS.exist(sentinel))
+            {
+                if (xr_unlink(sentinel) == 0)
+                    Msg("* Safe-mode sentinel cleared after %u stable frames.", framesSinceStart);
+                else
+                    Msg("! Safe-mode sentinel could not be removed: '%s'", sentinel);
+            }
+            sentinelCleared = true;
+        }
 
         UpdateDiscordStatus();
         FrameMarkEnd(FRAME_MARK_APPLICATION_RUN);
