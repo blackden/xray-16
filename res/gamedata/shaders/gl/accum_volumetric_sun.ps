@@ -9,7 +9,15 @@
 
 #define	JITTER_SUN_SHAFTS
 
-#ifdef	SUN_SHAFTS_QUALITY
+// XXX [ragnar] APPLE_GL_QUALITY_IFDEF: SUN_SHAFTS_QUALITY is now
+// always-defined (even as 0) per rgl_shaders.cpp to satisfy Apple GL's
+// strict preprocessor — see notes/engine-map.md "Shader compile (GL)".
+// The original `#ifdef SUN_SHAFTS_QUALITY` paired with `#ifndef ...`
+// below assumed the macro was only defined when feature on. With
+// QUALITY=0 the ifdef branch was entered but no `#if ==N` matched,
+// leaving RAY_SAMPLES undefined and breaking the downstream code.
+// Use explicit `> 0` / `== 0` comparisons instead.
+#if SUN_SHAFTS_QUALITY > 0
 	#if SUN_SHAFTS_QUALITY==1
 		#define	FILTER_LOW
 		#define RAY_SAMPLES	20
@@ -17,7 +25,7 @@
 		#define	FILTER_LOW
 		#define RAY_SAMPLES	20
 	#elif SUN_SHAFTS_QUALITY==3
-		#define	FILTER_LOW	
+		#define	FILTER_LOW
 		#define RAY_SAMPLES	40
 	#endif
 #endif
@@ -53,7 +61,7 @@ float4 	_main (v2p_volume  I)
 	
 	gbuffer_data gbd = gbuffer_load_data( GLD_P(tc, pos2d, ISAMPLE) );
 
-#ifndef	SUN_SHAFTS_QUALITY
+#if SUN_SHAFTS_QUALITY == 0
 	return float4(0,0,0,0);
 #else	//	SUN_SHAFTS_QUALITY
 
