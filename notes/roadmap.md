@@ -82,3 +82,22 @@
   - `5f3ca8307` session-01.md журнал
   - `bf2fcef84` **multi-frame prefetch** (кандидат в апстрим)
   - `a04f5d37f` **CHK_GL softening на Apple** (кандидат в апстрим)
+
+## Live-confirmed (2026-05-19, after safe-mode landed)
+
+- **Safe-mode boot recovery works** — sentinel cleared after 120 stable
+  frames on both verified launches; previous-broken state cleared; normal
+  exit followed by normal restart kept user.ltx settings. The cycle is
+  closed.
+- **Cmd+Q in-level still triggers TX-state.** User confirmed:
+  - In main menu: Cmd+Q kills cleanly, process exits.
+  - On a level: Cmd+Q drives the engine into shutdown which iterates
+    `glDelete*` over framebuffers/textures/buffers; each delete blocks
+    on a busy GPU; compound waits go to TX-state.
+  - The Cocoa Cmd+Q shim (commit `bdb603574`) was supposed to intercept
+    before engine sees it -- intent was synth `SDLK_ESCAPE` to open
+    pause menu -- but it was never runtime-verified. Two follow-ups:
+    1. Verify the NSEvent monitor is actually installed and intercepts.
+    2. If 1 fails or is unreliable: detect "in level" state and force
+       `_exit(0)` from the shim, skipping engine shutdown entirely.
+       Dirty but bypasses the kernel-level hang root cause.
