@@ -56,7 +56,12 @@ void render_rain::init()
     // Indoor suppression: multiply the rain factor by smoothstep over
     // the sky-visibility hemi_factor smoothed in CEffect_Rain. This
     // gates the wet-surface shadow contribution to zero under a roof.
-    // See dxRainRender.cpp for the gate range — keep these in sync.
+    // XXX [ragnar] RAIN_SHADOW_GATE: this is still a camera-centric
+    // gate (post-rain-v3 the streak emission moved to per-spawn-point
+    // gating in CEffect_Rain::Born). Shadow rain factor here drives a
+    // per-pixel shadow cascade contribution, so screen-space gating
+    // by camera position is acceptable — but revisit if user reports
+    // wet shadows leaking under cover near open doorways.
     if (auto* eff = g_pGamePersistent->Environment().eff_Rain)
     {
         float hemi = eff->get_hemi_factor();

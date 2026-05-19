@@ -88,8 +88,9 @@ private:
     Particle* p_allocate();
     void p_free(Particle* P);
 
-    // Some methods
-    void Born(Item& dest, float radius);
+    // Some methods. Born returns false if the spawn point is under a
+    // covered region (per-particle indoor gate, see Rain.cpp).
+    bool Born(Item& dest, float radius);
     void Hit(Fvector& pos);
     bool RayPick(const Fvector& s, const Fvector& d, float& range, collide::rq_target tgt);
     void RenewItem(Item& dest, float height, bool bHit);
