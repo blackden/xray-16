@@ -2,6 +2,7 @@
 #pragma hdrstop
 
 #include <time.h>
+#include <sys/stat.h>
 #include "resource.h"
 #include "log.h"
 #include "xrCore/Threading/Lock.hpp"
@@ -233,10 +234,23 @@ void CreateLog(bool nl)
 
     if (!unique_logs)
     {
-        // Alun: Backup existing log
-        const xr_string backup_logFName = EFS.ChangeFileExt(log_file_name, ".bkp");
-        FS.file_rename(log_file_name, backup_logFName.c_str(), true);
-        //-Alun
+        // Cap existing log at 100MB. A log this large is almost always the
+        // tail of a tight error-storm loop (e.g. GL 0x502, EILSEQ retry) and
+        // carries no diagnostic value past the first few hundred KB. Keeping
+        // it as .bkp would just double disk usage on the next crash cycle.
+        constexpr u64 LOG_ROTATE_LIMIT_BYTES = 100u * 1024u * 1024u;
+        struct stat st{};
+        if (::stat(log_file_name, &st) == 0 && static_cast<u64>(st.st_size) > LOG_ROTATE_LIMIT_BYTES)
+        {
+            xr_unlink(log_file_name);
+        }
+        else
+        {
+            // Alun: Backup existing log
+            const xr_string backup_logFName = EFS.ChangeFileExt(log_file_name, ".bkp");
+            FS.file_rename(log_file_name, backup_logFName.c_str(), true);
+            //-Alun
+        }
     }
 
     if (const auto w = FS.w_open(log_file_name))
