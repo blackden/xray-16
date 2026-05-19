@@ -56,9 +56,18 @@ Logged через `Msg("! EILSEQ retry on %s")` так что diagnostic ест�
 полях после `load_data`: `m_character_name` (xrServer_Objects_ALife_Monsters.cpp:256-261),
 `m_game_name` (InventoryOwner.cpp:185-190).
 
-**Why.** Vanilla CoP save format не имеет version field в начале. Менять
-формат значит ломать совместимость с миллионом сейвов модового
-community. Per-field validate — минимально достаточный fix.
+**Why.** Менять save-format header (`ALIFE_VERSION`, `alife_space.h:14`)
+ломает совместимость со всеми существующими сейвами (моды,
+community-saves) — `R_ASSERT2(m_version >= ALIFE_VERSION)` крашится
+без graceful path. Per-field validate в `load_data` — минимально
+инвазивный fix без header-bump.
+
+**Audit-note (2026-05-19).** Изначально я писал "нет version field" —
+это неточно. Field есть (`u32 ALIFE_VERSION` внутри `ALIFE_CHUNK_DATA`),
+плюс per-CSE `m_wVersion` гейтинг для большинства полей. См.
+`notes/save-format-audit.md`. На *эту* конкретную проблему (кодировка
+строк) version field бы не помог в любом случае — он определяет
+структуру стрима, а не содержимое полей.
 
 **Trade-off.** Каждое новое UTF-8-relevant поле в save потребует копию
 этого шима. Если их будет > 5, имеет смысл вынести в helper
