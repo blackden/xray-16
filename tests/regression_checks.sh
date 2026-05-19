@@ -194,5 +194,65 @@ check "encoding fixture phrase.cp1250 exists" \
     "test -s tests/fixtures/encoding/phrase.cp1250"
 
 echo
+echo "== Apple GL renderer state cache =="
+
+# 0x502 storm root cause: set_Format binds a new VAO when decl changes, but
+# the new VAO has no glVertexBuffer / glBindVertexBuffer binding -- yet the
+# CBackend cache remembered vb/vb_stride from the previous VAO and so
+# set_Vertices early-returned, skipping the bind. Result: glDrawElements on
+# a VAO with no vertex source, every draw call. The fix MUST reset vb and
+# vb_stride alongside ib whenever a new VAO becomes current.
+check "CBackend::set_Format resets vb when decl changes (0x502 fix)" \
+    "awk '/^ICF void CBackend::set_Format/,/^ICF void CBackend::set_Vertices/' \
+        src/Layers/xrRenderGL/glR_Backend_Runtime.h | grep -q 'vb = 0'"
+
+check "CBackend::set_Format resets vb_stride when decl changes" \
+    "awk '/^ICF void CBackend::set_Format/,/^ICF void CBackend::set_Vertices/' \
+        src/Layers/xrRenderGL/glR_Backend_Runtime.h | grep -q 'vb_stride = 0'"
+
+# Apple Cmd+Q in-level TX-state fix: CRenderDevice::Destroy must drain GPU
+# queue before glDelete* cascade, otherwise the Metal-backed GL driver
+# serializes deletes against in-flight shadow / occlusion / streaming work
+# via mach_msg and the user sees a multi-second hang.
+check "CRenderDevice::Destroy drains GPU queue before OnDeviceDestroy" \
+    "awk '/^void CRenderDevice::Destroy/,/^void CRenderDevice::Reset/' \
+        src/xrEngine/Device_destroy.cpp | grep -q 'FlushGpuQueue'"
+
+# GL draw path retains 32-line storm cap so a future regression that
+# reintroduces a per-frame error doesn't fill disk.
+check "GL draw error log capped at 32 messages per storm" \
+    "awk '/Phase 5 0x502 hunt/,/^#else$/' src/Layers/xrRenderGL/glR_Backend_Runtime.h | \
+        grep -q 'reported < 32'"
+
+echo
+echo "== Safe-mode sentinel =="
+
+# Engine paths use Windows-style backslashes; POSIX stat()/unlink() reject
+# them. The sentinel cleanup MUST normalize separators before calling
+# stat() or it silently fails to find the file even when present.
+check "x_ray.cpp sentinel cleanup calls convert_path_separators" \
+    "awk '/Safe-mode boot recovery/,/sentinelCleared = true/' src/xrEngine/x_ray.cpp | \
+        grep -q 'convert_path_separators(sentinel)'"
+
+check "x_ray.cpp clears sentinel after 120 stable frames" \
+    "grep -q 'STABLE_BOOT_FRAMES = 120' src/xrEngine/x_ray.cpp"
+
+# Launcher writes sentinel into _appdata_/ because LocatorAPI resolves
+# \$app_data_root\$ with a _appdata_/ prefix; mismatch broke safe-mode in
+# 1b85d75ef and was relanded in 031c95747.
+check "launcher sentinel path includes _appdata_/ prefix" \
+    "grep -q '_appdata_/\\.boot_in_progress' scripts/mac/package_app.sh"
+
+echo
+echo "== Log housekeeping =="
+
+# Existing log over 100MB at boot is almost always an error-storm tail.
+# Keeping it as .bkp doubles disk usage on the next crash cycle, so the
+# rotation path must unlink instead of rename in that case.
+check "CreateLog caps existing log at 100MB (unlink instead of .bkp)" \
+    "awk '/void CreateLog/,/^void CloseLog/' src/xrCore/log.cpp | \
+        grep -q 'LOG_ROTATE_LIMIT_BYTES'"
+
+echo
 echo "Summary: $pass passed, $fail failed"
 exit $fail
