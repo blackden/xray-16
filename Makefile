@@ -27,7 +27,7 @@ RELEASE_BIN      := bin/$(HOST_ARCH)/ReleaseMasterGold/xr_3da
 DIST_APP         := dist/OpenXRay.app
 
 .DEFAULT_GOAL := help
-.PHONY: help setup check-configure-prereqs configure build build-release profile run run-lldb all clean rebuild install-game link-gamedata codesign bundle package install all-in-one test test-encoding
+.PHONY: help setup check-configure-prereqs configure build build-release profile run run-lldb all clean rebuild install-game link-gamedata codesign bundle package install all-in-one test test-encoding ship promote
 
 help: ## Show this help and current settings
 	@echo "OpenXRay macOS automation"
@@ -312,6 +312,22 @@ install: build-release bundle ## Hot-swap xr_3da + launcher script into $(INSTAL
 		cp "$$src_launcher" "$$target_launcher"; \
 	fi; \
 	echo "==> Installed. Launch: open '$(INSTALL_APP_DIR)'"
+
+DEV_APP_DIR    ?= /Applications/OpenXRay-Dev.app
+STABLE_APP_DIR ?= /Applications/OpenXRay.app
+STABLE_WORKTREE ?= ../xray-16-stable
+
+ship: ## Build ReleaseMasterGold and install into DEV_APP_DIR (default /Applications/OpenXRay-Dev.app)
+	@$(MAKE) install INSTALL_APP_DIR="$(DEV_APP_DIR)"
+
+promote: ## Fast-forward STABLE_WORKTREE to current HEAD, then install into STABLE_APP_DIR
+	@head_sha=$$(git rev-parse HEAD); \
+	echo "==> Promoting $$head_sha to stable"; \
+	(cd "$(STABLE_WORKTREE)" && git merge --ff-only "$$head_sha") || { \
+	    echo "ERROR: fast-forward into $(STABLE_WORKTREE) failed."; \
+	    echo "       Check that stable is on a parent commit of HEAD and clean."; exit 1; }
+	@$(MAKE) -C "$(STABLE_WORKTREE)" install INSTALL_APP_DIR="$(STABLE_APP_DIR)"
+	@echo "==> Promoted. Stable now at $$(cd '$(STABLE_WORKTREE)' && git rev-parse --short HEAD)"
 
 all-in-one: build-release ## Bundle .app + game data side-by-side into dist/OpenXRay-AllInOne.dmg
 	@if [ ! -f "$(GAMEDATA_SRC)/fsgame.ltx" ]; then \
