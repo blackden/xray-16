@@ -3,6 +3,13 @@
 #include "xrDebug.h"
 #include "log.h"
 
+// Renderer playground (epic #12) GL error sink. Set by xrEngine at init
+// time; called from Apple-side CHK_GL macros after the existing Msg() so
+// the in-engine Event Log tab can show recent errors without scraping
+// the log file. nullptr-safe by definition.
+using xr_gl_error_sink_fn = void (*)(unsigned err, const char* expr, const char* file, int line);
+XRCORE_API extern xr_gl_error_sink_fn xr_gl_error_sink;
+
 #define DEBUG_INFO {__FILE__, __LINE__, __FUNCTION__}
 #define CHECK_OR_EXIT(expr, message)\
     do\
@@ -162,7 +169,11 @@
         expr;\
         GLenum err = glGetError();\
         if (err != GL_NO_ERROR)\
+        {\
             Msg("! OpenGL: %s -> 0x%X", #expr, (unsigned)err);\
+            if (xr_gl_error_sink)\
+                xr_gl_error_sink((unsigned)err, #expr, __FILE__, __LINE__);\
+        }\
     } while (false)
 #else
 #define CHK_GL(expr)\
@@ -230,7 +241,11 @@
         expr;\
         GLenum err = glGetError();\
         if (err != GL_NO_ERROR)\
+        {\
             Msg("! OpenGL: %s -> 0x%X", #expr, (unsigned)err);\
+            if (xr_gl_error_sink)\
+                xr_gl_error_sink((unsigned)err, #expr, __FILE__, __LINE__);\
+        }\
     } while (false)
 #else
 #define CHK_GL(expr) expr

@@ -4,6 +4,34 @@
 
 namespace xray::editor
 {
+// Lightweight ring buffer for GL error events captured via the CHK_GL
+// macro (Apple-only — non-Apple builds either no-op or modal-fail). Single
+// producer (CHK_GL on main thread), single consumer (playground draw on
+// the same thread); no synchronization needed but the design is sound for
+// later threading if it changes.
+struct GLErrorEntry
+{
+    u32         frame{};
+    unsigned    err{};
+    const char* expr{};  // string literal from CHK_GL #expr — stable lifetime
+    const char* file{};
+    int         line{};
+};
+
+constexpr u32 GL_ERROR_RING_CAPACITY = 64;
+
+struct GLErrorRing
+{
+    GLErrorEntry entries[GL_ERROR_RING_CAPACITY]{};
+    u32          head{};    // write index, increments forever modulo capacity
+    u32          total{};   // total pushes ever (useful for "overflowed N times" UI)
+
+    void push(unsigned err, const char* expr, const char* file, int line, u32 frame) noexcept;
+};
+
+extern GLErrorRing g_glErrorRing;
+
+
 // In-engine renderer playground / scene debugger.
 //
 // v0 ships a single Frame Stats tab. v1 adds RT picker, GL state inspector,
@@ -36,6 +64,7 @@ private:
     void DrawFrameStatsTab();
     void DrawGLStateTab();
     void DrawRTPickerTab();
+    void DrawEventLogTab();
 
     int m_lastTabIndex{ 0 };
 

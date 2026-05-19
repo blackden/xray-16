@@ -7,6 +7,28 @@
 
 namespace xray::editor
 {
+GLErrorRing g_glErrorRing;
+
+void GLErrorRing::push(unsigned err, const char* expr, const char* file, int line, u32 frame) noexcept
+{
+    const u32 idx = head % GL_ERROR_RING_CAPACITY;
+    entries[idx] = GLErrorEntry{ frame, err, expr, file, line };
+    ++head;
+    ++total;
+}
+
+// CHK_GL-side hook. Pointer set by ide::InitBackend; macro path is no-op
+// when the playground hasn't initialised yet.
+static void GLErrorSinkImpl(unsigned err, const char* expr, const char* file, int line)
+{
+    g_glErrorRing.push(err, expr, file, line, Device.dwFrame);
+}
+
+extern "C" xr_gl_error_sink_fn RendererPlayground_GetGLErrorSink()
+{
+    return &GLErrorSinkImpl;
+}
+
 RendererPlayground::RendererPlayground() = default;
 
 void RendererPlayground::on_tool_frame()
@@ -41,8 +63,14 @@ void RendererPlayground::on_tool_frame()
             DrawRTPickerTab();
             ImGui::EndTabItem();
         }
-        // v2 tabs (Event Log, Hot Reload, Pipeline Toggles) добавляются
-        // здесь по мере появления.
+        if (ImGui::BeginTabItem("Event Log"))
+        {
+            m_lastTabIndex = 3;
+            DrawEventLogTab();
+            ImGui::EndTabItem();
+        }
+        // v2 tabs (Hot Reload, Pipeline Toggles) добавляются здесь по
+        // мере появления.
         ImGui::EndTabBar();
     }
 
@@ -169,6 +197,61 @@ void RendererPlayground::DrawRTPickerTab()
     }
 
     ImGui::EndChild();
+}
+
+void RendererPlayground::DrawEventLogTab()
+{
+    const u32 total = g_glErrorRing.total;
+    const u32 count = total < GL_ERROR_RING_CAPACITY ? total : GL_ERROR_RING_CAPACITY;
+
+    ImGui::Text("GL errors captured: %u total, last %u shown", total, count);
+    if (total > GL_ERROR_RING_CAPACITY)
+        ImGui::Text("(ring buffer wrapped %u times)", total / GL_ERROR_RING_CAPACITY);
+
+    if (ImGui::Button("Clear"))
+    {
+        g_glErrorRing.head  = 0;
+        g_glErrorRing.total = 0;
+    }
+    ImGui::Separator();
+
+    if (count == 0)
+    {
+        ImGui::TextDisabled("No GL errors yet. CHK_GL pushes into this ring on every");
+        ImGui::TextDisabled("Apple-side macro invocation that observes glGetError != 0.");
+        return;
+    }
+
+    if (ImGui::BeginTable("##glerrors", 4,
+        ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY,
+        ImVec2(0, 0)))
+    {
+        ImGui::TableSetupColumn("frame");
+        ImGui::TableSetupColumn("err");
+        ImGui::TableSetupColumn("expr");
+        ImGui::TableSetupColumn("at");
+        ImGui::TableHeadersRow();
+
+        // Walk oldest -> newest. head is the next-write slot; oldest is
+        // head - count (mod capacity).
+        const u32 start = (g_glErrorRing.head + GL_ERROR_RING_CAPACITY - count) % GL_ERROR_RING_CAPACITY;
+        for (u32 i = 0; i < count; ++i)
+        {
+            const u32 idx = (start + i) % GL_ERROR_RING_CAPACITY;
+            const GLErrorEntry& e = g_glErrorRing.entries[idx];
+
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("%u", e.frame);
+            ImGui::TableSetColumnIndex(1);
+            ImGui::Text("0x%X", e.err);
+            ImGui::TableSetColumnIndex(2);
+            ImGui::TextUnformatted(e.expr ? e.expr : "<null>");
+            ImGui::TableSetColumnIndex(3);
+            ImGui::Text("%s:%d", e.file ? e.file : "<null>", e.line);
+        }
+        ImGui::EndTable();
+    }
 }
 
 void RendererPlayground::save_settings(ImGuiTextBuffer* buffer) const
