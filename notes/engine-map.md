@@ -68,6 +68,36 @@
   on undefined identifiers (the "incorrect preprocessor directive"
   cascade). Pattern: define as 0 when feature off, never skip.
 
+## Screenshots / save thumbnails
+
+- Capture entry (engine-side): `IRender::Screenshot(mode, name)` in
+  the IRender interface; called from `MainMenu.cpp:554`,
+  `autosave_manager.cpp:75`, `console_commands.cpp:707` with
+  `SM_FOR_GAMESAVE` + a `<savename>.dds` path. Mode enum:
+  `src/xrEngine/Render.h:152`.
+- DX11 implementation (reference): `src/Layers/xrRenderDX11/dx11r_screenshot.cpp:38-66`
+  — DirectXTex CaptureTexture → Resize → BC1 Compress → SaveToDDSMemory.
+- GL implementation: `src/Layers/xrRenderGL/glr_screenshot.cpp:67-148`
+  — glReadPixels → Y-flip → `imf_Process(... imf_box)` to 128×128 →
+  inline 128-byte uncompressed-RGBA8 DDS header. gli reads it
+  (`glTexture.cpp:111`).
+- Loader (display side): `src/Layers/xrRender/Texture.cpp:280` checks
+  `$game_saves$` for `<name>.dds`.
+
+## Rain emission / wet-shader
+
+- Frame logic + hemi_factor smoothing: `src/xrEngine/Rain.cpp:117-179`.
+  `m_hemi_factor` is the camera-relative sky visibility, exposed via
+  `CEffect_Rain::get_hemi_factor()` (`src/xrEngine/Rain.h`).
+- Three read sites of `rain_density` (all gated by smoothstep over
+  hemi_factor as of 2026-05-19):
+  - Streak emission: `src/Layers/xrRender/dxRainRender.cpp:45-70`.
+  - Wet-shader uniform: `src/Layers/xrRender_R2/r3_rendertarget_draw_rain.cpp:5-25`.
+  - Shadow rain factor: `src/Layers/xrRender_R2/r3_R_rain.cpp:51-78`.
+- Pattern when adding a new rain-driven effect: read
+  `Environment().CurrentEnv.rain_density`, multiply by
+  `smoothstep(0.05, 0.25, eff_Rain->get_hemi_factor())` before use.
+
 ## Cvars (renderer)
 
 - Registration table: `src/Layers/xrRender/xrRender_console.cpp:920-926`

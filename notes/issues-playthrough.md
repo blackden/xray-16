@@ -34,31 +34,81 @@ user encounters them; triaged later.
 
 ---
 
-## 2026-05-19 — Дождь сквозь крышу + wet-shader на внутренних стенах (P2)
+## 2026-05-19 — Дождь сквозь крышу + wet-shader на внутренних стенах (P2, **closed**)
 
-В помещении (Yanov station) видны streaks дождя как будто крыша
-прозрачная; стены имеют wet/mossy наложение даже на сухих внутренних
-поверхностях.
+**Корневая причина (была):** `src/xrEngine/Rain.cpp` уже считал
+`hemi_factor` (cosine-weighted sky visibility, line 131-148), но
+использовал его **только для громкости ambient звука** (line 177).
+Три render call-сайта читали `rain_density` напрямую без gate:
+`dxRainRender.cpp:47` (streak emission), `r3_rendertarget_draw_rain.cpp:7`
+(wet-shader uniform), `r3_R_rain.cpp:53` (shadow factor).
 
-**Корень — vanilla bug, не наш регресс:**
-- `src/xrEngine/Rain.cpp:130` — `factor = CurrentEnv.rain_density`
-  глобальный, **никакого indoor-check нет**.
-- `hemi_factor` (Rain.cpp:131-148) считывает hemi-cube вокруг камеры,
-  но используется только для визуальной интенсивности drops, **не для
-  сatting эмиссии**. Когда камера в плохо-defined indoor zone (Yanov
-  такая по канону — частичная крыша), hemi_factor падает, но дождь
-  всё равно рендерится.
-- Wet-surface шейдер в G-buffer использует тот же `rain_density` без
-  sector/portal-теста.
+**Fix:** `hemi_factor` повышен до member-переменной `CEffect_Rain` с
+public accessor; все три read-сайта домножают `rain_density` на
+`smoothstep(0.05, 0.25, hemi_factor)`. Smoothstep вместо bool-cut —
+переходные зоны (крылечки, козырьки Янова, балконы Припяти)
+интерполируются плавно.
 
-**Реальный фикс (отдельный поход, ~1-2 дня):**
-- Portal/sector-aware rain emission: при `hemi_factor < EPS` skip
-  rain streak emission целиком (не просто dim).
-- Wet-shader: gate на тот же `hemi_factor < threshold` через G-buffer
-  bit или сcaling в pixel shader.
+**Подтверждение игроком:** pending — нужно зайти в Yanov station
+после landing commit'а и убедиться что дождь не идёт сквозь крышу,
+а наружу выйти и проверить что снаружи всё ещё льёт.
 
-**Severity:** P2. Vanilla CoP делает то же самое. Upstream-кандидат
-для PR.
+**Vanilla CoP делал то же самое.** Upstream-кандидат для PR после
+user-verify.
+
+---
+
+## 2026-05-19 — Save thumbnails не показываются в Load Game UI (P2, **closed**)
+
+**Корневая причина:** `src/Layers/xrRenderGL/glr_screenshot.cpp:46-48`
+содержал заглушку:
+```cpp
+case SM_FOR_GAMESAVE:
+    // XXX: Implement
+    break;
+```
+Call-сайты (`MainMenu.cpp:554`, `autosave_manager.cpp:75`,
+`console_commands.cpp:707`) корректно вызывали `Screenshot(SM_FOR_GAMESAVE,
+"<save>.dds")`, но GL backend молча возвращал control — никакой `.dds`
+не писался. Подтверждено сканом `savedgames/`: 17 `.scop` файлов, 0
+соседних `.dds`.
+
+**Fix:** реализована full pipeline — glReadPixels → Y-flip → resample
+до 128×128 через `imf_Process` (xrImage_Resampler) → uncompressed
+RGBA8 DDS (inline 128-byte header) → `FS.w_open` write. Skipping BC1
+compression: 3MB overhead на 50 saves вместо 400KB — пренебрежимо.
+
+**Severity:** P2 UX-gap. На Windows DX11 работало (DirectXTex'ом),
+на macOS GL пользователь видел список без превью все эти месяцы.
+
+---
+
+## 2026-05-19 — Снорки убивают через пол на лестнице Юпитера (P3, vanilla quirk)
+
+**Где наблюдалось:** здание в Юпитере где квест Кардана на компоненты
+для техника. Лестничный пролёт, снорки внизу убили игрока стоящего
+на верхнем landing'е — damage прошёл сквозь floor mesh.
+
+**Гипотеза (без копания в коде):** vanilla X-Ray monster damage trace
+для snork leap-attack использует **swept sphere** по траектории
+прыжка с center-to-center distance check, без proper line-of-sight
+через CDB. Когда снорк прыгает на пол под игроком, его hit-sphere
+пересекает капсулу игрока несмотря на floor mesh между ними. Это
+одна из топ-известных жалоб community CoP с 2009 года.
+
+**Что говорит за vanilla, не наш регресс:** мы movement/physics/
+monster-AI код **не трогали** — все коммиты в xrCore/xrEngine/xrRender,
+ни одного в `src/xrGame/Monsters/`.
+
+**Что проверять если будем чинить:**
+- `src/xrGame/Monsters/Snork/snork.cpp` — snork class.
+- `src/xrGame/Monsters/Snork/snork_jump.cpp` — leap attack handler.
+- Generic monster damage trace: `src/xrGame/ai/monsters/BaseMonster/`.
+- Замена sphere-center damage check на swept raycast через `Level().ObjectSpace.GetStaticModel()->_BoxQuery` — это правильная архитектура.
+
+**Severity:** P3 — vanilla quirk, не наш регресс, не блокирует
+квест (можно отбежать). Upstream-PR кандидат при желании,
+~½ дня работы. Не в current scope.
 
 ---
 
