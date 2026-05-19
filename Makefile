@@ -47,6 +47,7 @@ help: ## Show this help and current settings
 	@echo "  HOST_ARCH    = $(HOST_ARCH)"
 	@echo "  STEAM_LOGIN  = $(STEAM_LOGIN)  (required for 'install-game')"
 	@echo "  APPID        = $(APPID)  (41700 = Call of Pripyat, 20510 = Clear Sky)"
+	@echo "  LANGUAGE     = $(LANGUAGE)  (optional for 'install-game': russian/english/...)"
 
 setup: ## Install brew deps, update git submodules, verify toolchain
 	@echo "==> Host architecture: $(HOST_ARCH)"
@@ -167,10 +168,11 @@ run-lldb: build ## Launch xr_3da under lldb to capture a backtrace on crash
 		     -k "quit" \
 		     -- ./xr_3da 2>&1 | tee "$$abs_session/lldb.log"
 
-install-game: ## Install CoP/CS via steamcmd into GAME_DIR (needs STEAM_LOGIN)
+install-game: ## Install CoP/CS via steamcmd into GAME_DIR (needs STEAM_LOGIN; optional LANGUAGE=russian)
 	@if [ -z "$(STEAM_LOGIN)" ]; then \
 		echo "ERROR: STEAM_LOGIN is empty. Examples:"; \
 		echo "  make install-game STEAM_LOGIN=yourname"; \
+		echo "  make install-game STEAM_LOGIN=yourname LANGUAGE=russian"; \
 		echo "  make install-game STEAM_LOGIN=yourname APPID=20510 GAME_DIR=\$$HOME/Games/STALKER-CS"; \
 		exit 1; \
 	fi
@@ -179,6 +181,7 @@ install-game: ## Install CoP/CS via steamcmd into GAME_DIR (needs STEAM_LOGIN)
 		exit 1; \
 	}
 	STEAM_LOGIN="$(STEAM_LOGIN)" INSTALL_DIR="$(GAME_DIR)" APPID="$(APPID)" \
+	LANGUAGE="$(LANGUAGE)" \
 		./scripts/mac/install-cop-steamcmd.sh
 
 codesign: ## Ad-hoc sign xr_3da with get-task-allow so macOS writes .ips on crash
