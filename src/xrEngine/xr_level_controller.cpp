@@ -1055,18 +1055,15 @@ class CCC_DefControls : public CCC_UnBindAll
         { kTALK_LOG_SCROLL_DOWN,    { SDL_SCANCODE_E,       SDL_SCANCODE_PAGEDOWN,      SDL_SCANCODE_UNKNOWN } },
 
         { kEDITOR,                  { SDL_SCANCODE_F10,     SDL_SCANCODE_UNKNOWN,       XR_CONTROLLER_BUTTON_INVALID } },
-        // F11 — macOS users must disable Mission Control "Show Desktop"
-        // binding (System Settings -> Keyboard -> Keyboard Shortcuts ->
-        // Mission Control -> uncheck F11). This is a developer-only tool,
-        // not a player-facing feature, so the system-wide rebind is fine.
-        { kRENDER_PLAYGROUND,       { SDL_SCANCODE_F11,     SDL_SCANCODE_UNKNOWN,       XR_CONTROLLER_BUTTON_INVALID } },
-        // ALife Inspector — F12. On macOS this is the hardware Volume Up
-        // media key unless the user enables "Use F1, F2... as standard
-        // function keys" in System Settings (or presses Fn+F12). Both
-        // hotkeys are dev-only and gated at runtime by the `dev_tools`
-        // cvar (default 0 in MasterGold) — so end-users on a shipped
-        // build never see them, and devs accept the macOS Fn-key story.
-        { kALIFE_INSPECTOR,         { SDL_SCANCODE_F12,     SDL_SCANCODE_UNKNOWN,       XR_CONTROLLER_BUTTON_INVALID } },
+        // F6/F7 for the two dev panels — chosen because on macOS the F11
+        // and F12 keys are reserved (F11 = Mission Control "Show Desktop"
+        // even after disable in some setups; F12 = hardware Volume Up
+        // intercepted before SDL ever sees it). F6/F7 reach SDL cleanly
+        // with no system-level claim. Both hotkeys are gated at runtime
+        // by the `dev_tools` cvar (default 0 in MasterGold), so shipped
+        // builds don't expose them to end-users.
+        { kRENDER_PLAYGROUND,       { SDL_SCANCODE_F6,      SDL_SCANCODE_UNKNOWN,       XR_CONTROLLER_BUTTON_INVALID } },
+        { kALIFE_INSPECTOR,         { SDL_SCANCODE_F7,      SDL_SCANCODE_UNKNOWN,       XR_CONTROLLER_BUTTON_INVALID } },
     };
     // clang-format on
 

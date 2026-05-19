@@ -159,7 +159,6 @@ void CLevel::IR_OnKeyboardPress(int key)
 
     if (_curr == kRENDER_PLAYGROUND)
     {
-        Msg("[dev_tools] kRENDER_PLAYGROUND hit (CLevel); dev_tools=%d", g_dev_tools);
         if (g_dev_tools)
             Device.editor().TogglePlayground();
         return;
@@ -167,7 +166,6 @@ void CLevel::IR_OnKeyboardPress(int key)
 
     if (_curr == kALIFE_INSPECTOR)
     {
-        Msg("[dev_tools] kALIFE_INSPECTOR hit (CLevel); dev_tools=%d", g_dev_tools);
         if (g_dev_tools)
             Device.editor().ToggleNamedTool("ALife Inspector");
         return;
