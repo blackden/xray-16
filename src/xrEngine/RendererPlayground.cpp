@@ -75,6 +75,14 @@ void RendererPlayground::on_tool_frame()
             DrawPipelineTogglesTab();
             ImGui::EndTabItem();
         }
+#if defined(XR_PLATFORM_APPLE)
+        if (ImGui::BeginTabItem("Hot Reload"))
+        {
+            m_lastTabIndex = 5;
+            DrawHotReloadTab();
+            ImGui::EndTabItem();
+        }
+#endif
         ImGui::EndTabBar();
     }
 
@@ -290,6 +298,110 @@ void RendererPlayground::DrawPipelineTogglesTab()
     {
         t->shadows = t->occq = t->details = t->wallmarks = true;
     }
+}
+
+#if defined(XR_PLATFORM_APPLE)
+// Defined in RendererPlayground_HotReload.mm
+extern "C" bool     RendererPlayground_HotReload_Start(const char* watchPath);
+extern "C" void     RendererPlayground_HotReload_Poll(void);
+extern "C" unsigned RendererPlayground_HotReload_Total(void);
+extern "C" unsigned RendererPlayground_HotReload_Capacity(void);
+extern "C" void     RendererPlayground_HotReload_Entry(unsigned i, const char** outPath, unsigned long long* outTs);
+extern "C" void     RendererPlayground_HotReload_Clear(void);
+#endif
+
+void RendererPlayground::DrawHotReloadTab()
+{
+#if defined(XR_PLATFORM_APPLE)
+    // Lazy start so we only pay the FSEvents cost when the user opens the
+    // tab. Watch path is resolved from $game_shaders$ once.
+    if (!m_hotReloadStarted)
+    {
+        string_path resolved;
+        FS.update_path(resolved, "$game_shaders$", "");
+        convert_path_separators(resolved);
+        if (RendererPlayground_HotReload_Start(resolved))
+        {
+            m_hotReloadStarted = true;
+            Msg("* Playground: hot-reload watcher started on '%s'", resolved);
+        }
+        else
+        {
+            ImGui::TextDisabled("Failed to start FSEvents watcher on $game_shaders$.");
+            return;
+        }
+    }
+
+    // Pull pending events into the ring before drawing.
+    RendererPlayground_HotReload_Poll();
+
+    const unsigned total = RendererPlayground_HotReload_Total();
+    const unsigned cap   = RendererPlayground_HotReload_Capacity();
+    const unsigned count = total < cap ? total : cap;
+
+    ImGui::TextWrapped("Watching $game_shaders$ recursively. File changes appear here "
+                       "as the FSEvents framework reports them. Live in-engine shader "
+                       "swap is not implemented yet — use 'Clear shader disk cache' "
+                       "and restart to pick up changes.");
+    ImGui::Spacing();
+
+    ImGui::Text("Changes captured: %u total, last %u shown", total, count);
+    if (ImGui::Button("Clear list"))
+        RendererPlayground_HotReload_Clear();
+    ImGui::SameLine();
+    if (ImGui::Button("Clear shader disk cache"))
+    {
+        string_path cacheRoot;
+        FS.update_path(cacheRoot, "$app_data_root$", "shaders_cache_oxr");
+        convert_path_separators(cacheRoot);
+        // Best-effort: ask the engine to drop the cache directory. We
+        // don't recursively unlink ourselves to avoid touching engine
+        // FS internals; the user can rm -rf the path shown below.
+        ImGui::OpenPopup("##shadercache_path");
+        m_shaderCachePath = cacheRoot;
+    }
+
+    if (ImGui::BeginPopup("##shadercache_path"))
+    {
+        ImGui::TextUnformatted("Shader cache lives at:");
+        ImGui::TextWrapped("%s", m_shaderCachePath.c_str());
+        ImGui::TextDisabled("Quit the engine, rm -rf this directory, restart.");
+        if (ImGui::Button("Close"))
+            ImGui::CloseCurrentPopup();
+        ImGui::EndPopup();
+    }
+    ImGui::Separator();
+
+    if (count == 0)
+    {
+        ImGui::TextDisabled("No changes since the watcher started. Edit a .s / .ps / .vs");
+        ImGui::TextDisabled("file in gamedata/shaders/ and save to see entries land here.");
+        return;
+    }
+
+    if (ImGui::BeginTable("##hotreload", 2,
+        ImGuiTableFlags_Borders | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY,
+        ImVec2(0, 0)))
+    {
+        ImGui::TableSetupColumn("when (epoch s)");
+        ImGui::TableSetupColumn("path");
+        ImGui::TableHeadersRow();
+        for (unsigned i = 0; i < count; ++i)
+        {
+            const char* path = "";
+            unsigned long long ts = 0;
+            RendererPlayground_HotReload_Entry(i, &path, &ts);
+            ImGui::TableNextRow();
+            ImGui::TableSetColumnIndex(0);
+            ImGui::Text("%llu", ts);
+            ImGui::TableSetColumnIndex(1);
+            ImGui::TextUnformatted(path);
+        }
+        ImGui::EndTable();
+    }
+#else
+    ImGui::TextDisabled("Hot reload is macOS-only for now (FSEvents-based watcher).");
+#endif
 }
 
 void RendererPlayground::save_settings(ImGuiTextBuffer* buffer) const

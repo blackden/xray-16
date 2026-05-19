@@ -421,9 +421,11 @@ if(APPLE)
         NAME "Platform\\macOS"
         FILES
         macos_cocoa_shim.mm
+        RendererPlayground_HotReload.mm
     )
     set_source_files_properties(
         macos_cocoa_shim.mm
+        RendererPlayground_HotReload.mm
         PROPERTIES
         SKIP_PRECOMPILE_HEADERS ON
         SKIP_UNITY_BUILD_INCLUSION ON
@@ -433,6 +435,7 @@ if(APPLE)
         PRIVATE
         "-framework AppKit"
         "-framework Foundation"
+        "-framework CoreServices"
     )
 endif()
 

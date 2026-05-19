@@ -372,6 +372,23 @@ check "r2_R_render.cpp gates wallmarks on m_debugToggles.wallmarks" \
 check "RendererPlayground has Pipeline Toggles tab" \
     "grep -q 'DrawPipelineTogglesTab' src/xrEngine/RendererPlayground.cpp"
 
+# v2: Shader hot-reload watcher (Apple FSEvents)
+check "RendererPlayground_HotReload.mm exists" \
+    "test -f src/xrEngine/RendererPlayground_HotReload.mm"
+
+check "Hot-reload uses FSEvents framework" \
+    "grep -q 'FSEventStreamCreate' src/xrEngine/RendererPlayground_HotReload.mm"
+
+check "CMakeLists links CoreServices for FSEvents" \
+    "grep -q 'CoreServices' src/xrEngine/CMakeLists.txt"
+
+check "CMakeLists builds RendererPlayground_HotReload.mm with -fobjc-arc" \
+    "awk '/RendererPlayground_HotReload.mm/,/COMPILE_FLAGS/' src/xrEngine/CMakeLists.txt | \
+        grep -q 'fobjc-arc'"
+
+check "RendererPlayground has Hot Reload tab (Apple-only)" \
+    "grep -q 'DrawHotReloadTab' src/xrEngine/RendererPlayground.cpp"
+
 echo
 echo "Summary: $pass passed, $fail failed"
 exit $fail
