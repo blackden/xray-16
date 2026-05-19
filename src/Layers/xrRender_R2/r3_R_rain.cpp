@@ -56,12 +56,13 @@ void render_rain::init()
     // Indoor suppression: multiply the rain factor by smoothstep over
     // the sky-visibility hemi_factor smoothed in CEffect_Rain. This
     // gates the wet-surface shadow contribution to zero under a roof.
+    // See dxRainRender.cpp for the gate range — keep these in sync.
     if (auto* eff = g_pGamePersistent->Environment().eff_Rain)
     {
         float hemi = eff->get_hemi_factor();
-        float t = (hemi - 0.05f) / 0.20f;
+        float t = (hemi - 0.2f) / 0.4f;
         clamp(t, 0.f, 1.f);
-        rain_factor *= t * t * (3.f - 2.f * t);
+        rain_factor *= t * t * (3.f - 2.f * t); // smoothstep over [0.2, 0.6]
     }
 
     o.active  = ps_r2_ls_flags.test(R3FLAG_DYN_WET_SURF);

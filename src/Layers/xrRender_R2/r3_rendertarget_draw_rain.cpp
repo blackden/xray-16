@@ -8,12 +8,13 @@ void CRenderTarget::draw_rain(CBackend& cmd_list, light& RainSetup)
 
     // Gate wet-shader contribution by sky visibility so indoor walls
     // don't pick up the wet look while it's raining outside.
+    // See dxRainRender.cpp for the gate range — keep these in sync.
     if (auto* eff = g_pGamePersistent->Environment().eff_Rain)
     {
         float hemi = eff->get_hemi_factor();
-        float t = (hemi - 0.05f) / 0.20f;
+        float t = (hemi - 0.2f) / 0.4f;
         clamp(t, 0.f, 1.f);
-        fRainFactor *= t * t * (3.f - 2.f * t); // smoothstep
+        fRainFactor *= t * t * (3.f - 2.f * t); // smoothstep over [0.2, 0.6]
     }
 
     // Common calc for quad-rendering

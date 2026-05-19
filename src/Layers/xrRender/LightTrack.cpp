@@ -255,6 +255,13 @@ void CROS_impl::update(IRenderable* O)
         hemi_value += hemi_light;
         hemi_value = std::max(hemi_value, minHemiValue);
 
+        // XXX [ragnar] HEMI_LIGHT_POLLUTION: hemi_cube here mixes sky
+        // visibility (calc_sky_hemi_value above) with dynamic-light
+        // contribution, so consumers that want pure sky visibility
+        // (e.g. indoor rain gate, see Rain.cpp:OnFrame) cannot read
+        // this safely under lit interiors. If another subsystem needs
+        // sky-only, expose a separate hemi_sky_smooth captured before
+        // this loop runs.
         for (size_t i = 0; i < NUM_FACES; ++i)
         {
             hemi_cube[i] += hemi_cube_light[i] * (1 - ps_r2_dhemi_light_flow) +
