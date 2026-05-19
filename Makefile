@@ -27,7 +27,7 @@ RELEASE_BIN      := bin/$(HOST_ARCH)/ReleaseMasterGold/xr_3da
 DIST_APP         := dist/OpenXRay.app
 
 .DEFAULT_GOAL := help
-.PHONY: help setup check-configure-prereqs configure build build-release profile run run-lldb all clean rebuild install-game link-gamedata codesign bundle package install all-in-one test test-encoding ship promote install-hooks uninstall-hooks
+.PHONY: help setup check-configure-prereqs configure build build-release profile run run-lldb all clean rebuild install-game link-gamedata codesign bundle package install all-in-one test test-encoding ship promote install-hooks uninstall-hooks sync-issues sync-issues-dry
 
 help: ## Show this help and current settings
 	@echo "OpenXRay macOS automation"
@@ -341,6 +341,12 @@ uninstall-hooks: ## Remove our symlinked git hooks
 	        echo "==> Removed hook: $$target"; \
 	    fi; \
 	done
+
+sync-issues: ## Comment/close GitHub issues referenced in commits since last sync
+	@scripts/issues/sync.sh
+
+sync-issues-dry: ## Dry-run: show what sync-issues would do
+	@scripts/issues/sync.sh --dry-run
 
 promote: ## Fast-forward STABLE_WORKTREE to current HEAD, then install into STABLE_APP_DIR
 	@head_sha=$$(git rev-parse HEAD); \
