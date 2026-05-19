@@ -62,30 +62,23 @@ user encounters them; triaged later.
 
 ---
 
-## 2026-05-19 — Фонарик не освещает поверхности на Apple GL (P2)
+## 2026-05-19 — Фонарик не освещает поверхности на Apple GL (P2, **closed**)
 
-Игрок сообщает: light от фонарика не падает на surfaces (не на все).
-Не приложил скриншот. Похоже на known long-standing GL-renderer gap —
-дополнительные dynamic source-attached lights stubbed на OGL-пути в
-`xrRender_R2` / `xrRenderPC_GL`. Семейство со SSAO bug — `accum_omni_*`
-шейдеры (omni light = точечный источник, фонарик именно такой).
+**Resolved транзитивно через SSAO real-fix.** Гипотеза подтверждена:
+`accum_omni_normal_nomsaa.ps` / `accum_omni_transluent_nomsaa.ps`
+действительно сидели в том же shader compile-failure cascade, что и
+SSAO-шейдеры — каскад выжигал весь deferred-pipeline, включая omni
+light accumulation. После того как `SSAO_QUALITY` (и соседи) стали
+unconditionally defined в `rgl_shaders.cpp`, cascade исчез, omni
+permutations компилируются, и свет от фонаря падает на стены как
+надо.
 
-**Гипотеза:** `accum_omni_normal_nomsaa.ps` и `accum_omni_transluent_nomsaa.ps`
-тоже в shader compile-failure cascade (видно в логе того же дня).
-После SSAO gate cascade не запускается — но если фонарик использует
-permutation который compile-failed *по другой причине* (например
-`ssao_blur_on` в omni light path), он по-прежнему молча падает на GL.
+**Подтверждение игроком:** SSAO off + flashlight test 2026-05-19
+вечером — фонарь освещает поверхности корректно, никаких black-
+surface стен.
 
-**Что проверить, когда дойдём:**
-- В логе свежей сессии после SSAO-gate коммита: остался ли cascade
-  на `accum_omni_*`? Если нет — фонарик должен заработать.
-- Если cascade ушёл, но фонарик всё равно не светит → искать в
-  `src/Layers/xrRender_R2/Light_Package.cpp` или `light.cpp`
-  специфичный USE_OGL гейт который stub'ит omni shading.
-- `notes/engine-map.md` секция "Open questions" уже содержит этот
-  пункт — обновить когда разберёмся.
-
-**Severity:** P2 — заметная geometry deficiency, но играть можно.
+Отдельный фикс не понадобился. Один из тех редких случаев, где
+правильный root-cause fix чинит несколько симптомов сразу.
 
 ---
 
@@ -164,7 +157,9 @@ default: на остальных GL-платформах ничего не ме�
 (commit d7724e2c9), возвращён vanilla SSAO path.
 
 **Статус:** real-fix landed. Уровень с включённым SSAO рендерится на
-Apple GL без cascade.
+Apple GL без cascade. Подтверждено игроком 2026-05-19 вечером: SSAO
+off корректно даёт обычный (не чёрный) deferred output, переключение
+режимов больше не убивает рендер.
 
 ---
 
