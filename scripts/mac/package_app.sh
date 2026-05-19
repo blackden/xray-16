@@ -229,7 +229,11 @@ fi
 # previous launch, that means the previous run crashed / hung / was
 # force-killed before reaching the stable point. Drop graphics to the
 # safest minimum so the player can get back into the menu and adjust.
-SAFE_SENTINEL="\${APPDATA_DIR}/_appdata_/.boot_in_progress"
+# Sentinel lives at the overlay root, NOT inside _appdata_/. The engine
+# resolves \$app_data_root\$ via -overlaypath which collapses to exactly
+# this directory; if we hide the sentinel deeper, the engine cleanup
+# can't find it and safe-mode latches on forever.
+SAFE_SENTINEL="\${APPDATA_DIR}/.boot_in_progress"
 if [ -f "\$SAFE_SENTINEL" ] && [ "\${OPENXRAY_FORCE_NORMAL_BOOT:-0}" != "1" ]; then
     echo "==> SAFE MODE: previous launch did not reach stable boot. Resetting graphics to minimal." >> "\${LOG_DIR}/openxray.log"
     upsert_ltx "vid_mode 1280x720"

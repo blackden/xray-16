@@ -14,6 +14,12 @@
 #include "xrCore/Threading/TaskManager.hpp"
 #include "xrNetServer/NET_AuthCheck.h"
 
+#if defined(XR_PLATFORM_POSIX)
+#include <sys/stat.h>
+#include <unistd.h>
+#include <errno.h>
+#endif
+
 #include "IGame_Persistent.h"
 #include "LightAnimLibrary.h"
 #include "XR_IOConsole.h"
@@ -459,14 +465,27 @@ int CApplication::Run()
 
         if (!sentinelCleared && ++framesSinceStart >= STABLE_BOOT_FRAMES)
         {
+            // FS.exist would miss this file: launcher creates the sentinel
+            // AFTER the LocatorAPI rescan that builds m_files, so the
+            // dynamic file isn't in the cache even though it's on disk.
+            // Resolve the path through update_path (so it tracks -overlaypath)
+            // but stat / unlink it at the raw filesystem layer so the cache
+            // miss doesn't fool us.
             string_path sentinel;
             FS.update_path(sentinel, "$app_data_root$", ".boot_in_progress");
-            if (FS.exist(sentinel))
+            struct stat st{};
+            if (::stat(sentinel, &st) == 0)
             {
                 if (xr_unlink(sentinel) == 0)
                     Msg("* Safe-mode sentinel cleared after %u stable frames.", framesSinceStart);
                 else
-                    Msg("! Safe-mode sentinel could not be removed: '%s'", sentinel);
+                    Msg("! Safe-mode sentinel could not be removed: '%s' (errno=%d)",
+                        sentinel, errno);
+            }
+            else
+            {
+                Msg("* Safe-mode sentinel not present at '%s' (errno=%d) -- no cleanup needed.",
+                    sentinel, errno);
             }
             sentinelCleared = true;
         }
