@@ -469,10 +469,15 @@ int CApplication::Run()
             // AFTER the LocatorAPI rescan that builds m_files, so the
             // dynamic file isn't in the cache even though it's on disk.
             // Resolve the path through update_path (so it tracks -overlaypath)
-            // but stat / unlink it at the raw filesystem layer so the cache
-            // miss doesn't fool us.
+            // but stat / unlink it at the raw filesystem layer.
+            //
+            // FS.update_path returns the engine-internal form with backslash
+            // separators ("\Users\...") which the POSIX stat() won't accept;
+            // convert_path_separators flips them to forward slashes before
+            // the syscall.
             string_path sentinel;
             FS.update_path(sentinel, "$app_data_root$", ".boot_in_progress");
+            convert_path_separators(sentinel);
             struct stat st{};
             if (::stat(sentinel, &st) == 0)
             {
