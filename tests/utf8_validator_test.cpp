@@ -3,8 +3,9 @@
 // Standalone — no xrCore linkage. Mirror the algorithm here, exercise it
 // against the canonical RFC 3629 corner cases plus a handful of fixtures that
 // crop up in OpenXRay (cp1251 byte sequences masquerading as UTF-8, the
-// Денис Федоров save filenames written under the old pw_gecos path, ImGui
-// debug-overlay glyph ranges).
+// Денис Федоров save filenames left on disk from when Core.UserName came
+// from pw_gecos -- still must round-trip cleanly even though Core.UserName
+// is ASCII pw_name now -- and ImGui debug-overlay glyph ranges).
 //
 // Build:
 //   clang++ -std=c++17 -Wall -Wextra -Werror tests/utf8_validator_test.cpp \

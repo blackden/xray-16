@@ -428,28 +428,26 @@ void xrCore::Initialize(pcstr _ApplicationName, pcstr commandLine, bool init_fs,
 #elif defined(XR_PLATFORM_POSIX)
         uid_t uid = geteuid();
         struct passwd *pw = getpwuid(uid);
-        if (pw)
+        if (pw && pw->pw_name && pw->pw_name[0])
         {
-            // Prefer pw_gecos (the full real name, "Илья Иванов" on a RU
-            // account) so save filename prefixes and log headers carry the
-            // human-readable identity. Falls back to pw_name (the ASCII
-            // login) if gecos is empty.
-            //
-            // Pre-utf8 migration this was inverted: pw_name was preferred
-            // because the cp1251 renderer turned UTF-8 cyrillic into
-            // mojibake and APFS rejected the resulting cp1251 path bytes
-            // with EILSEQ. After Phase 1 the renderer is codepoint-aware
-            // and Phase 3.1 handles APFS retries, so pw_gecos is safe again.
-            strncpy(UserName, pw->pw_gecos, sizeof(UserName) - 1);
-            // pw_gecos can legitimately be empty (server accounts, some
-            // distros); also some systems append ",,," fields to it -- trim.
-            if (char* comma = strchr(UserName, ','))
-                *comma = '\0';
-            if (UserName[0] == '\0')
-                strncpy(UserName, pw->pw_name, sizeof(UserName) - 1);
+            // Use pw_name (the POSIX login name, "ragnar") rather than
+            // pw_gecos (the display name, which can be empty, contain
+            // spaces, or change when the account profile is edited).
+            // Login name is ASCII-safe and stable across renames, which
+            // matters because it ends up in log/save filenames and the
+            // screenshot prefix.
+            strncpy(UserName, pw->pw_name, sizeof(UserName) - 1);
+            UserName[sizeof(UserName) - 1] = '\0';
         }
+        else if (const char* env = getenv("USER"); env && env[0])
+            strncpy(UserName, env, sizeof(UserName) - 1);
+        else if (const char* env = getenv("LOGNAME"); env && env[0])
+            strncpy(UserName, env, sizeof(UserName) - 1);
         else
-            Msg("! Failed to get user name");
+        {
+            Msg("! Failed to get user name; defaulting to 'player'");
+            strncpy(UserName, "player", sizeof(UserName) - 1);
+        }
 
         if (gethostname(CompName, sizeof(CompName)) == 0)
             CompName[sizeof(CompName) - 1] = '\0';

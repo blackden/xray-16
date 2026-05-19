@@ -690,9 +690,9 @@ public:
 
         pstr save_name;
         // Both halves of the concat are UTF-8 now (StringTable translations
-        // pass through the Phase 2 XML shim, save name comes from UTF-8
-        // pw_gecos / SDL_TEXTINPUT). The Phase 1 renderer expects UTF-8
-        // directly, so no encoding bridge is needed -- the previous
+        // pass through the Phase 2 XML shim, save name comes from
+        // SDL_TEXTINPUT). The Phase 1 renderer expects UTF-8 directly,
+        // so no encoding bridge is needed -- the previous
         // xr_utf8_to_cp1251 here turned cyrillic save names into '?' on
         // the in-game "Игра сохранена: ..." toast.
         STRCONCAT(save_name, StringTable().translate("st_game_saved").c_str(), ": ", S);
