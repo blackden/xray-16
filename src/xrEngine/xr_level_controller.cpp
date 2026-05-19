@@ -1054,9 +1054,11 @@ class CCC_DefControls : public CCC_UnBindAll
         { kTALK_LOG_SCROLL_DOWN,    { SDL_SCANCODE_E,       SDL_SCANCODE_PAGEDOWN,      SDL_SCANCODE_UNKNOWN } },
 
         { kEDITOR,                  { SDL_SCANCODE_F10,     SDL_SCANCODE_UNKNOWN,       XR_CONTROLLER_BUTTON_INVALID } },
-        // F8 — F11 is macOS Mission Control "Show Desktop" by default and
-        // even when disabled it is still claimed by the system event tap.
-        { kRENDER_PLAYGROUND,       { SDL_SCANCODE_F8,      SDL_SCANCODE_UNKNOWN,       XR_CONTROLLER_BUTTON_INVALID } },
+        // F11 — macOS users must disable Mission Control "Show Desktop"
+        // binding (System Settings -> Keyboard -> Keyboard Shortcuts ->
+        // Mission Control -> uncheck F11). This is a developer-only tool,
+        // not a player-facing feature, so the system-wide rebind is fine.
+        { kRENDER_PLAYGROUND,       { SDL_SCANCODE_F11,     SDL_SCANCODE_UNKNOWN,       XR_CONTROLLER_BUTTON_INVALID } },
     };
     // clang-format on
 

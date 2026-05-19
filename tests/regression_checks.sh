@@ -271,8 +271,8 @@ check "kRENDER_PLAYGROUND action declared in xr_level_controller.h" \
 check "kRENDER_PLAYGROUND named in xr_level_controller.cpp" \
     "grep -q '\"render_playground\"' src/xrEngine/xr_level_controller.cpp"
 
-check "kRENDER_PLAYGROUND default-bound to F8 (F11 conflicts with macOS Show Desktop)" \
-    "awk '/kRENDER_PLAYGROUND,/' src/xrEngine/xr_level_controller.cpp | grep -q 'SDL_SCANCODE_F8'"
+check "kRENDER_PLAYGROUND default-bound to F11 (developer-only; macOS disables Mission Control side)" \
+    "awk '/kRENDER_PLAYGROUND,/' src/xrEngine/xr_level_controller.cpp | grep -q 'SDL_SCANCODE_F11'"
 
 check "ide::IR_OnKeyboardPress routes kRENDER_PLAYGROUND" \
     "awk '/^void ide::IR_OnKeyboardPress/,/^void ide::IR_OnKeyboardRelease/' src/xrEngine/editor_base_input.cpp | \
