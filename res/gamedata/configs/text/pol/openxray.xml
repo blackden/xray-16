@@ -123,4 +123,7 @@
 	<string id="ukr">
     	<text>Ukraiński (Ukrainian)</text>
 	</string>
+	<string id="ui_mm_quit2windows">
+		<text>Wyjdź do macOS</text>
+	</string>
 </string_table>
