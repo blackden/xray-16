@@ -32,3 +32,7 @@ notes/session-*/
 build-profile/
 build-tests/
 notes/tracy/
+
+# Unpacked vanilla CoP archives from `make unpack-cop` (xrUnpack output).
+# Reference tree for modding workflow; not source we ship.
+_workspace/

@@ -162,6 +162,44 @@ make install-game            # скачать игру через steamcmd (см
 make install-hooks           # подключить auto-ship на каждом коммите
 ```
 
+## Modding workflow (через xrUnpack)
+
+xrUnpack — наш unpacker для vanilla `.db?` архивов. Поскольку
+LocatorAPI читает overlay-дерево `<install>/gamedata/<path>` **раньше**
+чем `.db?`, любой файл из vanilla можно переопределить без правки
+архива. Пайплайн:
+
+```bash
+# 1. Один раз: распаковать всё в gitignored _workspace/
+make unpack-cop
+# результат: _workspace/cop-vanilla/{configs,ui,scripts,textures,...}
+
+# 2. Inspection без распаковки (быстрый "что внутри?"):
+bin/arm64/Mixed/xrUnpack --list \
+    ~/Games/STALKER-CoP/resources/configs.db | head
+
+# 3. Найти исходник нужного UI-файла:
+ls _workspace/cop-vanilla/configs/ui/main_menu*.xml
+
+# 4. Скопировать в overlay (рядом с vanilla, перебивает .db):
+mkdir -p ~/Games/STALKER-CoP/gamedata/configs/ui
+cp _workspace/cop-vanilla/configs/ui/main_menu.xml \
+   ~/Games/STALKER-CoP/gamedata/configs/ui/main_menu.xml
+
+# 5. Редактировать копию, запускать игру -- изменение видно.
+```
+
+Примеры файлов которые имеет смысл переопределять:
+- `configs/ui/*.xml` — UI пункты меню, надписи на экранах.
+- `configs/text/<lang>/*.xml` — переводы UI / диалогов.
+- `configs/system.ltx`, `configs/weapons/*.ltx` — баланс.
+- `scripts/*.script` — Lua-логика (диалоги, AI, квесты).
+- `shaders/gl/*.ps` — GLSL шейдеры (можно патчить локально, не
+  трогая `res/gamedata/shaders/gl/` overlay в нашем репо).
+
+`xrCompress` для **обратной** упаковки на macOS пока не портирован —
+overlay-дерева достаточно для всех personal-моддинг кейсов.
+
 ## Куда складывать новые повторяющиеся вопросы
 
 Если ты задаёшь вопрос **второй раз** — добавь ответ сюда, в подходящий

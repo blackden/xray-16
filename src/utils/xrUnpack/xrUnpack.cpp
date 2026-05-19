@@ -112,6 +112,52 @@ static fs::path resolve_out_path(const fs::path &out_root, const char *entry)
     return out;
 }
 
+static int list_archive(const char *archive_path)
+{
+    int fd = ::open(archive_path, O_RDONLY);
+    if (fd < 0)
+    {
+        std::fprintf(stderr, "open(%s): %s\n", archive_path, std::strerror(errno));
+        return 1;
+    }
+    struct stat st{};
+    if (::fstat(fd, &st) != 0)
+    {
+        std::fprintf(stderr, "fstat(%s): %s\n", archive_path, std::strerror(errno));
+        ::close(fd);
+        return 1;
+    }
+    IReader *hdr = find_chunk(fd, kFileTableChunkID, size_t(st.st_size));
+    if (!hdr)
+    {
+        std::fprintf(stderr, "%s: file table (chunk %u) not found\n",
+            archive_path, kFileTableChunkID);
+        ::close(fd);
+        return 2;
+    }
+
+    std::printf("%10s %10s %10s  %s\n", "size_real", "size_compr", "crc", "name");
+    u32 count = 0;
+    u64 total_real = 0;
+    u64 total_compr = 0;
+    while (!hdr->eof())
+    {
+        CLocatorAPI::archive_file_header h{*hdr};
+        std::printf("%10u %10u %10u  %s\n", h.size_real, h.size_compr, h.crc, h.name);
+        ++count;
+        total_real += h.size_real;
+        total_compr += h.size_compr;
+    }
+    std::printf("---\n%u entries, %.1f MB real / %.1f MB compressed (%.0f%%)\n",
+        count, double(total_real) / (1024.0 * 1024.0),
+        double(total_compr) / (1024.0 * 1024.0),
+        total_real ? 100.0 * double(total_compr) / double(total_real) : 0.0);
+
+    hdr->close();
+    ::close(fd);
+    return 0;
+}
+
 static int unpack(const char *archive_path, const char *out_dir)
 {
     int fd = ::open(archive_path, O_RDONLY);
@@ -211,14 +257,35 @@ static int unpack(const char *archive_path, const char *out_dir)
     return errors ? 3 : 0;
 }
 
+static void print_usage(const char *prog)
+{
+    std::printf(
+        "Usage:\n"
+        "  %s <archive.db?> <out_dir>     Extract archive contents into out_dir.\n"
+        "  %s --list <archive.db?>        Print the archive file table (no extract).\n"
+        "\n"
+        "Reads X-Ray .db archives (CoP/CS resources.db?, configs.db),\n"
+        "preserving archive-relative paths when extracting.\n",
+        prog, prog);
+}
+
 int main(int argc, char *argv[])
 {
-    if (argc < 3)
+    if (argc < 2)
     {
-        std::printf("Usage: %s <archive.db?> <out_dir>\n", argv[0]);
-        std::printf("\n"
-                    "Dumps the contents of an X-Ray .db archive (CoP/CS resources.db?,\n"
-                    "configs.db) into out_dir, preserving the archive-relative paths.\n");
+        print_usage(argv[0]);
+        return 1;
+    }
+
+    const bool list_mode = (std::strcmp(argv[1], "--list") == 0);
+    if (list_mode && argc < 3)
+    {
+        print_usage(argv[0]);
+        return 1;
+    }
+    if (!list_mode && argc < 3)
+    {
+        print_usage(argv[0]);
         return 1;
     }
 
@@ -229,7 +296,9 @@ int main(int argc, char *argv[])
     Core.Initialize("xrUnpack", nullptr, false);
     rtc_initialize();
 
-    const int rc = unpack(argv[1], argv[2]);
+    const int rc = list_mode
+        ? list_archive(argv[2])
+        : unpack(argv[1], argv[2]);
 
     Core._destroy();
     return rc;
