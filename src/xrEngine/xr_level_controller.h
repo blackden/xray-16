@@ -241,6 +241,12 @@ struct key_binding
 
 extern ENGINE_API EKeyGroup g_current_keygroup;
 
+// Runtime gate for developer-only hotkey dispatch (F11 Renderer Playground,
+// F12 ALife Inspector). Default 0 in MasterGold, 1 elsewhere. Set via
+// console `dev_tools 1` to enable in a shipped build without rebuild.
+// Defined in xr_ioc_cmd.cpp.
+extern ENGINE_API int g_dev_tools;
+
 extern ENGINE_API game_action actions[];
 extern ENGINE_API keyboard_key keyboards[];
 

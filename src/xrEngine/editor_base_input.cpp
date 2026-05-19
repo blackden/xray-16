@@ -360,11 +360,13 @@ void ide::IR_OnKeyboardPress(int key)
         return;
 
     case kRENDER_PLAYGROUND:
-        TogglePlayground();
+        if (g_dev_tools)
+            TogglePlayground();
         return;
 
     case kALIFE_INSPECTOR:
-        ToggleNamedTool("ALife Inspector");
+        if (g_dev_tools)
+            ToggleNamedTool("ALife Inspector");
         return;
 
     case kCONSOLE:

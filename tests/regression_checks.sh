@@ -407,8 +407,38 @@ check "ALifeInspector.cpp exists" \
 check "kALIFE_INSPECTOR action declared" \
     "grep -q 'kALIFE_INSPECTOR' src/xrEngine/xr_level_controller.h"
 
-check "kALIFE_INSPECTOR default-bound to Backslash (F12 = macOS Volume Up)" \
-    "awk '/kALIFE_INSPECTOR,.*SDL_SCANCODE/' src/xrEngine/xr_level_controller.cpp | grep -q 'SDL_SCANCODE_BACKSLASH'"
+check "kALIFE_INSPECTOR default-bound to F12 (gated by dev_tools cvar)" \
+    "awk '/kALIFE_INSPECTOR,.*SDL_SCANCODE/' src/xrEngine/xr_level_controller.cpp | grep -q 'SDL_SCANCODE_F12'"
+
+check "g_dev_tools defined with MASTER_GOLD-aware default in xr_ioc_cmd.cpp" \
+    "awk '/g_dev_tools/' src/xrEngine/xr_ioc_cmd.cpp | grep -q 'ENGINE_API int g_dev_tools'"
+
+check "g_dev_tools default 0 under MASTER_GOLD" \
+    "awk '/MASTER_GOLD/,/endif/' src/xrEngine/xr_ioc_cmd.cpp | grep -q 'g_dev_tools = 0'"
+
+check "dev_tools cvar registered with CCC_Integer" \
+    "grep -q 'CCC_Integer, \"dev_tools\"' src/xrEngine/xr_ioc_cmd.cpp"
+
+check "g_dev_tools extern declared in xr_level_controller.h" \
+    "grep -q 'extern ENGINE_API int g_dev_tools' src/xrEngine/xr_level_controller.h"
+
+check "ide::IR_OnKeyboardPress gates kRENDER_PLAYGROUND on g_dev_tools" \
+    "awk '/case kRENDER_PLAYGROUND:/,/return;/' src/xrEngine/editor_base_input.cpp | grep -q 'g_dev_tools'"
+
+check "ide::IR_OnKeyboardPress gates kALIFE_INSPECTOR on g_dev_tools" \
+    "awk '/case kALIFE_INSPECTOR:/,/return;/' src/xrEngine/editor_base_input.cpp | grep -q 'g_dev_tools'"
+
+check "CLevel::IR_OnKeyboardPress gates kRENDER_PLAYGROUND on g_dev_tools" \
+    "awk '/_curr == kRENDER_PLAYGROUND/,/^    }/' src/xrGame/Level_input.cpp | grep -q 'g_dev_tools'"
+
+check "CLevel::IR_OnKeyboardPress gates kALIFE_INSPECTOR on g_dev_tools" \
+    "awk '/_curr == kALIFE_INSPECTOR/,/^    }/' src/xrGame/Level_input.cpp | grep -q 'g_dev_tools'"
+
+check "CMainMenu::IR_OnKeyboardPress gates kRENDER_PLAYGROUND on g_dev_tools" \
+    "awk '/case kRENDER_PLAYGROUND:/,/return;/' src/xrGame/MainMenu.cpp | grep -q 'g_dev_tools'"
+
+check "CMainMenu::IR_OnKeyboardPress gates kALIFE_INSPECTOR on g_dev_tools" \
+    "awk '/case kALIFE_INSPECTOR:/,/return;/' src/xrGame/MainMenu.cpp | grep -q 'g_dev_tools'"
 
 check "ide exposes ToggleNamedTool dispatch" \
     "grep -q 'bool ToggleNamedTool' src/xrEngine/editor_base.h"

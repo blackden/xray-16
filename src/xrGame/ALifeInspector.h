@@ -6,12 +6,14 @@ namespace xray::editor
 {
 // ALife Inspector — diagnostic overlay for the simulation layer.
 //
-// Hotkey: Backslash (kALIFE_INSPECTOR). F12 was the original default but
-// macOS hijacks it as the hardware Volume Up media key before SDL sees the
-// event. Backslash is free in gameplay and OS-conflict-free on macOS.
-// Same toggle UX as F11 playground; the tool registers itself via the
-// ide_tool ctor and the engine's ToggleNamedTool dispatch routes hotkey
-// events to it by tool_name().
+// Hotkey: F12 (kALIFE_INSPECTOR). Gated at runtime by the `dev_tools`
+// cvar — default 0 in MasterGold, 1 elsewhere, so shipped builds don't
+// expose this to end-users. QA enables in master via console: `dev_tools 1`.
+// On macOS F12 is the hardware Volume Up key by default; either enable
+// "Use F1, F2... as standard function keys" in System Settings or press
+// Fn+F12. Same toggle UX as F11 playground; the tool registers itself
+// via the ide_tool ctor and the engine's ToggleNamedTool dispatch routes
+// hotkey events to it by tool_name().
 //
 // v0 of this tool ships only counts (total objects, online vs offline,
 // breakdown by faction-relevant classes) and the current level name.
