@@ -341,6 +341,19 @@ void game_sv_Single::restart_simulator(LPCSTR saved_game_name)
     g_pGamePersistent->LoadBegin();
     m_alife_simulator = xr_new<CALifeSimulator>(&server(), &options);
     g_pGamePersistent->LoadTitle("st_client_synchronising");
-    Device.PreCache(60, true);
+    // PreCache spins the camera through `count` frames worth of view-cone
+    // angles to warm shaders / shadow cascades / occlusion queries. On
+    // Apple GL each frame stacks dozens of mach_msg GPU waits (compressed
+    // textures × shadow cascades × lights), and 60 frames pushed the
+    // driver into TX-state on max settings during early bring-up. The
+    // Phase 2 occlusion-poll fix relieved most of it, but a 20-frame
+    // budget keeps the precache cheap-and-correct on M1/M3 even when
+    // future shader paths add more sync points.
+#if defined(XR_PLATFORM_APPLE)
+    constexpr u32 PRECACHE_FRAMES = 20;
+#else
+    constexpr u32 PRECACHE_FRAMES = 60;
+#endif
+    Device.PreCache(PRECACHE_FRAMES, true);
     g_pGamePersistent->LoadEnd();
 }

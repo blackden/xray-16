@@ -376,6 +376,14 @@ public:
     virtual void ResourcesDeferredUploadBegin() = 0;
     virtual bool ResourcesDeferredUploadStep(u32 max_count) = 0;
     virtual bool ResourcesIsUploading() const = 0;
+    // Drain pending GPU commands. The default does nothing on backends
+    // that don't need it (DX submits commands per-frame anyway); the GL
+    // backend overrides to call glFinish() so a Prefetch_Tick that just
+    // landed thousands of texture uploads doesn't kick off the first
+    // scene render while the driver is still queueing transfer commands.
+    // On Apple specifically the queued mach_msg-style waits compound on
+    // the first scene frame and can drive the GPU process into TX-state.
+    virtual void FlushGpuQueue() {}
     virtual void ResourcesDeferredUnload() = 0;
     virtual void ResourcesGetMemoryUsage(u32& m_base, u32& c_base, u32& m_lmaps, u32& c_lmaps) = 0;
     virtual void ResourcesDestroyNecessaryTextures() = 0;

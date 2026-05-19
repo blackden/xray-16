@@ -449,6 +449,11 @@ bool IGame_Persistent::Prefetch_Tick()
 
     if (done)
     {
+        // Drain queued GPU commands (Apple GL: glFinish) so the first
+        // scene frame doesn't race the still-running texture uploads
+        // and snowball them into TX-state.
+        GEnv.Render->FlushGpuQueue();
+
         const auto memoryAfter = Memory.mem_usage() - m_prefetch_memory_before;
         Msg("* [prefetch] time:   %d ms", m_prefetch_timer.GetElapsed_ms());
         Msg("* [prefetch] memory: %d Kb", memoryAfter / 1024);
