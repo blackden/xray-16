@@ -129,6 +129,22 @@ ditto -x -k OpenXRay.app.zip /destination/
 `ditto` is Apple's preferred tool — it's how Xcode's `Archive → Export`
 packages signed apps for distribution.
 
+## Bundled tools (xrUnpack)
+
+`make package` / `make all-in-one` теперь кладёт `xrUnpack` рядом с
+`xr_3da` в `Contents/MacOS/`. Это значит, что любой получатель DMG
+может распаковать vanilla `.db?` без отдельной установки dev-tree:
+
+```bash
+/Applications/OpenXRay.app/Contents/MacOS/xrUnpack \
+    ~/Games/STALKER-CoP/resources/configs.db \
+    ~/Desktop/cop-configs
+```
+
+Полный workflow с modding'ом описан в `notes/cheatsheet.md` (секция
+"Modding workflow"). Внутри .app пользователь работает с одним
+сторонним инструментом; никакого CMake/Homebrew не нужно.
+
 ## Install instructions (paste these to a friend)
 
 ```bash
