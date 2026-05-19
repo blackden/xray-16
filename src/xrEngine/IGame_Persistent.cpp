@@ -500,6 +500,26 @@ void IGame_Persistent::LoadTitle(pcstr ls_title, bool change_tip, shared_str map
 {
     ZoneScoped;
 
+    // Per-phase timing for the loading pipeline. Logs `[load] phase 'X'
+    // took N ms` each time a new phase begins, so the previous phase's
+    // duration is recorded at the moment we transition. Grep the engine
+    // log for `[load] phase` to see the breakdown after a load. Static
+    // state is single-threaded — LoadTitle is called from the main load
+    // sequence only.
+    static CTimer s_phase_timer;
+    static string256 s_last_phase = { 0 };
+    static bool s_phase_active = false;
+    if (ls_title)
+    {
+        if (s_phase_active && s_last_phase[0])
+        {
+            Msg("[load] phase '%s' took %.1f ms", s_last_phase, s_phase_timer.GetElapsed_sec() * 1000.0f);
+        }
+        xr_strcpy(s_last_phase, ls_title);
+        s_phase_timer.Start();
+        s_phase_active = true;
+    }
+
     if (ls_title)
     {
         string256 buff;
