@@ -62,7 +62,52 @@ user encounters them; triaged later.
 
 ---
 
-## 2026-05-19 — NPC в Yanov залипли в combat-pose (P1)
+## 2026-05-19 — Фонарик не освещает поверхности на Apple GL (P2)
+
+Игрок сообщает: light от фонарика не падает на surfaces (не на все).
+Не приложил скриншот. Похоже на known long-standing GL-renderer gap —
+дополнительные dynamic source-attached lights stubbed на OGL-пути в
+`xrRender_R2` / `xrRenderPC_GL`. Семейство со SSAO bug — `accum_omni_*`
+шейдеры (omni light = точечный источник, фонарик именно такой).
+
+**Гипотеза:** `accum_omni_normal_nomsaa.ps` и `accum_omni_transluent_nomsaa.ps`
+тоже в shader compile-failure cascade (видно в логе того же дня).
+После SSAO gate cascade не запускается — но если фонарик использует
+permutation который compile-failed *по другой причине* (например
+`ssao_blur_on` в omni light path), он по-прежнему молча падает на GL.
+
+**Что проверить, когда дойдём:**
+- В логе свежей сессии после SSAO-gate коммита: остался ли cascade
+  на `accum_omni_*`? Если нет — фонарик должен заработать.
+- Если cascade ушёл, но фонарик всё равно не светит → искать в
+  `src/Layers/xrRender_R2/Light_Package.cpp` или `light.cpp`
+  специфичный USE_OGL гейт который stub'ит omni shading.
+- `notes/engine-map.md` секция "Open questions" уже содержит этот
+  пункт — обновить когда разберёмся.
+
+**Severity:** P2 — заметная geometry deficiency, но играть можно.
+
+---
+
+## 2026-05-19 — NPC в Yanov залипли в combat-pose (P2, self-resolved)
+
+**Resolved через chunk-eviction.** Игрок отошёл далеко по другому
+заданию → smart_terrain `jup_a6` выгрузился из ALife working set →
+при возврате NPC re-initialized с чистым job assignment, баг ушёл.
+
+Корень не исследован, но воспроизведение разовое. Если повторится в
+другой smart_terrain — открываем заново. Перевожу с P1 на **P2 наблюдение**.
+
+**Что осталось в backlog для следующего encountera:**
+- `src/xrServerEntities/script_object_inventory.cpp` /
+  `smart_terrain.script` — где назначение job происходит. На load
+  возможно race между smart_terrain restore и NPC scheduler init.
+- Лог-тэги для grep: `smart_terrain.*restore`, `job.*assign`,
+  `combat.*lost`.
+
+---
+
+## 2026-05-19 — NPC в Yanov залипли в combat-pose (P1, **original entry**)
 
 При входе на станцию Yanov 6 сталкеров стояли в стрелковой позе с
 поднятым оружием, целились в одну точку (на самого игрока). **Не
@@ -96,6 +141,85 @@ grep -iE 'smart_terrain.*jup|job.*reset|combat.*lost' \
 
 **Severity:** P1 если воспроизводится → quest-blocker (нельзя сдать
 квесты Бороде). P2 если разовое (script race на load).
+
+---
+
+## 2026-05-19 — SSAO mode → пропадает вся отрисовка уровня (P1, defensively addressed)
+
+**Статус:** workaround landed (commit d7724e2c9, `xrRender_R2/r2.cpp:381-405`).
+На Apple GL все SSAO shader options форсятся в `false` независимо от
+cvar — пользователь больше не может выстрелить себе в ногу через UI.
+Cvars не модифицируются, gate снимется автоматически когда уйдёт
+основной shader-фикс.
+
+**Real fix (P2, требует unpack `.db?`):** найти конкретный `#if` в
+`ssao_*.ps` / `accum_sun.ps` include chain, который ломает Apple GLSL
+4.10 parser. Файл с дампом — `~/Library/Logs/OpenXRay/openxray.log`
+(сессия 2026-05-19, начиная с line ~80000).
+
+---
+
+## Исходная запись (для истории)
+
+**Repro:** в опциях графики переключить SSAO с "Disabled" на любой
+включённый режим (HDAO/HBAO/Standard) → применить → нужна перезагрузка
+карты → после перезагрузки видны **только костры, HUD, дождь, скайбокс**;
+вся geometry уровня черно-серая (G-buffer не композится).
+
+Возврат на "Disabled" + перезагрузка карты → всё восстанавливается.
+**Игра не вылетает**, но фактически unplayable в этом состоянии.
+
+**Корень в логе (`~/Library/Logs/OpenXRay/openxray.log`):**
+
+```
+! shader compilation failed: gl\accum_sun_nomsaa.ps\125601111001100000000000010000013111103001000000000
+! error:  ERROR: 0:4483: '' : syntax error: incorrect preprocessor directive
+! error:           syntax error: unexpected tokens following #if preprocessor directive
+```
+
+Каскад на 8+ шейдеров: `accum_sun_*`, `accum_sun_near_*_minmax`,
+`accum_volumetric_sun_*`, `rain_layer`, `rain_patch_normal_*`,
+`accum_omni_normal_*`, `accum_omni_transluent_*`, `combine_1_nomsaa`.
+
+Permutation hash: `12560`...`131111`**03**`001`... (chunk `03` указывает на
+SSAO_QUALITY/MODE компонент permutation key). После retry chunk
+становится `00` — но всё равно fail. Apple GL 4.1 (Metal-backed)
+GLSL compiler ломается на `#if SSAO_QUALITY > 3` или подобной
+директиве в SSAO include-цепочке (видно в дампе шейдера: комментарий
+`// xxx: disabled error in "ssao_hdao_new.ps" for msaa`).
+
+**Дополнительные осложнения:**
+- Параллельно `glFramebufferTexture2D -> 0x502` — known Apple GL VAO/RT
+  issue, **отдельный фронт работ** (мы уже фиксили в Phase 3 UTF-8
+  saga, но не на всех путях).
+- После shader compile fail engine входит в retry-loop каждый кадр и
+  становится TX (traced-stopped) — единственный recovery через Force
+  Quit + safe-mode sentinel.
+
+**Что чинить (по приоритету):**
+
+1. **Cheap fix (1 commit, P1):** на старте, после load `user.ltx`,
+   запустить tryCompile для shader-variants, которые triggers SSAO modes
+   на Apple GL. Если хоть один fails — silently force `r2_ssao = off`
+   до перезапуска и логнуть warning. Не даёт пользователю выстрелить
+   себе в ногу. Patch-точка: `src/Layers/xrRender_GL/glHW.cpp` post-init,
+   или в самом options-screen apply-handler.
+
+2. **Real fix (1-2 дня, P2):** найти конкретную `#if` директиву в
+   SSAO include-цепочке, которая ломает Apple GLSL parser. Скорее всего
+   многострочный `#if defined(USE_HDAO) && SSAO_QUALITY > 3` без
+   continuation — Apple GL глотает это иначе чем NVIDIA/AMD. Файлы:
+   `gamedata/shaders/gl/ssao_*.ps` и `accum_sun_cascade.ps` include
+   chain. Требует unpack `resources.db?`.
+
+3. **Defensive (опционально, P3):** UI options screen → опции `HBAO`/`HDAO`
+   надо помечать как "experimental / may not work on Apple GL" или
+   просто скрыть на платформе, где tryCompile зафейлил.
+
+**Severity:** P1. Прямой quest-blocker: настройка из UI оставляет
+игрока в неиграбельном состоянии **навсегда** до ручного recovery
+через файлы. Это не cosmetic regression, это feature, который
+выглядит рабочим, но ломает игру.
 
 ---
 
