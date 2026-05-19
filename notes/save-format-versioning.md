@@ -1,5 +1,20 @@
 # Save format versioning — discovery and design
 
+> **SUPERSEDED IN PART — read `notes/save-format-audit.md` first.**
+>
+> An audit done after this doc was written (2026-05-19) showed the engine
+> already has substantial forward-compat machinery:
+> per-CSE `m_wVersion` field-gating and top-level chunked layout. The
+> "migration framework" described below is overkill for ~90% of typical
+> schema changes — adding fields to `CSE_*` only needs an
+> `if (m_wVersion > N)` branch, no migrator. Demoted from P1 to P3.
+> The audit doc lists the smaller, more useful next steps (~1-2 days vs
+> 5-7 days).
+>
+> The original design below is kept for reference — the migration-chain
+> pattern is still useful for cross-chunk restructuring (Case A/B in the
+> audit doc), just not the default workflow.
+
 ## Why this matters
 
 OpenXRay's save format is binary, position-tied, and **rejects any save
