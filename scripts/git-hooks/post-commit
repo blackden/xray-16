@@ -78,7 +78,10 @@ if command -v osascript >/dev/null 2>&1; then
                 osascript -e "display notification \"ship done for $sha\" with title \"OpenXRay\"" >/dev/null 2>&1 || true
                 exit 0
             fi
-            if grep -qE "Error|fatal|undefined reference" "$log_file" 2>/dev/null; then
+            # Anchor to canonical compiler/linker error patterns so we don't
+            # false-positive on the word "fatal" appearing as a function
+            # parameter name in compile output (e.g. `bool fatal = true`).
+            if grep -qE ": error:|: fatal error:|^ld: error|^Error 1$|undefined (reference|symbol)" "$log_file" 2>/dev/null; then
                 osascript -e "display notification \"ship FAILED for $sha — see $log_file\" with title \"OpenXRay\" sound name \"Sosumi\"" >/dev/null 2>&1 || true
                 exit 0
             fi
