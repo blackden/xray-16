@@ -389,6 +389,38 @@ check "CMakeLists builds RendererPlayground_HotReload.mm with -fobjc-arc" \
 check "RendererPlayground has Hot Reload tab (Apple-only)" \
     "grep -q 'DrawHotReloadTab' src/xrEngine/RendererPlayground.cpp"
 
+# DebugRenderToggles extended (lights toggle, post-epic addition)
+check "DebugRenderToggles includes lights gate" \
+    "awk '/struct DebugRenderToggles/{found=1; next} found{if(/^[[:space:]]*\\};/){exit} else print}' \
+        src/xrEngine/Render.h | grep -q 'bool lights'"
+
+check "r2_R_render.cpp gates render_lights on m_debugToggles.lights" \
+    "grep -c 'm_debugToggles.lights' src/Layers/xrRender_R2/r2_R_render.cpp | awk '{exit !(\$1 >= 2)}'"
+
+# ide framework second consumer — ALife Inspector
+check "ALifeInspector.h exists" \
+    "test -f src/xrGame/ALifeInspector.h"
+
+check "ALifeInspector.cpp exists" \
+    "test -f src/xrGame/ALifeInspector.cpp"
+
+check "kALIFE_INSPECTOR action declared" \
+    "grep -q 'kALIFE_INSPECTOR' src/xrEngine/xr_level_controller.h"
+
+check "kALIFE_INSPECTOR default-bound to F12" \
+    "awk '/kALIFE_INSPECTOR,/' src/xrEngine/xr_level_controller.cpp | grep -q 'SDL_SCANCODE_F12'"
+
+check "ide exposes ToggleNamedTool dispatch" \
+    "grep -q 'bool ToggleNamedTool' src/xrEngine/editor_base.h"
+
+check "xrGameModule constructs ALifeInspector in initialize" \
+    "awk '/xrGameModule::initialize/,/^void xrGameModule::finalize/' src/xrGame/xrGame.cpp | \
+        grep -q 'make_unique<xray::editor::ALifeInspector>'"
+
+check "CLevel::IR_OnKeyboardPress routes kALIFE_INSPECTOR" \
+    "awk '/^void CLevel::IR_OnKeyboardPress/,/^void CLevel::IR_OnKeyboardRelease/' src/xrGame/Level_input.cpp | \
+        grep -q 'kALIFE_INSPECTOR'"
+
 echo
 echo "Summary: $pass passed, $fail failed"
 exit $fail

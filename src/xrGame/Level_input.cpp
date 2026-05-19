@@ -163,6 +163,12 @@ void CLevel::IR_OnKeyboardPress(int key)
         return;
     }
 
+    if (_curr == kALIFE_INSPECTOR)
+    {
+        Device.editor().ToggleNamedTool("ALife Inspector");
+        return;
+    }
+
     if (g_bDisableAllInput)
         return;
 

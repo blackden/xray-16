@@ -436,6 +436,7 @@ public:
         bool occq{ true };      // light visibility / occlusion queries
         bool details{ true };   // detail / grass renderer
         bool wallmarks{ true }; // decals on geometry
+        bool lights{ true };    // render_lights for both LP_normal and LP_pending
     };
     virtual DebugRenderToggles* GetDebugToggles() { return nullptr; }
     virtual void OnCameraUpdated() = 0;

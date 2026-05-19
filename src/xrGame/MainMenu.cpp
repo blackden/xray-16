@@ -385,6 +385,10 @@ void CMainMenu::IR_OnKeyboardPress(int dik)
     case kRENDER_PLAYGROUND:
         Device.editor().TogglePlayground();
         return;
+
+    case kALIFE_INSPECTOR:
+        Device.editor().ToggleNamedTool("ALife Inspector");
+        return;
     }
 
     CDialogHolder::IR_UIOnKeyboardPress(dik);

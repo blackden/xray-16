@@ -366,12 +366,14 @@ void CRender::Render()
     }
 
     // Lighting, non dependant on OCCQ
+    if (m_debugToggles.lights)
     {
         PIX_EVENT(DEFER_LIGHT_NO_OCCQ);
         render_lights(LP_normal);
     }
 
     // Lighting, dependant on OCCQ
+    if (m_debugToggles.lights)
     {
         PIX_EVENT(DEFER_LIGHT_OCCQ);
         render_lights(LP_pending);

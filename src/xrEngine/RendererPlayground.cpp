@@ -293,10 +293,14 @@ void RendererPlayground::DrawPipelineTogglesTab()
     ImGui::TextDisabled("  off = no decal pass; bullet holes / blood splats stop appearing");
     ImGui::TextDisabled("  on geometry until re-enabled.");
 
+    ImGui::Checkbox("Lights (point + spot, OCCQ + non-OCCQ)", &t->lights);
+    ImGui::TextDisabled("  off = no dynamic light contribution; scene illuminated only by");
+    ImGui::TextDisabled("  sun (if shadows toggle is on) and emissive surfaces.");
+
     ImGui::Spacing();
     if (ImGui::Button("Reset all to on"))
     {
-        t->shadows = t->occq = t->details = t->wallmarks = true;
+        t->shadows = t->occq = t->details = t->wallmarks = t->lights = true;
     }
 }
 

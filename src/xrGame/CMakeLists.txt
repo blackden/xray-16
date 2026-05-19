@@ -130,6 +130,8 @@ target_sources(xrGame PRIVATE
     ai_space.cpp
     ai_space.h
     ai_space_inline.h
+    ALifeInspector.cpp
+    ALifeInspector.h
     ai_stalker_alife.cpp
     alife_abstract_registry.h
     alife_abstract_registry_inline.h
