@@ -168,4 +168,7 @@
 	<string id="jpn">
 		<text>Japonština (Japan)</text>
 	</string>
+	<string id="ui_mm_quit2windows">
+		<text>Ukončit do macOS</text>
+	</string>
 </string_table>
