@@ -192,13 +192,17 @@ void ide::TogglePlayground()
     bool& opened = m_playground->get_open_state();
     opened = !opened;
 
-    if (opened && m_state == visible_state::hidden)
+    // Full mode (not light): ImGui windows in light mode get NoInputs|NoNav
+    // window-flags (see ide::get_default_window_flags), which kills tab
+    // switching and selectable interaction. The diagnostic panel needs
+    // clicks, so we capture input the same way F10 (kEDITOR) does. The
+    // game pauses its input handling while the panel is open; F11 again
+    // returns to gameplay.
+    if (opened && m_state != visible_state::full)
     {
-        // Light mode: tools render, input is not captured, so the game
-        // continues responding while the playground overlay is up.
-        SetState(visible_state::light);
+        SetState(visible_state::full);
     }
-    else if (!opened && m_state == visible_state::light && !is_shown())
+    else if (!opened && !is_shown())
     {
         SetState(visible_state::hidden);
     }
