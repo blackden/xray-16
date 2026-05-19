@@ -27,7 +27,7 @@ RELEASE_BIN      := bin/$(HOST_ARCH)/ReleaseMasterGold/xr_3da
 DIST_APP         := dist/OpenXRay.app
 
 .DEFAULT_GOAL := help
-.PHONY: help setup check-configure-prereqs configure build build-release profile run run-lldb all clean rebuild install-game link-gamedata codesign bundle package install all-in-one test test-encoding ship promote install-hooks uninstall-hooks sync-issues sync-issues-dry
+.PHONY: help setup check-configure-prereqs configure build build-release profile run run-lldb all clean rebuild install-game link-gamedata codesign bundle package install all-in-one test test-encoding ship promote install-hooks uninstall-hooks sync-issues sync-issues-dry unpack-cop
 
 help: ## Show this help and current settings
 	@echo "OpenXRay macOS automation"
@@ -183,6 +183,24 @@ install-game: ## Install CoP/CS via steamcmd into GAME_DIR (needs STEAM_LOGIN; o
 	STEAM_LOGIN="$(STEAM_LOGIN)" INSTALL_DIR="$(GAME_DIR)" APPID="$(APPID)" \
 	LANGUAGE="$(LANGUAGE)" \
 		./scripts/mac/install-cop-steamcmd.sh
+
+unpack-cop: ## Unpack vanilla CoP .db archives into _workspace/cop-vanilla
+	@unpacker="bin/$(HOST_ARCH)/$(BUILD_TYPE)/xrUnpack"; \
+	if [ ! -x "$$unpacker" ]; then \
+		echo "ERROR: $$unpacker not found. Run 'make build' (BUILD_TYPE=$(BUILD_TYPE)) first."; exit 1; \
+	fi; \
+	if [ ! -d "$(GAME_DIR)/resources" ]; then \
+		echo "ERROR: $(GAME_DIR)/resources not found (run 'make install-game' first)"; exit 1; \
+	fi; \
+	mkdir -p _workspace/cop-vanilla; \
+	for archive in "$(GAME_DIR)"/resources/configs.db "$(GAME_DIR)"/resources/resources.db?; do \
+		[ -f "$$archive" ] || continue; \
+		echo "==> $$archive"; \
+		"$$unpacker" "$$archive" _workspace/cop-vanilla || exit $$?; \
+	done; \
+	echo; \
+	echo "Vanilla CoP tree unpacked into _workspace/cop-vanilla/"; \
+	echo "Edit a config / UI file there, copy to <install>/gamedata/<...> as overlay."
 
 codesign: ## Ad-hoc sign xr_3da with get-task-allow so macOS writes .ips on crash
 	@bin=$$(find bin -name xr_3da -type f 2>/dev/null | head -1); \
