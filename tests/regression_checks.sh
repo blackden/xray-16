@@ -407,8 +407,8 @@ check "ALifeInspector.cpp exists" \
 check "kALIFE_INSPECTOR action declared" \
     "grep -q 'kALIFE_INSPECTOR' src/xrEngine/xr_level_controller.h"
 
-check "kALIFE_INSPECTOR default-bound to F12" \
-    "awk '/kALIFE_INSPECTOR,/' src/xrEngine/xr_level_controller.cpp | grep -q 'SDL_SCANCODE_F12'"
+check "kALIFE_INSPECTOR default-bound to Backslash (F12 = macOS Volume Up)" \
+    "awk '/kALIFE_INSPECTOR,.*SDL_SCANCODE/' src/xrEngine/xr_level_controller.cpp | grep -q 'SDL_SCANCODE_BACKSLASH'"
 
 check "ide exposes ToggleNamedTool dispatch" \
     "grep -q 'bool ToggleNamedTool' src/xrEngine/editor_base.h"

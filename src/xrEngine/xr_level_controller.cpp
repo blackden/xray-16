@@ -1060,7 +1060,13 @@ class CCC_DefControls : public CCC_UnBindAll
         // Mission Control -> uncheck F11). This is a developer-only tool,
         // not a player-facing feature, so the system-wide rebind is fine.
         { kRENDER_PLAYGROUND,       { SDL_SCANCODE_F11,     SDL_SCANCODE_UNKNOWN,       XR_CONTROLLER_BUTTON_INVALID } },
-        { kALIFE_INSPECTOR,         { SDL_SCANCODE_F12,     SDL_SCANCODE_UNKNOWN,       XR_CONTROLLER_BUTTON_INVALID } },
+        // ALife Inspector — F12 on macOS is the hardware Volume Up media
+        // key (intercepted before SDL ever sees it, unlike F11 which is
+        // only grabbed by the user-disableable Mission Control binding).
+        // Backslash is free on US/EU layouts and not claimed by gameplay.
+        // Rebind via console: `bind alife_inspector kF12` (after enabling
+        // "Use F1, F2... as standard function keys" in System Settings).
+        { kALIFE_INSPECTOR,         { SDL_SCANCODE_BACKSLASH, SDL_SCANCODE_UNKNOWN,     XR_CONTROLLER_BUTTON_INVALID } },
     };
     // clang-format on
 
