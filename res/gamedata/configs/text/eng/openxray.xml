@@ -126,4 +126,7 @@
 	<string id="ukr">
 		<text>Ukrainian</text>
 	</string>
+	<string id="ui_mm_quit2windows">
+		<text>Quit to macOS</text>
+	</string>
 </string_table>
