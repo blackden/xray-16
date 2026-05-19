@@ -76,6 +76,11 @@ public:
     // closes. Safe to call before InitBackend (no-op).
     void TogglePlayground();
 
+    // Toggle any registered ide_tool by its tool_name(). Opening transitions
+    // ide to full visible_state so the tool can receive mouse input.
+    // Returns true if a tool with that name was found and toggled.
+    bool ToggleNamedTool(pcstr name);
+
 public:
     // Interface implementations
     void OnFrame() override;

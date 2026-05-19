@@ -363,6 +363,10 @@ void ide::IR_OnKeyboardPress(int key)
         TogglePlayground();
         return;
 
+    case kALIFE_INSPECTOR:
+        ToggleNamedTool("ALife Inspector");
+        return;
+
     case kCONSOLE:
         if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow))
         {

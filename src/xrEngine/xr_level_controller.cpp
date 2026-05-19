@@ -154,6 +154,7 @@ game_action actions[] =
 
     { "editor",                 kEDITOR,                    _both },
     { "render_playground",      kRENDER_PLAYGROUND,         _both },
+    { "alife_inspector",        kALIFE_INSPECTOR,           _sp },
 
     // Contextual actions:
     // UI
@@ -1059,6 +1060,7 @@ class CCC_DefControls : public CCC_UnBindAll
         // Mission Control -> uncheck F11). This is a developer-only tool,
         // not a player-facing feature, so the system-wide rebind is fine.
         { kRENDER_PLAYGROUND,       { SDL_SCANCODE_F11,     SDL_SCANCODE_UNKNOWN,       XR_CONTROLLER_BUTTON_INVALID } },
+        { kALIFE_INSPECTOR,         { SDL_SCANCODE_F12,     SDL_SCANCODE_UNKNOWN,       XR_CONTROLLER_BUTTON_INVALID } },
     };
     // clang-format on
 

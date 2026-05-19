@@ -208,6 +208,34 @@ void ide::TogglePlayground()
     }
 }
 
+bool ide::ToggleNamedTool(pcstr name)
+{
+    if (!name)
+        return false;
+
+    ide_tool* found = nullptr;
+    for (auto* tool : m_tools)
+    {
+        if (tool && tool->tool_name() && xr_strcmp(tool->tool_name(), name) == 0)
+        {
+            found = tool;
+            break;
+        }
+    }
+    if (!found)
+        return false;
+
+    bool& opened = found->get_open_state();
+    opened = !opened;
+
+    if (opened && m_state != visible_state::full)
+        SetState(visible_state::full);
+    else if (!opened && !is_shown())
+        SetState(visible_state::hidden);
+
+    return true;
+}
+
 void ide::SwitchToNextState()
 {
     switch (m_state)

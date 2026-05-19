@@ -140,6 +140,7 @@ enum EGameActions : u32
 
     kEDITOR,
     kRENDER_PLAYGROUND,
+    kALIFE_INSPECTOR,
 
     // Contextual actions:
     // UI

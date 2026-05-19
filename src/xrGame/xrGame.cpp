@@ -9,6 +9,7 @@
 #include "StdAfx.h"
 #include "xrGame.h"
 
+#include "ALifeInspector.h"
 #include "GamePersistent.h"
 #include "object_factory.h"
 
@@ -19,6 +20,11 @@
 #include "xrUICore/ui_styles.h"
 
 xrGameModule xrGame;
+
+// Game-side ide_tool overlays. Constructed in xrGameModule::initialize after
+// the ImGui context is shared; destructed in finalize. Auto-register via the
+// ide_tool ctor and reach the user via kALIFE_INSPECTOR / ToggleNamedTool.
+static std::unique_ptr<xray::editor::ALifeInspector> s_alifeInspector;
 
 void CCC_RegisterCommands();
 
@@ -73,10 +79,14 @@ void xrGameModule::initialize(Factory_Create*& pCreate, Factory_Destroy*& pDestr
         }
     );
     ImGui::SetCurrentContext(Device.GetImGuiContext());
+
+    if (!s_alifeInspector)
+        s_alifeInspector = std::make_unique<xray::editor::ALifeInspector>();
 }
 
 void xrGameModule::finalize()
 {
+    s_alifeInspector.reset();
     xr_delete(UIStyles);
     StringTable().Destroy();
     CCC_DeregisterInput(); // XXX: Remove if possible
