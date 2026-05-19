@@ -153,6 +153,7 @@ game_action actions[] =
     { "kick",                   kKICK,                      _sp },
 
     { "editor",                 kEDITOR,                    _both },
+    { "render_playground",      kRENDER_PLAYGROUND,         _both },
 
     // Contextual actions:
     // UI
@@ -1053,6 +1054,7 @@ class CCC_DefControls : public CCC_UnBindAll
         { kTALK_LOG_SCROLL_DOWN,    { SDL_SCANCODE_E,       SDL_SCANCODE_PAGEDOWN,      SDL_SCANCODE_UNKNOWN } },
 
         { kEDITOR,                  { SDL_SCANCODE_F10,     SDL_SCANCODE_UNKNOWN,       XR_CONTROLLER_BUTTON_INVALID } },
+        { kRENDER_PLAYGROUND,       { SDL_SCANCODE_F11,     SDL_SCANCODE_UNKNOWN,       XR_CONTROLLER_BUTTON_INVALID } },
     };
     // clang-format on
 

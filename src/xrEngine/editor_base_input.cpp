@@ -2,6 +2,7 @@
 
 #include "editor_base.h"
 #include "editor_helper.h"
+#include "RendererPlayground.h"
 #include "XR_IOConsole.h"
 
 #include <imgui_internal.h>
@@ -114,6 +115,12 @@ void ide::InitBackend()
         }
     };
     ImGui::AddSettingsHandler(&ini_handler);
+
+    // Construct after ImGui context exists and settings handler is registered
+    // so the playground's apply_setting/save_settings round-trip through the
+    // ImGui ini. The tool registers itself with this ide via ide_tool ctor.
+    if (!m_playground)
+        m_playground = std::make_unique<RendererPlayground>();
 }
 
 void ide::ProcessEvent(const SDL_Event& event)
@@ -339,6 +346,24 @@ void ide::IR_OnKeyboardPress(int key)
     {
     case kEDITOR:
         SwitchToNextState();
+        return;
+
+    case kRENDER_PLAYGROUND:
+        if (m_playground)
+        {
+            bool& opened = m_playground->get_open_state();
+            opened = !opened;
+            if (opened && m_state == visible_state::hidden)
+            {
+                // Light mode: tools render but input is not captured, so the
+                // game keeps responding while the playground overlay is up.
+                SetState(visible_state::light);
+            }
+            else if (!opened && m_state == visible_state::light && !is_shown())
+            {
+                SetState(visible_state::hidden);
+            }
+        }
         return;
 
     case kCONSOLE:
