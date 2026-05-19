@@ -12,6 +12,13 @@ void CRenderDevice::Destroy()
     Log("Destroying Render...");
     b_is_Ready = false;
     Statistic->OnDeviceDestroy();
+    // Drain pending GPU work before tearing the renderer down. On Apple's
+    // Metal-backed GL the glDelete* cascade in OnDeviceDestroy serializes
+    // against in-flight shadow cascades / occlusion queries / streaming
+    // uploads via mach_msg, which manifests as a multi-second TX-state
+    // hang on Cmd+Q from inside a level. On other platforms FlushGpuQueue
+    // is a no-op. See notes/bug-patterns.md family 6.
+    GEnv.Render->FlushGpuQueue();
     GEnv.Render->OnDeviceDestroy(false);
     Memory.mem_compact();
     GEnv.Render->Destroy();
