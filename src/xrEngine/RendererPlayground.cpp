@@ -69,8 +69,12 @@ void RendererPlayground::on_tool_frame()
             DrawEventLogTab();
             ImGui::EndTabItem();
         }
-        // v2 tabs (Hot Reload, Pipeline Toggles) добавляются здесь по
-        // мере появления.
+        if (ImGui::BeginTabItem("Pipeline Toggles"))
+        {
+            m_lastTabIndex = 4;
+            DrawPipelineTogglesTab();
+            ImGui::EndTabItem();
+        }
         ImGui::EndTabBar();
     }
 
@@ -251,6 +255,40 @@ void RendererPlayground::DrawEventLogTab()
             ImGui::Text("%s:%d", e.file ? e.file : "<null>", e.line);
         }
         ImGui::EndTable();
+    }
+}
+
+void RendererPlayground::DrawPipelineTogglesTab()
+{
+    IRender::DebugRenderToggles* t = GEnv.Render ? GEnv.Render->GetDebugToggles() : nullptr;
+    if (!t)
+    {
+        ImGui::TextDisabled("Renderer not available or backend doesn't expose toggles.");
+        return;
+    }
+
+    ImGui::TextUnformatted("Gate pipeline stages off to localise visual bugs.");
+    ImGui::TextDisabled("These are not persisted across runs — they reset on engine restart.");
+    ImGui::Separator();
+
+    ImGui::Checkbox("Sun shadows (DEFER_SUN block)", &t->shadows);
+    ImGui::TextDisabled("  off = no shadow cascades and no direct sun contribution.");
+
+    ImGui::Checkbox("Occlusion queries", &t->occq);
+    ImGui::TextDisabled("  off = light visibility tests skipped; all lights flow as 'normal',");
+    ImGui::TextDisabled("  possible perf hit on busy scenes.");
+
+    ImGui::Checkbox("Details / grass", &t->details);
+    ImGui::TextDisabled("  off = no grass / detail-object renderer pass.");
+
+    ImGui::Checkbox("Wallmarks (decals)", &t->wallmarks);
+    ImGui::TextDisabled("  off = no decal pass; bullet holes / blood splats stop appearing");
+    ImGui::TextDisabled("  on geometry until re-enabled.");
+
+    ImGui::Spacing();
+    if (ImGui::Button("Reset all to on"))
+    {
+        t->shadows = t->occq = t->details = t->wallmarks = true;
     }
 }
 
