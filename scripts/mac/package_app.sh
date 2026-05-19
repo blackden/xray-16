@@ -43,6 +43,12 @@ mkdir -p "${MACOS_DIR}" "${APP_DIR}/Contents/Resources"
 
 echo "==> Copying engine binary and project dylibs from ${SRC_DIR}"
 cp "${SRC_DIR}/xr_3da" "${MACOS_DIR}/xr_3da"
+# Bundle xrUnpack alongside so users can extract vanilla .db archives
+# without installing the dev tree. Best-effort: silently skip if not
+# built (e.g. on a release-only build path).
+if [ -f "${SRC_DIR}/xrUnpack" ]; then
+    cp "${SRC_DIR}/xrUnpack" "${MACOS_DIR}/xrUnpack"
+fi
 # Only ship .dylib files (engine modules). .a files are static archives, no
 # need at runtime.
 shopt -s nullglob
@@ -104,8 +110,13 @@ for binary in "${MACOS_DIR}"/*; do
     case "$binary" in
         *.dylib) fix_homebrew_deps "$binary" ;;
         */xr_3da) fix_homebrew_deps "$binary" ;;
+        */xrUnpack) fix_homebrew_deps "$binary" ;;
     esac
 done
+# xrUnpack also needs an rpath to find @rpath-bundled dylibs (xrCore).
+if [ -f "${MACOS_DIR}/xrUnpack" ]; then
+    install_name_tool -add_rpath "@executable_path/." "${MACOS_DIR}/xrUnpack" 2>/dev/null || true
+fi
 
 echo "==> Writing Info.plist + PkgInfo"
 ICON_FRAGMENT=""
