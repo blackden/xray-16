@@ -34,27 +34,38 @@ user encounters them; triaged later.
 
 ---
 
-## 2026-05-19 — Дождь сквозь крышу + wet-shader на внутренних стенах (P2, **closed**)
+## 2026-05-19/20 — Дождь сквозь крышу + wet-shader на внутренних стенах (P2, **closed**)
 
-**Корневая причина (была):** `src/xrEngine/Rain.cpp` уже считал
-`hemi_factor` (cosine-weighted sky visibility, line 131-148), но
-использовал его **только для громкости ambient звука** (line 177).
-Три render call-сайта читали `rain_density` напрямую без gate:
-`dxRainRender.cpp:47` (streak emission), `r3_rendertarget_draw_rain.cpp:7`
-(wet-shader uniform), `r3_R_rain.cpp:53` (shadow factor).
+**Корневая причина v1 (была):** `src/xrEngine/Rain.cpp` считал
+`hemi_factor` через `get_luminocity_hemi_cube()` (cosine-weighted), но
+использовал его **только для громкости ambient звука**. Три render
+call-сайта читали `rain_density` напрямую без gate.
 
-**Fix:** `hemi_factor` повышен до member-переменной `CEffect_Rain` с
-public accessor; все три read-сайта домножают `rain_density` на
-`smoothstep(0.05, 0.25, hemi_factor)`. Smoothstep вместо bool-cut —
-переходные зоны (крылечки, козырьки Янова, балконы Припяти)
-интерполируются плавно.
+**Fix v1 (2026-05-19, не сработал):** `hemi_factor` повышен до
+member-переменной с public accessor; три read-сайта домножают
+`rain_density` на `smoothstep(0.05, 0.25, hemi_factor)`. Проверка
+игроком: дождь всё равно шёл сквозь крышу Янова.
 
-**Подтверждение игроком:** pending — нужно зайти в Yanov station
-после landing commit'а и убедиться что дождь не идёт сквозь крышу,
-а наружу выйти и проверить что снаружи всё ещё льёт.
+**Корневая причина v2 (2026-05-20, найдена):**
+`hemi_cube_smooth` загрязнён contributions от dynamic point-lights в
+`LightTrack.cpp:260-262` — `hemi_cube[i] += hemi_cube_light[i] * ...`.
+В лит-интерьерах (Янов с лампами) hemi_cube faces остаются достаточно
+большими чтобы smoothstep'у нечего было гасить. Отмечено XXX
+`HEMI_LIGHT_POLLUTION` в LightTrack.cpp.
+
+**Fix v2:** В `CEffect_Rain::OnFrame` `hemi_factor` теперь считается
+через 5 явных `ObjectSpace.RayTest(... rqtStatic ...)` raycast'ов
+вверх из камеры (вертикаль + 4 cone-offset 15°), `target = open/5`.
+Time-smoothed как раньше. Threshold gate'ов поднят до
+`smoothstep(0.2, 0.6, m_hemi_factor)` — нижний 1/5 = pure indoor,
+выше 3/5 = open. 5 raycast/frame пренебрежимо рядом с 2500 per-streak
+ray.
+
+**Подтверждение игроком:** pending v2 (Yanov station).
 
 **Vanilla CoP делал то же самое.** Upstream-кандидат для PR после
-user-verify.
+user-verify. Подходит для standalone fix без зависимости от portal
+API (которого на macOS GL может быть в полузакрытом состоянии).
 
 ---
 

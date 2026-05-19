@@ -86,17 +86,27 @@
 
 ## Rain emission / wet-shader
 
-- Frame logic + hemi_factor smoothing: `src/xrEngine/Rain.cpp:117-179`.
-  `m_hemi_factor` is the camera-relative sky visibility, exposed via
+- Frame logic + hemi_factor smoothing: `src/xrEngine/Rain.cpp:117-180`.
+  `m_hemi_factor` is the fraction (0..1) of 5 upward raycasts from the
+  camera that hit open sky, time-smoothed by `fTimeDelta`. Exposed via
   `CEffect_Rain::get_hemi_factor()` (`src/xrEngine/Rain.h`).
-- Three read sites of `rain_density` (all gated by smoothstep over
-  hemi_factor as of 2026-05-19):
-  - Streak emission: `src/Layers/xrRender/dxRainRender.cpp:45-70`.
-  - Wet-shader uniform: `src/Layers/xrRender_R2/r3_rendertarget_draw_rain.cpp:5-25`.
-  - Shadow rain factor: `src/Layers/xrRender_R2/r3_R_rain.cpp:51-78`.
+- **Why not `get_luminocity_hemi_cube()`** (2026-05-20 lesson):
+  `hemi_cube_smooth` is polluted by dynamic-light contribution
+  (`LightTrack.cpp:260-262` adds `hemi_cube_light` from nearby lamps),
+  so under lit interiors (Yanov station) the gate never fires. A direct
+  `ObjectSpace.RayTest(... rqtStatic ...)` straight up is the
+  unambiguous probe. Marked with `XXX HEMI_LIGHT_POLLUTION` in
+  `LightTrack.cpp` for any future caller that needs pure sky.
+- Three read sites of `rain_density` — all gated by
+  `smoothstep(0.2, 0.6, m_hemi_factor)`:
+  - Streak emission: `src/Layers/xrRender/dxRainRender.cpp:45-65`.
+  - Wet-shader uniform: `src/Layers/xrRender_R2/r3_rendertarget_draw_rain.cpp:5-22`.
+  - Shadow rain factor: `src/Layers/xrRender_R2/r3_R_rain.cpp:52-68`.
 - Pattern when adding a new rain-driven effect: read
   `Environment().CurrentEnv.rain_density`, multiply by
-  `smoothstep(0.05, 0.25, eff_Rain->get_hemi_factor())` before use.
+  `smoothstep(0.2, 0.6, eff_Rain->get_hemi_factor())` before use.
+  Keep the gate range in sync across all sites (see XXX
+  `RAIN_GATE_SYNC` comment in `dxRainRender.cpp`).
 
 ## Cvars (renderer)
 
