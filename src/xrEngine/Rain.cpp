@@ -129,21 +129,42 @@ void CEffect_Rain::OnFrame()
     // Parse states
     float factor = g_pGamePersistent->Environment().CurrentEnv.rain_density;
 #ifndef _EDITOR
-    IGameObject* E = g_pGameLevel->CurrentViewEntity();
-    if (E && E->renderable_ROS())
+    // Sky-visibility probe: fire 5 raycasts upward from the camera and
+    // average their fraction. Previously this read renderable_ROS()->
+    // get_luminocity_hemi_cube(), but that array is polluted by dynamic
+    // point-light contributions (see LightTrack.cpp:260-262), so under
+    // lit interiors (Yanov station) hemi_cube faces stayed high enough
+    // that the indoor-rain gate never kicked in. A direct ObjectSpace
+    // raytest against rqtStatic is unambiguous and ~5 rays/frame is
+    // negligible next to the 2500-streak emission load.
+    if (g_pGameLevel && g_pGameLevel->CurrentViewEntity())
     {
-        // hemi_factor = 1.f-2.0f*(0.3f-_min(_min(1.f,E->renderable_ROS()->get_luminocity_hemi()),0.3f));
-        float* hemi_cube = E->renderable_ROS()->get_luminocity_hemi_cube();
-        float hemi_val = _max(hemi_cube[0], hemi_cube[1]);
-        hemi_val = _max(hemi_val, hemi_cube[2]);
-        hemi_val = _max(hemi_val, hemi_cube[3]);
-        hemi_val = _max(hemi_val, hemi_cube[5]);
+        IGameObject* E = g_pGameLevel->CurrentViewEntity();
+        const Fvector& cam = Device.vCameraPosition;
+        const float range = 80.f;
 
-        // float f = 0.9f*m_hemi_factor + 0.1f*hemi_val;
-        float f = hemi_val;
+        static const Fvector dirs[5] = {
+            { 0.f,           1.f,           0.f          },
+            { 0.2588f,       0.9659f,       0.f          }, // 15° east
+            {-0.2588f,       0.9659f,       0.f          }, // 15° west
+            { 0.f,           0.9659f,       0.2588f      }, // 15° north
+            { 0.f,           0.9659f,      -0.2588f      }  // 15° south
+        };
+
+        u32 open = 0;
+        for (u32 i = 0; i < 5; ++i)
+        {
+            float r = range;
+            collide::ray_cache cache;
+            // RayTest returns true when occluded by static geometry.
+            bool blocked = g_pGameLevel->ObjectSpace.RayTest(cam, dirs[i], r, collide::rqtStatic, &cache, E);
+            if (!blocked) ++open;
+        }
+
+        float target = float(open) / 5.f;
         float t = Device.fTimeDelta;
         clamp(t, 0.001f, 1.0f);
-        m_hemi_factor = m_hemi_factor * (1.0f - t) + f * t;
+        m_hemi_factor = m_hemi_factor * (1.0f - t) + target * t;
     }
 #endif
 
