@@ -381,6 +381,10 @@ void CMainMenu::IR_OnKeyboardPress(int dik)
     case kEDITOR:
         Device.editor().SwitchToNextState();
         return;
+
+    case kRENDER_PLAYGROUND:
+        Device.editor().TogglePlayground();
+        return;
     }
 
     CDialogHolder::IR_UIOnKeyboardPress(dik);

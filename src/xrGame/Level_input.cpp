@@ -157,6 +157,12 @@ void CLevel::IR_OnKeyboardPress(int key)
         return;
     }
 
+    if (_curr == kRENDER_PLAYGROUND)
+    {
+        Device.editor().TogglePlayground();
+        return;
+    }
+
     if (g_bDisableAllInput)
         return;
 

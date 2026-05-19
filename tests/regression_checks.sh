@@ -281,9 +281,21 @@ check "ide::IR_OnKeyboardPress routes kRENDER_PLAYGROUND" \
 # DummyReceiver is the always-captured fallback; without a case here the
 # playground hotkey only works when the console is open (i.e. when ide
 # happens to be the active input receiver).
-check "DummyReceiver routes kRENDER_PLAYGROUND (works in gameplay, not only with console open)" \
+check "DummyReceiver routes kRENDER_PLAYGROUND (fallback path)" \
     "awk '/^class DummyReceiver/,/^} dummyController/' src/xrEngine/xr_input.cpp | \
         grep -q 'case kRENDER_PLAYGROUND'"
+
+# Input dispatch is top-of-stack only (cbStack.back()->IR_OnKeyboardPress).
+# kRENDER_PLAYGROUND must be routed by every active top-of-stack receiver
+# the user can be sitting in: gameplay (CLevel), main menu (CMainMenu),
+# console (CConsole - delegates to ide), full editor (ide directly).
+check "CLevel::IR_OnKeyboardPress routes kRENDER_PLAYGROUND (gameplay)" \
+    "awk '/^void CLevel::IR_OnKeyboardPress/,/^void CLevel::IR_OnKeyboardRelease/' src/xrGame/Level_input.cpp | \
+        grep -q 'kRENDER_PLAYGROUND'"
+
+check "CMainMenu::IR_OnKeyboardPress routes kRENDER_PLAYGROUND (main menu)" \
+    "awk '/^void CMainMenu::IR_OnKeyboardPress/,/^void CMainMenu::IR_OnKeyboardRelease/' src/xrGame/MainMenu.cpp | \
+        grep -q 'kRENDER_PLAYGROUND'"
 
 check "ide exports TogglePlayground (shared toggle path between DummyReceiver and ide receiver)" \
     "grep -q 'void TogglePlayground' src/xrEngine/editor_base.h"
