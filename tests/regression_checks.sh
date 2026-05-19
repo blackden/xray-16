@@ -304,6 +304,26 @@ check "RendererPlayground constructed in ide::InitBackend" \
     "awk '/^void ide::InitBackend/,/^void ide::ProcessEvent/' src/xrEngine/editor_base_input.cpp | \
         grep -q 'make_unique<RendererPlayground>'"
 
+# v1: GL state + RT picker
+check "IRender exposes PlaygroundGLState query" \
+    "grep -q 'GetPlaygroundGLState' src/xrEngine/Render.h"
+
+check "IRender exposes EnumerateRenderTargets query" \
+    "grep -q 'EnumerateRenderTargets' src/xrEngine/Render.h"
+
+check "D3DXRenderBase implements GetPlaygroundGLState" \
+    "awk '/D3DXRenderBase::GetPlaygroundGLState/,/^}/' src/Layers/xrRender/D3DXRenderBase.cpp | \
+        grep -q 'glGetIntegerv'"
+
+check "CResourceManager exposes ForEachRT for read-only RT iteration" \
+    "grep -q 'void ForEachRT' src/Layers/xrRender/ResourceManager.h"
+
+check "RendererPlayground has GL State tab" \
+    "grep -q 'DrawGLStateTab' src/xrEngine/RendererPlayground.cpp"
+
+check "RendererPlayground has RT Picker tab" \
+    "grep -q 'DrawRTPickerTab' src/xrEngine/RendererPlayground.cpp"
+
 echo
 echo "Summary: $pass passed, $fail failed"
 exit $fail

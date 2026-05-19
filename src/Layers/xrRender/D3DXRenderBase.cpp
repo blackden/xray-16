@@ -288,6 +288,59 @@ u32 D3DXRenderBase::GetCacheStatPolys()
 {
     return RCache.stat.render.polys;
 }
+
+IRender::PlaygroundGLState D3DXRenderBase::GetPlaygroundGLState() const
+{
+    PlaygroundGLState s{};
+#if defined(USE_OGL)
+    GLint v = 0;
+    glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &v);
+    s.vao = static_cast<u32>(v);
+    v = 0;
+    glGetIntegerv(GL_CURRENT_PROGRAM, &v);
+    s.program = static_cast<u32>(v);
+    v = 0;
+    glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &v);
+    s.drawFbo = static_cast<u32>(v);
+    v = 0;
+    glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &v);
+    s.readFbo = static_cast<u32>(v);
+#endif
+    // Stat counters come from the immediate-mode command list and reflect
+    // the previous frame's totals at the moment the playground reads them.
+    const auto& stat = RCache.stat.render;
+    s.drawCalls = stat.calls;
+    s.verts     = stat.verts;
+    s.polys     = stat.polys;
+    return s;
+}
+
+void D3DXRenderBase::EnumerateRenderTargets(xr_vector<PlaygroundRenderTarget>& out) const
+{
+    out.clear();
+    if (!Resources)
+        return;
+    // m_rtargets is private; enumerate via Resources::_GetMemoryUsage style
+    // would be wrong. Instead, iterate the public typed list via reflection-
+    // less direct access — Resources friends D3DXRenderBase through the
+    // CResourceManager API.
+    Resources->ForEachRT([&out](const char* name, CRT* rt)
+    {
+        if (!rt || !rt->valid())
+            return;
+        PlaygroundRenderTarget e{};
+        e.name   = name;
+        e.width  = rt->dwWidth;
+        e.height = rt->dwHeight;
+#if defined(USE_OGL)
+        e.colorId  = static_cast<u32>(rt->pRT);
+        e.depthId  = static_cast<u32>(rt->pZRT);
+        e.hasColor = rt->pRT != 0;
+        e.hasDepth = rt->pZRT != 0;
+#endif
+        out.emplace_back(e);
+    });
+}
 void D3DXRenderBase::Begin()
 {
     HW.BeginScene();

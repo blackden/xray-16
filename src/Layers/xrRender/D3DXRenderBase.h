@@ -58,6 +58,8 @@ public:
     virtual DeviceState GetDeviceState() override;
     virtual bool GetForceGPU_REF() override;
     virtual u32 GetCacheStatPolys() override;
+    PlaygroundGLState GetPlaygroundGLState() const override;
+    void EnumerateRenderTargets(xr_vector<PlaygroundRenderTarget>& out) const override;
     virtual void Begin() override;
     virtual void Clear() override;
     virtual void End() override;

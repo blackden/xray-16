@@ -34,7 +34,15 @@ public:
 
 private:
     void DrawFrameStatsTab();
+    void DrawGLStateTab();
+    void DrawRTPickerTab();
 
     int m_lastTabIndex{ 0 };
+
+    // RT picker UI state, persisted across frames so the user keeps their
+    // selection while the underlying RT vector is rebuilt every frame.
+    xr_string m_selectedRtName;
+    float     m_rtPreviewScale{ 0.5f };
+    bool      m_rtFlipY{ true }; // GL textures are bottom-up; default to flipping
 };
 } // namespace xray::editor

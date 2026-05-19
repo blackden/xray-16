@@ -29,8 +29,20 @@ void RendererPlayground::on_tool_frame()
             DrawFrameStatsTab();
             ImGui::EndTabItem();
         }
-        // v1 tabs (GL State, RT Picker, Event Log) и v2 (Hot Reload, Pipeline
-        // Toggles) добавляются здесь по мере появления.
+        if (ImGui::BeginTabItem("GL State"))
+        {
+            m_lastTabIndex = 1;
+            DrawGLStateTab();
+            ImGui::EndTabItem();
+        }
+        if (ImGui::BeginTabItem("RT Picker"))
+        {
+            m_lastTabIndex = 2;
+            DrawRTPickerTab();
+            ImGui::EndTabItem();
+        }
+        // v2 tabs (Event Log, Hot Reload, Pipeline Toggles) добавляются
+        // здесь по мере появления.
         ImGui::EndTabBar();
     }
 
@@ -60,6 +72,103 @@ void RendererPlayground::DrawFrameStatsTab()
 
     ImGui::Spacing();
     ImGui::TextDisabled("v1 will add: call/vert/poly breakdown, GL state, RT picker, event log.");
+}
+
+void RendererPlayground::DrawGLStateTab()
+{
+    const auto state = GEnv.Render ? GEnv.Render->GetPlaygroundGLState() : IRender::PlaygroundGLState{};
+
+    ImGui::TextUnformatted("Current GL bindings");
+    ImGui::Separator();
+    ImGui::Text("VAO          %u", state.vao);
+    ImGui::Text("Program      %u", state.program);
+    ImGui::Text("Draw FBO     %u", state.drawFbo);
+    ImGui::Text("Read FBO     %u", state.readFbo);
+
+    ImGui::Spacing();
+    ImGui::TextUnformatted("Backend draw counters (previous frame)");
+    ImGui::Separator();
+    ImGui::Text("Draw calls   %u", state.drawCalls);
+    ImGui::Text("Vertices     %u", state.verts);
+    ImGui::Text("Polygons     %u", state.polys);
+
+    ImGui::Spacing();
+    ImGui::TextDisabled("Counters reset every frame in CBackend::OnFrameBegin.");
+    ImGui::TextDisabled("VAO/Program/FBO are sampled via glGetIntegerv at panel-draw time.");
+}
+
+void RendererPlayground::DrawRTPickerTab()
+{
+    static xr_vector<IRender::PlaygroundRenderTarget> entries;
+    entries.clear();
+    if (GEnv.Render)
+        GEnv.Render->EnumerateRenderTargets(entries);
+
+    if (entries.empty())
+    {
+        ImGui::TextDisabled("No render targets registered yet.");
+        return;
+    }
+
+    ImGui::Text("%zu render targets", entries.size());
+    ImGui::Separator();
+
+    ImGui::SliderFloat("Preview scale", &m_rtPreviewScale, 0.05f, 1.0f, "%.2f");
+    ImGui::SameLine();
+    ImGui::Checkbox("Flip Y", &m_rtFlipY);
+
+    ImGui::BeginChild("##rt_list", ImVec2(260, 0), true);
+    for (const auto& e : entries)
+    {
+        bool selected = (m_selectedRtName == e.name);
+        if (ImGui::Selectable(e.name, selected))
+            m_selectedRtName = e.name;
+    }
+    ImGui::EndChild();
+
+    ImGui::SameLine();
+    ImGui::BeginChild("##rt_preview", ImVec2(0, 0), true);
+
+    const IRender::PlaygroundRenderTarget* sel = nullptr;
+    for (const auto& e : entries)
+        if (m_selectedRtName == e.name)
+        {
+            sel = &e;
+            break;
+        }
+
+    if (!sel)
+    {
+        ImGui::TextDisabled("Pick a render target on the left.");
+    }
+    else
+    {
+        ImGui::Text("Name:    %s", sel->name);
+        ImGui::Text("Size:    %ux%u", sel->width, sel->height);
+        ImGui::Text("Color id: %u%s", sel->colorId, sel->hasColor ? "" : " (none)");
+        ImGui::Text("Depth id: %u%s", sel->depthId, sel->hasDepth ? "" : " (none)");
+
+        const ImVec2 size(sel->width * m_rtPreviewScale, sel->height * m_rtPreviewScale);
+        const ImVec2 uv0 = m_rtFlipY ? ImVec2(0.0f, 1.0f) : ImVec2(0.0f, 0.0f);
+        const ImVec2 uv1 = m_rtFlipY ? ImVec2(1.0f, 0.0f) : ImVec2(1.0f, 1.0f);
+
+        if (sel->hasColor)
+        {
+            ImGui::Spacing();
+            ImGui::TextUnformatted("Color");
+            ImGui::Image(static_cast<ImTextureID>(sel->colorId),
+                size, uv0, uv1);
+        }
+        if (sel->hasDepth)
+        {
+            ImGui::Spacing();
+            ImGui::TextUnformatted("Depth (red channel = depth value, may 0x502 on Apple GL)");
+            ImGui::Image(static_cast<ImTextureID>(sel->depthId),
+                size, uv0, uv1);
+        }
+    }
+
+    ImGui::EndChild();
 }
 
 void RendererPlayground::save_settings(ImGuiTextBuffer* buffer) const
