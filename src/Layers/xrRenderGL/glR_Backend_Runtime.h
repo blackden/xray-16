@@ -154,8 +154,18 @@ ICF void CBackend::set_Format(SDeclaration* _decl)
         decl = _decl;
         CHK_GL(glBindVertexArray(_decl->dcl));
 
-        // Clear cached index buffer
+        // Clear cached buffer bindings. The new VAO doesn't yet hold any
+        // GL_ELEMENT_ARRAY_BUFFER or vertex-attrib-pointer state -- those
+        // are per-VAO bits that the previous VAO owned. On Apple GL 4.1
+        // (no ARB_vertex_attrib_binding) skipping the vb reset was a real
+        // bug: set_Vertices's vb cache short-circuited because the GLuint
+        // happened to match the previous VAO's vb, and SetGLVertexPointer
+        // was never re-run for the new VAO -- glDrawElementsBaseVertex
+        // then tripped GL_INVALID_OPERATION (0x502) on draws using the
+        // freshly bound but pointer-less VAO.
         ib = 0;
+        vb = 0;
+        vb_stride = 0;
     }
 }
 
