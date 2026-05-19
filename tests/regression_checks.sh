@@ -324,6 +324,30 @@ check "RendererPlayground has GL State tab" \
 check "RendererPlayground has RT Picker tab" \
     "grep -q 'DrawRTPickerTab' src/xrEngine/RendererPlayground.cpp"
 
+# CHK_GL ring buffer for the Event Log tab
+check "xrCore declares xr_gl_error_sink function pointer" \
+    "grep -q 'xr_gl_error_sink_fn' src/xrCore/xrDebug_macros.h"
+
+check "xrCore defines xr_gl_error_sink (default nullptr)" \
+    "grep -q 'xr_gl_error_sink = nullptr' src/xrCore/xrDebug.cpp"
+
+check "Apple CHK_GL (Debug branch) calls xr_gl_error_sink" \
+    "awk '/^#if defined\\(XR_PLATFORM_APPLE\\)/,/^#else$/' src/xrCore/xrDebug_macros.h | \
+        head -25 | grep -q 'xr_gl_error_sink('"
+
+check "Apple CHK_GL (MasterGold branch) calls xr_gl_error_sink" \
+    "grep -c 'xr_gl_error_sink(' src/xrCore/xrDebug_macros.h | awk '{exit !(\$1 >= 2)}'"
+
+check "RendererPlayground exposes g_glErrorRing" \
+    "grep -q 'extern GLErrorRing g_glErrorRing' src/xrEngine/RendererPlayground.h"
+
+check "RendererPlayground wires xr_gl_error_sink in InitBackend" \
+    "awk '/^void ide::InitBackend/,/^void ide::ProcessEvent/' src/xrEngine/editor_base_input.cpp | \
+        grep -q 'xr_gl_error_sink ='"
+
+check "RendererPlayground has Event Log tab" \
+    "grep -q 'DrawEventLogTab' src/xrEngine/RendererPlayground.cpp"
+
 echo
 echo "Summary: $pass passed, $fail failed"
 exit $fail

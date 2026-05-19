@@ -131,6 +131,12 @@ string_path xrDebug::BugReportFile;
 bool xrDebug::ErrorAfterDialog = false;
 bool xrDebug::ShowErrorMessage = true;
 
+// Renderer playground (epic #12) GL error sink. nullptr by default — set
+// by xrEngine when the playground initialises, called from the Apple-side
+// CHK_GL macro after the existing Msg() so the playground can show recent
+// errors in its Event Log tab without scraping the log file.
+XRCORE_API xr_gl_error_sink_fn xr_gl_error_sink = nullptr;
+
 #ifdef PROFILE_CRITICAL_SECTIONS
 Lock xrDebug::failLock(MUTEX_PROFILE_ID(xrDebug::Backend));
 #else
