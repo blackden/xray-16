@@ -10,6 +10,54 @@
   OpenXRay
 </h1>
 
+> **macOS Apple Silicon fork — branch `macos/blackden/master`**
+>
+> This branch is a personal fork focused on running S.T.A.L.K.E.R.: Call of
+> Pripyat natively on Apple Silicon (M1/M3, macOS 14+). The CoP campaign is
+> playable end-to-end. Upstream OpenXRay targets Windows; this tree adds the
+> macOS-specific fixes that path needs.
+>
+> See [`notes/`](notes/) for working docs:
+> [`apple-silicon.md`](notes/apple-silicon.md),
+> [`macos-build-guide.md`](notes/macos-build-guide.md),
+> [`macos-distribution.md`](notes/macos-distribution.md),
+> [`engine-map.md`](notes/engine-map.md) (where things live),
+> [`issues-playthrough.md`](notes/issues-playthrough.md) (open bugs),
+> [`cheatsheet.md`](notes/cheatsheet.md),
+> [`engine-thoughts.md`](notes/engine-thoughts.md).
+>
+> **Build & run:**
+> ```bash
+> make build           # debug build + arm64 mach-o sanity check
+> make build-release   # ReleaseMasterGold (what ships)
+> make ship            # build-release + install to /Applications/OpenXRay-Dev.app
+> ```
+> Engine log: `~/Library/Logs/OpenXRay/openxray_<user>.log`.
+> Game data root: `~/Games/STALKER-CoP/` (override via `-fsltx` or symlink).
+>
+> **Notable macOS-side work on this branch** (not exhaustive):
+> - Apple GL 4.1 shader compatibility — unconditional `*_QUALITY` macros
+>   in `rgl_shaders.cpp` (one preprocessor cascade was breaking SSAO, SSR,
+>   sun, sun-shafts, and dynamic-light shaders all at once on Apple GL).
+> - GL 4.1 quirks: VAO cache leak workaround for occlusion 0x502, immutable-
+>   storage guards (`glTexture.cpp:137`), `GL_MAX_TEXTURE_SIZE` fallback
+>   (`glSH_RT.cpp:36`), HiDPI drawable clipping fix.
+> - POSIX FS hardening: settings/saves path-separator normalisation
+>   (`LocatorAPI::rescan_path` / `_set_root`), `pw_name`/`pw_gecos` user
+>   lookup, UTF-8 re-encode of locale XMLs, EILSEQ retry on save writes.
+> - macOS packaging: `.app` bundle, DMG/`.app.zip` artifacts, safe-mode
+>   sentinel for crash-recovery (`.boot_in_progress`), bundled `xrUnpack`.
+> - Engine quality-of-life: `dev_tools` cvar gating dev hotkeys (F6 quick-
+>   save, F7 inspector, F11 renderer playground), Tracy profiler hooks,
+>   ALife save-format soft-fail, GL `SM_FOR_GAMESAVE` (save thumbnails),
+>   indoor-rain suppression via upward sky-visibility raycast.
+>
+> **Out of scope on this branch:** Windows-side fixes, multiplayer/GameSpy,
+> upstream API churn. Cross-platform work should target upstream
+> [`OpenXRay/xray-16:dev`](https://github.com/OpenXRay/xray-16).
+>
+> ---
+
 **OpenXRay** is an improved version of the X-Ray Engine, the game engine used in the world-famous S.T.A.L.K.E.R. game series by GSC Game World.
 
 This is a fan-made project not affiliated with GSC Game World in any way.
