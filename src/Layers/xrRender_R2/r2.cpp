@@ -378,6 +378,32 @@ void CRender::create()
     o.disasm = (strstr(Core.Params, "-disasm")) ? TRUE : FALSE;
     o.forceskinw = (strstr(Core.Params, "-skinw")) ? TRUE : FALSE;
 
+#if defined(USE_OGL) && defined(XR_PLATFORM_APPLE)
+    // Apple GL 4.10 GLSL preprocessor fails on the SSAO #if-chain in
+    // accum_sun.ps / accum_omni_*.ps / combine_1_nomsaa.ps, producing
+    // "incorrect preprocessor directive" cascades that black out the
+    // level (only HUD/fires/rain remain visible). Until the shader
+    // fix lands, force SSAO off on Apple even if the cvars say
+    // otherwise. See notes/issues-playthrough.md for the real-fix
+    // entry. The cvars themselves are not modified, so swapping
+    // platforms or rebuilding without this guard restores prior
+    // behaviour without user intervention.
+    if (ps_r_ssao != 0 || ps_r2_ls_flags_ext.test(R2FLAGEXT_SSAO_BLUR))
+    {
+        static bool warned = false;
+        if (!warned)
+        {
+            Msg("! SSAO disabled on Apple GL: shader compile fails on "
+                "this platform. See notes/issues-playthrough.md.");
+            warned = true;
+        }
+    }
+    o.ssao_blur_on = false;
+    o.ssao_opt_data = false;
+    o.ssao_half_data = false;
+    o.ssao_hbao = false;
+    o.ssao_hdao = false;
+#else
     o.ssao_blur_on = ps_r2_ls_flags_ext.test(R2FLAGEXT_SSAO_BLUR) && (ps_r_ssao != 0);
     o.ssao_opt_data = ps_r2_ls_flags_ext.test(R2FLAGEXT_SSAO_OPT_DATA) && (ps_r_ssao != 0);
     o.ssao_half_data = ps_r2_ls_flags_ext.test(R2FLAGEXT_SSAO_HALF_DATA) && o.ssao_opt_data && (ps_r_ssao != 0);
@@ -391,6 +417,7 @@ void CRender::create()
     o.ssao_hdao = false;
 #else
 #   error No graphics API selected or enabled!
+#endif
 #endif
 
     //	TODO: fix hbao shader to allow to perform per-subsample effect!
