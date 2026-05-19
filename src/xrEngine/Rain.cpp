@@ -128,7 +128,6 @@ void CEffect_Rain::OnFrame()
 
     // Parse states
     float factor = g_pGamePersistent->Environment().CurrentEnv.rain_density;
-    static float hemi_factor = 0.f;
 #ifndef _EDITOR
     IGameObject* E = g_pGameLevel->CurrentViewEntity();
     if (E && E->renderable_ROS())
@@ -140,11 +139,11 @@ void CEffect_Rain::OnFrame()
         hemi_val = _max(hemi_val, hemi_cube[3]);
         hemi_val = _max(hemi_val, hemi_cube[5]);
 
-        // float f = 0.9f*hemi_factor + 0.1f*hemi_val;
+        // float f = 0.9f*m_hemi_factor + 0.1f*hemi_val;
         float f = hemi_val;
         float t = Device.fTimeDelta;
         clamp(t, 0.001f, 1.0f);
-        hemi_factor = hemi_factor * (1.0f - t) + f * t;
+        m_hemi_factor = m_hemi_factor * (1.0f - t) + f * t;
     }
 #endif
 
@@ -174,7 +173,7 @@ void CEffect_Rain::OnFrame()
         // Fvector sndP;
         // sndP.mad (Device.vCameraPosition,Fvector().set(0,1,0),source_offset);
         // snd_Ambient.set_position(sndP);
-        snd_Ambient.set_volume(_max(0.1f, factor) * hemi_factor);
+        snd_Ambient.set_volume(_max(0.1f, factor) * m_hemi_factor);
     }
 }
 
