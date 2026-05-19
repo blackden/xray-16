@@ -71,6 +71,11 @@ public:
 
     void UpdateTextInput(bool force_disable = false);
 
+    // Toggle the renderer playground panel; transitions ide visible_state
+    // from hidden to light on open and back to hidden when the last tool
+    // closes. Safe to call before InitBackend (no-op).
+    void TogglePlayground();
+
 public:
     // Interface implementations
     void OnFrame() override;

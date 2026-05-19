@@ -184,6 +184,26 @@ void ide::SetState(visible_state state)
     }
 }
 
+void ide::TogglePlayground()
+{
+    if (!m_playground)
+        return;
+
+    bool& opened = m_playground->get_open_state();
+    opened = !opened;
+
+    if (opened && m_state == visible_state::hidden)
+    {
+        // Light mode: tools render, input is not captured, so the game
+        // continues responding while the playground overlay is up.
+        SetState(visible_state::light);
+    }
+    else if (!opened && m_state == visible_state::light && !is_shown())
+    {
+        SetState(visible_state::hidden);
+    }
+}
+
 void ide::SwitchToNextState()
 {
     switch (m_state)

@@ -32,6 +32,15 @@ public:
             if (Device.b_is_Ready)
                 Device.editor().SwitchToNextState();
             return;
+
+        case kRENDER_PLAYGROUND:
+            // DummyReceiver is the always-captured fallback. ide's own
+            // IR_OnKeyboardPress only fires when ide is the active input
+            // receiver (console open or full editor mode), so without this
+            // case the playground hotkey only works when the console is up.
+            if (Device.b_is_Ready)
+                Device.editor().TogglePlayground();
+            return;
         }
     }
 } dummyController;

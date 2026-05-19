@@ -271,12 +271,22 @@ check "kRENDER_PLAYGROUND action declared in xr_level_controller.h" \
 check "kRENDER_PLAYGROUND named in xr_level_controller.cpp" \
     "grep -q '\"render_playground\"' src/xrEngine/xr_level_controller.cpp"
 
-check "kRENDER_PLAYGROUND default-bound to F11" \
-    "awk '/kRENDER_PLAYGROUND,/' src/xrEngine/xr_level_controller.cpp | grep -q 'SDL_SCANCODE_F11'"
+check "kRENDER_PLAYGROUND default-bound to F8 (F11 conflicts with macOS Show Desktop)" \
+    "awk '/kRENDER_PLAYGROUND,/' src/xrEngine/xr_level_controller.cpp | grep -q 'SDL_SCANCODE_F8'"
 
 check "ide::IR_OnKeyboardPress routes kRENDER_PLAYGROUND" \
     "awk '/^void ide::IR_OnKeyboardPress/,/^void ide::IR_OnKeyboardRelease/' src/xrEngine/editor_base_input.cpp | \
         grep -q 'case kRENDER_PLAYGROUND'"
+
+# DummyReceiver is the always-captured fallback; without a case here the
+# playground hotkey only works when the console is open (i.e. when ide
+# happens to be the active input receiver).
+check "DummyReceiver routes kRENDER_PLAYGROUND (works in gameplay, not only with console open)" \
+    "awk '/^class DummyReceiver/,/^} dummyController/' src/xrEngine/xr_input.cpp | \
+        grep -q 'case kRENDER_PLAYGROUND'"
+
+check "ide exports TogglePlayground (shared toggle path between DummyReceiver and ide receiver)" \
+    "grep -q 'void TogglePlayground' src/xrEngine/editor_base.h"
 
 check "RendererPlayground constructed in ide::InitBackend" \
     "awk '/^void ide::InitBackend/,/^void ide::ProcessEvent/' src/xrEngine/editor_base_input.cpp | \
