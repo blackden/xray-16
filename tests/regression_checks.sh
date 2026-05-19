@@ -271,8 +271,8 @@ check "kRENDER_PLAYGROUND action declared in xr_level_controller.h" \
 check "kRENDER_PLAYGROUND named in xr_level_controller.cpp" \
     "grep -q '\"render_playground\"' src/xrEngine/xr_level_controller.cpp"
 
-check "kRENDER_PLAYGROUND default-bound to F11 (developer-only; macOS disables Mission Control side)" \
-    "awk '/kRENDER_PLAYGROUND,/' src/xrEngine/xr_level_controller.cpp | grep -q 'SDL_SCANCODE_F11'"
+check "kRENDER_PLAYGROUND default-bound to F6 (F11/F12 reserved by macOS)" \
+    "awk '/kRENDER_PLAYGROUND,/' src/xrEngine/xr_level_controller.cpp | grep -q 'SDL_SCANCODE_F6'"
 
 check "ide::IR_OnKeyboardPress routes kRENDER_PLAYGROUND" \
     "awk '/^void ide::IR_OnKeyboardPress/,/^void ide::IR_OnKeyboardRelease/' src/xrEngine/editor_base_input.cpp | \
@@ -407,8 +407,11 @@ check "ALifeInspector.cpp exists" \
 check "kALIFE_INSPECTOR action declared" \
     "grep -q 'kALIFE_INSPECTOR' src/xrEngine/xr_level_controller.h"
 
-check "kALIFE_INSPECTOR default-bound to F12 (gated by dev_tools cvar)" \
-    "awk '/kALIFE_INSPECTOR,.*SDL_SCANCODE/' src/xrEngine/xr_level_controller.cpp | grep -q 'SDL_SCANCODE_F12'"
+check "kALIFE_INSPECTOR default-bound to F7 (gated by dev_tools cvar)" \
+    "awk '/kALIFE_INSPECTOR,.*SDL_SCANCODE/' src/xrEngine/xr_level_controller.cpp | grep -q 'SDL_SCANCODE_F7'"
+
+check "kRENDER_PLAYGROUND default-bound to F6 (gated by dev_tools cvar)" \
+    "awk '/kRENDER_PLAYGROUND,.*SDL_SCANCODE/' src/xrEngine/xr_level_controller.cpp | grep -q 'SDL_SCANCODE_F6'"
 
 check "g_dev_tools defined with MASTER_GOLD-aware default in xr_ioc_cmd.cpp" \
     "awk '/g_dev_tools/' src/xrEngine/xr_ioc_cmd.cpp | grep -q 'ENGINE_API int g_dev_tools'"
