@@ -65,6 +65,7 @@ private:
     void DrawGLStateTab();
     void DrawRTPickerTab();
     void DrawEventLogTab();
+    void DrawPipelineTogglesTab();
 
     int m_lastTabIndex{ 0 };
 

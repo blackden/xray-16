@@ -424,6 +424,20 @@ public:
         bool        hasDepth{};
     };
     virtual void EnumerateRenderTargets(xr_vector<PlaygroundRenderTarget>& /*out*/) const {}
+
+    // Pipeline stage gates exposed to the playground. Default-on so a build
+    // without playground integration renders exactly as before. The pointer
+    // is mutable on purpose — the playground writes directly to flip a stage
+    // off, the render path reads the flags inline (zero overhead when the
+    // playground hasn't touched them).
+    struct DebugRenderToggles
+    {
+        bool shadows{ true };   // sun cascades (DEFER_SUN block)
+        bool occq{ true };      // light visibility / occlusion queries
+        bool details{ true };   // detail / grass renderer
+        bool wallmarks{ true }; // decals on geometry
+    };
+    virtual DebugRenderToggles* GetDebugToggles() { return nullptr; }
     virtual void OnCameraUpdated() = 0;
     virtual void Begin() = 0;
     virtual void Clear() = 0;

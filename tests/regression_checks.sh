@@ -348,6 +348,30 @@ check "RendererPlayground wires xr_gl_error_sink in InitBackend" \
 check "RendererPlayground has Event Log tab" \
     "grep -q 'DrawEventLogTab' src/xrEngine/RendererPlayground.cpp"
 
+# v2: Pipeline stage toggles
+check "IRender declares DebugRenderToggles struct" \
+    "grep -q 'struct DebugRenderToggles' src/xrEngine/Render.h"
+
+check "D3DXRenderBase exposes m_debugToggles member" \
+    "grep -q 'DebugRenderToggles m_debugToggles' src/Layers/xrRender/D3DXRenderBase.h"
+
+check "r2_R_render.cpp gates sun cascades on m_debugToggles.shadows" \
+    "awk '/Directional light/,/accum_direct_blend/' src/Layers/xrRender_R2/r2_R_render.cpp | \
+        grep -q 'm_debugToggles.shadows'"
+
+check "r2_R_render.cpp gates phase_occq on m_debugToggles.occq" \
+    "grep -q 'm_debugToggles.occq.*phase_occq\\|phase_occq.*m_debugToggles.occq' src/Layers/xrRender_R2/r2_R_render.cpp || \
+     awk '/Occlusion testing/,/phase_occq/' src/Layers/xrRender_R2/r2_R_render.cpp | grep -q 'm_debugToggles.occq'"
+
+check "r2_R_render.cpp gates Details->Render on m_debugToggles.details" \
+    "grep -c 'm_debugToggles.details' src/Layers/xrRender_R2/r2_R_render.cpp | awk '{exit !(\$1 >= 2)}'"
+
+check "r2_R_render.cpp gates wallmarks on m_debugToggles.wallmarks" \
+    "grep -q 'Wallmarks.*m_debugToggles.wallmarks\\|m_debugToggles.wallmarks.*Wallmarks' src/Layers/xrRender_R2/r2_R_render.cpp"
+
+check "RendererPlayground has Pipeline Toggles tab" \
+    "grep -q 'DrawPipelineTogglesTab' src/xrEngine/RendererPlayground.cpp"
+
 echo
 echo "Summary: $pass passed, $fail failed"
 exit $fail
