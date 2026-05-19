@@ -60,9 +60,13 @@
     lines 113-197.
   - `CRender::shader_compile`: lines 198-590 (entry point for all
     shader builds).
-- SSAO cvar → shader-option mapping: `src/Layers/xrRender_R2/r2.cpp:381-421`
-  — note the `XR_PLATFORM_APPLE` gate that force-disables all SSAO on
-  macOS until the shader fix lands.
+- SSAO cvar → shader-option mapping: `src/Layers/xrRender_R2/r2.cpp:381-394`
+  (DX/OGL/Apple branches).
+- Shader-option define injection (the critical part): `src/Layers/xrRenderPC_GL/rgl_shaders.cpp:348-403`
+  — all `*_QUALITY` macros (SSR, SUN_SHAFTS, SSAO, SUN) must be
+  defined unconditionally because Apple GL 4.10 parser rejects `#if`
+  on undefined identifiers (the "incorrect preprocessor directive"
+  cascade). Pattern: define as 0 when feature off, never skip.
 
 ## Cvars (renderer)
 

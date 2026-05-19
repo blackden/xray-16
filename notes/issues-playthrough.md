@@ -144,18 +144,27 @@ grep -iE 'smart_terrain.*jup|job.*reset|combat.*lost' \
 
 ---
 
-## 2026-05-19 — SSAO mode → пропадает вся отрисовка уровня (P1, defensively addressed)
+## 2026-05-19 — SSAO mode → пропадает вся отрисовка уровня (P1, **closed**)
 
-**Статус:** workaround landed (commit d7724e2c9, `xrRender_R2/r2.cpp:381-405`).
-На Apple GL все SSAO shader options форсятся в `false` независимо от
-cvar — пользователь больше не может выстрелить себе в ногу через UI.
-Cvars не модифицируются, gate снимется автоматически когда уйдёт
-основной shader-фикс.
+**Корневая причина:** `src/Layers/xrRenderPC_GL/rgl_shaders.cpp`
+определял макрос `SSAO_QUALITY` (и `SSR_QUALITY`, `SUN_SHAFTS_QUALITY`,
+`SUN_QUALITY`) **только когда соответствующая фича была включена**.
+Когда выключена — макрос вообще не существовал, а шейдеры используют
+его в `#if SSAO_QUALITY > 3` / `#if SSAO_QUALITY <= 3`. По C99
+undefined identifier в `#if` → 0, но Apple GL 4.10 GLSL parser strict
+и выдаёт «incorrect preprocessor directive», ломая весь deferred-
+pipeline.
 
-**Real fix (P2, требует unpack `.db?`):** найти конкретный `#if` в
-`ssao_*.ps` / `accum_sun.ps` include chain, который ломает Apple GLSL
-4.10 parser. Файл с дампом — `~/Library/Logs/OpenXRay/openxray.log`
-(сессия 2026-05-19, начиная с line ~80000).
+**Fix:** unconditional `options.add("SSAO_QUALITY", "0")` когда фича
+off. Аналогично для трёх соседних *_QUALITY-макросов. Это safer-by-
+default: на остальных GL-платформах ничего не меняется (`#if 0 > 3`
+эквивалентно undefined-rule), но Apple GL теперь счастлив.
+
+**Параллельно:** убран temp-gate из `xrRender_R2/r2.cpp:381-405`
+(commit d7724e2c9), возвращён vanilla SSAO path.
+
+**Статус:** real-fix landed. Уровень с включённым SSAO рендерится на
+Apple GL без cascade.
 
 ---
 
