@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# Trampoline so `git merge` also triggers auto-ship.
+#
+# `git merge` (even with --no-ff, which creates a real merge commit) does
+# NOT invoke the post-commit hook — only post-merge. Everything we want
+# to do is identical to post-commit, so just forward to it. Hook arg ($1
+# is 1 for squash-merge, 0 otherwise) is ignored by post-commit, which
+# takes no parameters.
+exec "$(dirname "$0")/post-commit" "$@"
