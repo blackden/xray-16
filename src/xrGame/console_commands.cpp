@@ -1855,39 +1855,25 @@ public:
     virtual void Execute(LPCSTR) { Level().Objects.dump_all_objects(); }
 };
 
+// In-game updater (issue #39) — bound by CCC_String to `updater_manifest_url`
+// below, read by CMainMenu::TriggerUpdateCheck. The default points at a local
+// dev HTTP server so smoke tests need no real host configured.
+char g_updater_manifest_url[512] = "http://127.0.0.1:8000/manifest-stable.ltx";
+
 class CCC_GSCheckForUpdates : public IConsole_Command
 {
-    bool m_informNoPatch = true;
-
-    void SetupCallParams(pcstr args)
-    {
-        m_informNoPatch = true;
-        if (args && *args)
-        {
-            int bInfo = 1;
-            sscanf(args, "%d", &bInfo);
-            m_informNoPatch = (bInfo != 0);
-        }
-    }
-
 public:
     CCC_GSCheckForUpdates(LPCSTR N) : IConsole_Command(N)
     {
         bEmptyArgsHandled = true;
     };
 
-    virtual void Execute(LPCSTR arguments)
+    virtual void Execute(LPCSTR /*arguments*/)
     {
         auto mm = MainMenu();
         if (mm == nullptr)
             return;
-
-        SetupCallParams(arguments);
-
-        if (m_informNoPatch)
-        {
-            mm->OnPatchCheck(false);
-        }
+        mm->TriggerUpdateCheck();
     }
 };
 
@@ -2557,6 +2543,7 @@ void CCC_RegisterCommands()
 #endif // MASTER_GOLD
 
     CMD1(CCC_GSCheckForUpdates, "check_for_updates");
+    CMD3(CCC_String, "updater_manifest_url", g_updater_manifest_url, sizeof(g_updater_manifest_url));
 #ifdef DEBUG
     CMD1(CCC_Crash, "crash");
     CMD1(CCC_DumpObjects, "dump_all_objects");
