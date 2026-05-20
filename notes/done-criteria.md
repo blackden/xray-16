@@ -128,11 +128,13 @@ playthrough native arm64**, плюс readme/build/distribution docs для
 Для понимания «сколько осталось» — заполняется по мере выполнения,
 обновлять при каждом merge'е в `macos/blackden/master`.
 
-**Functional (1):** 5/6
+**Functional (1):** 6/6 ✓
 - [x] Native arm64 build.
 - [x] CoP playthrough (user verified, см. `notes/session-*.md`).
-- [ ] Save/load 100x round-trip soak — harness landed (#23),
-      user-side прогон pending.
+- [x] Save/load 100x round-trip soak: 100/100 cycles clean
+      (2026-05-20, results in `_workspace/soak-20260520-113734/`).
+      Zero R_ASSERT, zero ALife format mismatch, zero 0x502, zero
+      crashes, zero shader fails. Harness at `scripts/soak/save_load.sh`.
 - [x] Safe-mode recovery.
 - [x] `.app` signed (codesign -) — three-pass seal, codesign --verify
       passes, valid on disk (#25, fix 08335164c).
@@ -167,14 +169,14 @@ playthrough native arm64**, плюс readme/build/distribution docs для
 
 ### Что блокирует 1.0 сейчас (обновлено 2026-05-20)
 
-**Один пункт остался:**
+**Ничего.** Все Functional, Quality и Distribution checklist items —
+галки.
 
-1. **Save/load 100x soak** — harness landed (`scripts/soak/save_load.sh`,
-   #23), прогон не выполнен. User-side ~27-минутный запуск.
+Форк **1.0-ready** на M1, ReleaseMasterGold. Open issues (#23 closed,
+#24 cosmetic intro cutscene) — не блокеры.
 
-Код-уровневая работа по 1.0 **завершена**. После того как soak пройдёт
-без R_ASSERT / format mismatch / crash, форк можно считать 1.0-ready.
-Дальше — upstream backlog (отдельная сессия).
+Дальше — upstream backlog (отдельная сессия): отправить PRs в
+`OpenXRay/xray-16:dev`. Список — секция 5 выше.
 
 ### Также появились в эту сессию
 
