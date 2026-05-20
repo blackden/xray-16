@@ -724,6 +724,7 @@ void CMainMenu::TriggerUpdateCheck()
     }
 
     Msg("updater: checking %s", g_updater_manifest_url);
+    FlushLog();
     m_sPDProgress.IsInProgress = true;
     m_sPDProgress.Progress     = 0.f;
     m_sPDProgress.Status       = "Checking for updates...";
@@ -752,8 +753,10 @@ void CMainMenu::OnManifestReceived(bool ok, const char* body, u32 length)
     }
 
     pcstr current = xrCore::GetForkVersion();
-    Msg("updater: current=%s, manifest=%s, channel=%s",
-        current, m_pendingManifest.Version.c_str(), m_pendingManifest.Channel.c_str());
+    Msg("updater: current=%s, manifest=%s, channel=%s, notes='%s'",
+        current, m_pendingManifest.Version.c_str(),
+        m_pendingManifest.Channel.c_str(), m_pendingManifest.Notes.c_str());
+    FlushLog();
 
     if (xr_strcmp(current, m_pendingManifest.Version.c_str()) == 0)
     {
@@ -762,21 +765,37 @@ void CMainMenu::OnManifestReceived(bool ok, const char* body, u32 length)
         return;
     }
 
-    // Hold the IsInProgress flag set so OnFrame keeps polling GameSpy_Full,
-    // but reset the progress visualisation while the user decides yes/no.
-    m_sPDProgress.Progress = 0.f;
-    m_sPDProgress.Status   = "Update available";
-    m_sPDProgress.FileName = m_pendingManifest.Version.c_str();
+    // Release the IsInProgress lock while the user decides; OnPatchAcceptYes
+    // will set it again when the download actually starts.
+    m_sPDProgress.IsInProgress = false;
+    m_sPDProgress.Progress     = 0.f;
+    m_sPDProgress.Status       = "Update available";
+    m_sPDProgress.FileName     = m_pendingManifest.Version.c_str();
+
+    // The XML template's static <text>ui_st_conn_new_patch</text> is a GSC-era
+    // format with %s placeholders we have no clean way to fill (no version is
+    // injected anywhere upstream). Override with our own plain-text string —
+    // version and notes go to the log; the dialog just asks yes/no.
+    m_pMB_ErrDlgs[NewPatch]->SetText(
+        StringTable().translate("ui_st_xrupdater_new_patch_text").c_str());
     SetErrorDialog(NewPatch);
 }
 
 void CMainMenu::OnPatchAcceptYes(CUIWindow*, void*)
 {
+    Msg("updater: OnPatchAcceptYes fired");
+    FlushLog();
+
     if (!m_pGameSpyFull || !m_pGameSpyFull->GetGameSpyHTTP())
+    {
+        Msg("! updater: GameSpy HTTP is null, bailing");
+        FlushLog();
         return;
+    }
     if (m_pendingManifest.AssetUrl.size() == 0)
     {
         Msg("! updater: AssetUrl is empty, can't download");
+        FlushLog();
         SetErrorDialog(PatchDownloadError);
         return;
     }
@@ -789,6 +808,7 @@ void CMainMenu::OnPatchAcceptYes(CUIWindow*, void*)
     xr_strcpy(m_pendingDownloadPath, raw);
 
     Msg("updater: downloading %s -> %s", m_pendingManifest.AssetUrl.c_str(), m_pendingDownloadPath);
+    FlushLog();
     m_sPDProgress.IsInProgress = true;
     m_sPDProgress.Progress     = 0.f;
     m_sPDProgress.Status       = "Downloading...";
@@ -812,14 +832,20 @@ void CMainMenu::OnUpdateDownloadCompleted(bool ok)
     if (!ok)
     {
         Msg("! updater: download failed");
+        FlushLog();
+        m_pMB_ErrDlgs[PatchDownloadError]->SetText(
+            StringTable().translate("ui_st_xrupdater_patch_download_error_text").c_str());
         SetErrorDialog(PatchDownloadError);
         return;
     }
 
     Msg("updater: download complete -> %s (sha256=%s, size=%u)",
         m_pendingDownloadPath, m_pendingManifest.Sha256.c_str(), m_pendingManifest.Size);
+    FlushLog();
     // SHA256 verification is a follow-up issue (OpenSSL/CommonCrypto on
     // macOS). For the VPN-trusted MVP we trust transport integrity.
+    m_pMB_ErrDlgs[PatchDownloadSuccess]->SetText(
+        StringTable().translate("ui_st_xrupdater_patch_download_success_text").c_str());
     SetErrorDialog(PatchDownloadSuccess);
 }
 
