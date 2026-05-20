@@ -373,3 +373,106 @@ output не раньше года и почти наверняка проигр�
 Если хочешь чтобы STALKER лучше работал — патчи X-Ray дают больше
 impact'а на каждый человеко-час на 1-2 порядка.
 
+
+---
+
+## Session 2026-05-20: 1.0-ready, migrated, lessons
+
+Длинная сессия. Что произошло, на верхнем уровне:
+
+### Closed: пять блокеров до 1.0
+
+Чек-лист из `notes/done-criteria.md` все галки:
+
+- Rain v3 doorway regression fix (#16) — per-spawn gate + sound floor.
+- "macOS done" criteria document (#18) — теперь shipping definition.
+- Lighting divergence (#19) — Apple GL bloom default 0.05 (config
+  workaround; shader-level root cause logged in known-divergence.md).
+- "Exit to Windows" → "...to macOS" i18n (#20) — eng/ukr/ger/pol/cze.
+- GL shader compile cascades + 0x502 storm (#22) — fixed
+  `accum_volumetric_sun.ps`, dropped error count by 97%.
+- M1 DMG smoke-test (#25) — codesign three-pass fix, clean install
+  user-verified.
+- Save/load 100× soak (#23) — 100/100 cycles, zero errors.
+- Pre-push hook (#26) — encoding/whitespace/build sanity.
+- Bunker rain (#17) — closed as side-effect of bloom fix.
+- Intro cutscene reset (#24) — `CTheoraSurface::Play()` теперь
+  zовёт `Reset()`. One-line fix.
+
+### Migrated: GitHub → Gitea
+
+`blackden/xray-16` на GitHub → `ragnar/xray-16` на `git.fedorov.tech`.
+Полная миграция: 15 branches, 2 tags, 31 issue с сохранёнными
+номерами (#1-31) и комментариями.
+
+`gh` CLI больше не нужен; workflow перешёл на Gitea MCP server
+(`mcp__gitea__*` tools). `tea` CLI как offline fallback для cron'а
+(`scripts/issues/sync.sh` уже обновлён).
+
+GitHub fork стал private mirror; локально `github-backup` remote
+остаётся для безопасности.
+
+### Workflow упражнение: «культура взрослых компаний»
+
+В середине сессии юзер ввёл правило: **каждая задача = issue + branch
++ push + merge**. Включая docs-only. Закрепился через 8 issue'ев на
+GitHub-стороне + 4 на Gitea-стороне.
+
+Что замечено: не для безопасности (мы не релизим тулинг другим
+разработчикам), а для **читаемости истории через месяцы**. Когда
+открываешь Gitea сейчас — видно "что когда чинилось, чем была
+мотивация, что осталось". Это окупает overhead ~3 минут per issue.
+
+Persisted в memory `feedback_issue_driven_workflow.md`.
+
+### Surprises и pause-save exploit
+
+Юзер обнаружил soft-lock баг: пауза + console save + console load →
+неотклеиваемое заблокированное состояние без UI паузы. Не открыли
+issue этой сессии (выходит за scope), но root cause понятен:
+`Device::Pause(TRUE, ...)` ставит флаг, save+load пишут/читают
+game-state но не флаг паузы; после load input-receiver уже не
+прокинут. Логнул как «известный quirk» для будущего.
+
+### Test-rig видение
+
+Юзер заметил soak harness и предложил: выделить отдельный Mac mini
+как постоянный QA-rig. Расписал в memory `project_test_rig_vision.md`
+три уровня test-sophistication (key macros → keyboard+mouse → Lua
+in-engine framework). Lua-уровень — это где можно делать настоящий
+regression test framework, но это будущая большая работа.
+
+### Phase 0 для эпиков
+
+Эпики #13/#14/#15 теперь имеют по одной "starter" issue — concrete
+deliverable, ~1-2 сессии каждая:
+
+- #28 — MoltenVK hello-triangle (Phase 0 для #13 Vulkan).
+- #29 — xrCompress on macOS (Phase 0 для #14 editor tools).
+- #30 — AI activity logger (Phase 0 для #15 AI Director).
+
+### Что я почувствовал
+
+- **Issue-driven workflow** — реально лучше. Чтение `git log` без
+  issue номеров теперь выглядит как информационный долг. Любую
+  серию правок на neighbouring branch'е намного легче ретроспективно
+  понимать.
+- **Bloom-fix через A/B** оказался дешевле чем глубокий debug
+  шейдеров. Когда корневая причина в config, а не в коде — иногда
+  workaround за 15 минут лучше чем 3 часа shader forensics. Записал
+  это паттерном в `notes/known-divergence.md`.
+- **Migration day** — почти боялся "что-то пойдёт не так с issue
+  numbers". Gitea importer оказался безболезненным. Это сильно
+  снижает порог для подобных миграций в будущем.
+
+### Что осталось (post-1.0, не блокирует)
+
+- Phase 0 starters #28/#29/#30 — каждая 1-2 сессии.
+- pause-save soft-lock — не открытый issue.
+- Upstream PRs back to OpenXRay/xray-16:dev — но теперь форк private,
+  upstream contributions требуют решения "что хотим отдавать обратно
+  и что оставить себе" (см. memory `project_future_paid_fork.md`).
+
+Сессия чувствовалась плотной — закрылось много, но без хаоса:
+issue-driven workflow удерживал каждый шаг trackable.
+
