@@ -10,6 +10,7 @@
 #include "xrGame.h"
 
 #include "ALifeInspector.h"
+#include "WeatherGatePanel.h"
 #include "GamePersistent.h"
 #include "object_factory.h"
 
@@ -24,7 +25,8 @@ xrGameModule xrGame;
 // Game-side ide_tool overlays. Constructed in xrGameModule::initialize after
 // the ImGui context is shared; destructed in finalize. Auto-register via the
 // ide_tool ctor and reach the user via kALIFE_INSPECTOR / ToggleNamedTool.
-static std::unique_ptr<xray::editor::ALifeInspector> s_alifeInspector;
+static std::unique_ptr<xray::editor::ALifeInspector>   s_alifeInspector;
+static std::unique_ptr<xray::editor::WeatherGatePanel> s_weatherGatePanel;
 
 void CCC_RegisterCommands();
 
@@ -82,10 +84,13 @@ void xrGameModule::initialize(Factory_Create*& pCreate, Factory_Destroy*& pDestr
 
     if (!s_alifeInspector)
         s_alifeInspector = std::make_unique<xray::editor::ALifeInspector>();
+    if (!s_weatherGatePanel)
+        s_weatherGatePanel = std::make_unique<xray::editor::WeatherGatePanel>();
 }
 
 void xrGameModule::finalize()
 {
+    s_weatherGatePanel.reset();
     s_alifeInspector.reset();
     xr_delete(UIStyles);
     StringTable().Destroy();
