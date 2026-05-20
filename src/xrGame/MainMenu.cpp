@@ -800,12 +800,13 @@ void CMainMenu::OnPatchAcceptYes(CUIWindow*, void*)
         return;
     }
 
-    // Land in $app_data_root$/updates/pending.app.zip. VerifyPath splits
-    // the path by the engine's internal separator (\) and mkdirs each
-    // intermediate segment, so it must run BEFORE we flip \ -> /. Then
-    // convert_path_separators for ghttp's POSIX fopen on macOS.
+    // Land in $app_data_root$/updates/pending.app.zip. The suffix uses '\\'
+    // so FS.update_path returns a uniform engine-style path; VerifyPath only
+    // mkdirs segments BEFORE each '\' it finds, so a stray '/' before
+    // 'updates' would leave the directory uncreated (smoke #4 caught this).
+    // Then convert_path_separators flips '\' -> '/' for ghttp's POSIX fopen.
     string_path raw;
-    FS.update_path(raw, "$app_data_root$", "updates/pending.app.zip");
+    FS.update_path(raw, "$app_data_root$", "updates\\pending.app.zip");
     VerifyPath(raw);
     convert_path_separators(raw);
     xr_strcpy(m_pendingDownloadPath, raw);
