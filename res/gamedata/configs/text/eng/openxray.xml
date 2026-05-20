@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <string_table>
+	<string id="ui_st_xrupdater_new_patch_text">
+		<text>An update is available. Download now?</text>
+	</string>
+	<string id="ui_st_xrupdater_patch_download_error_text">
+		<text>Update download failed. See log for details.</text>
+	</string>
+	<string id="ui_st_xrupdater_patch_download_success_text">
+		<text>Update downloaded. Apply on next launch?</text>
+	</string>
+
 	<string id="st_unload_magazine_after_pickup">
 		<text>Autounload weapon after pickup</text>
 	</string>
