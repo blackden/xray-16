@@ -58,8 +58,17 @@ constexpr cpcstr ErrMsgBoxTemplate[] =
     "msg_box_connect_to_master_server",
     "msg_box_kicked_by_server",
     "msg_box_error_loading",
-    "message_box_download_level"
+    "message_box_download_level",
+    "msg_box_new_patch",             // EErrorDlg::NewPatch (issue #39)
+    "msg_box_patch_download_error",  // EErrorDlg::PatchDownloadError
+    "msg_box_patch_download_success" // EErrorDlg::PatchDownloadSuccess
 };
+
+// Console-tunable URL of the updater manifest. Default points at a local dev
+// HTTP server so smoke tests don't need any other host configured. Real
+// intranet endpoint is set at deploy time via `updater_manifest_url <url>`
+// from the console. Buffer lives in xrGame; declared extern in console_commands.cpp.
+extern char g_updater_manifest_url[];
 
 extern bool b_shniaganeed_pp;
 
@@ -129,6 +138,23 @@ CMainMenu::CMainMenu()
                 CUIWndCallback::void_function(this, &CMainMenu::OnDownloadMPMap_CopyURL));
             downloadMsg->AddCallbackStr(
                 "button_yes", MESSAGE_BOX_YES_CLICKED, CUIWndCallback::void_function(this, &CMainMenu::OnDownloadMPMap));
+        }
+
+        // Issue #39 updater dialogs: yes-side button on NewPatch starts the
+        // download, yes-side button on PatchDownloadSuccess triggers the
+        // restart prompt. Pop_back-on-init-fail above means we can't index
+        // unconditionally; use ErrMax bound as a guard.
+        if (NewPatch < m_pMB_ErrDlgs.size())
+        {
+            m_pMB_ErrDlgs[NewPatch]->AddCallbackStr(
+                "button_yes", MESSAGE_BOX_YES_CLICKED,
+                CUIWndCallback::void_function(this, &CMainMenu::OnPatchAcceptYes));
+        }
+        if (PatchDownloadSuccess < m_pMB_ErrDlgs.size())
+        {
+            m_pMB_ErrDlgs[PatchDownloadSuccess]->AddCallbackStr(
+                "button_yes", MESSAGE_BOX_YES_CLICKED,
+                CUIWndCallback::void_function(this, &CMainMenu::OnPatchRestartYes));
         }
 
         m_account_mngr = xr_new<gamespy_gp::account_manager>(m_pGameSpyFull->GetGameSpyGP());
@@ -679,6 +705,132 @@ void CMainMenu::OnPatchCheck(bool success)
         return;
 }
 
+// ----------------------------------------------------------------------------
+// Issue #39 updater. TriggerUpdateCheck is the user-facing entry; everything
+// below it is a callback fired from ghttp's async machinery on a later frame.
+// We can touch UI state freely from those callbacks because ghttp's polling
+// happens inside CGameSpyFull::Update() in the main thread's OnFrame.
+// ----------------------------------------------------------------------------
+
+void CMainMenu::TriggerUpdateCheck()
+{
+    if (!m_pGameSpyFull || !m_pGameSpyFull->GetGameSpyHTTP())
+        return;
+
+    if (m_sPDProgress.IsInProgress)
+    {
+        Msg("! updater: a download is already in progress, ignoring update check");
+        return;
+    }
+
+    Msg("updater: checking %s", g_updater_manifest_url);
+    m_sPDProgress.IsInProgress = true;
+    m_sPDProgress.Progress     = 0.f;
+    m_sPDProgress.Status       = "Checking for updates...";
+    m_sPDProgress.FileName     = g_updater_manifest_url;
+
+    CGameSpy_HTTP::StringCompletionCallback cb(this, &CMainMenu::OnManifestReceived);
+    m_pGameSpyFull->GetGameSpyHTTP()->FetchString(g_updater_manifest_url, cb);
+}
+
+void CMainMenu::OnManifestReceived(bool ok, const char* body, u32 length)
+{
+    if (!ok || !body || length == 0)
+    {
+        Msg("! updater: manifest fetch failed");
+        m_sPDProgress.IsInProgress = false;
+        SetErrorDialog(PatchDownloadError);
+        return;
+    }
+
+    if (!ParseUpdateManifest(body, length, m_pendingManifest))
+    {
+        Msg("! updater: manifest is malformed (length=%u)", length);
+        m_sPDProgress.IsInProgress = false;
+        SetErrorDialog(PatchDownloadError);
+        return;
+    }
+
+    pcstr current = xrCore::GetForkVersion();
+    Msg("updater: current=%s, manifest=%s, channel=%s",
+        current, m_pendingManifest.Version.c_str(), m_pendingManifest.Channel.c_str());
+
+    if (xr_strcmp(current, m_pendingManifest.Version.c_str()) == 0)
+    {
+        m_sPDProgress.IsInProgress = false;
+        SetErrorDialog(NoNewPatch);
+        return;
+    }
+
+    // Hold the IsInProgress flag set so OnFrame keeps polling GameSpy_Full,
+    // but reset the progress visualisation while the user decides yes/no.
+    m_sPDProgress.Progress = 0.f;
+    m_sPDProgress.Status   = "Update available";
+    m_sPDProgress.FileName = m_pendingManifest.Version.c_str();
+    SetErrorDialog(NewPatch);
+}
+
+void CMainMenu::OnPatchAcceptYes(CUIWindow*, void*)
+{
+    if (!m_pGameSpyFull || !m_pGameSpyFull->GetGameSpyHTTP())
+        return;
+    if (m_pendingManifest.AssetUrl.size() == 0)
+    {
+        Msg("! updater: AssetUrl is empty, can't download");
+        SetErrorDialog(PatchDownloadError);
+        return;
+    }
+
+    // Land in $app_data_root$/updates/pending.app.zip. Parent dir creation is
+    // handled by ghttpSaveExA itself on first write attempt; if it fails the
+    // completion handler will surface PatchDownloadError.
+    string_path raw;
+    FS.update_path(raw, "$app_data_root$", "updates/pending.app.zip");
+    xr_strcpy(m_pendingDownloadPath, raw);
+
+    Msg("updater: downloading %s -> %s", m_pendingManifest.AssetUrl.c_str(), m_pendingDownloadPath);
+    m_sPDProgress.IsInProgress = true;
+    m_sPDProgress.Progress     = 0.f;
+    m_sPDProgress.Status       = "Downloading...";
+    m_sPDProgress.FileName     = m_pendingManifest.AssetUrl.c_str();
+
+    CGameSpy_HTTP::CompletionCallback completed(this, &CMainMenu::OnUpdateDownloadCompleted);
+    CGameSpy_HTTP::ProgressCallback   progress(this, &CMainMenu::OnUpdateDownloadProgress);
+    m_pGameSpyFull->GetGameSpyHTTP()->DownloadFile(
+        m_pendingManifest.AssetUrl.c_str(), m_pendingDownloadPath, completed, progress);
+}
+
+void CMainMenu::OnUpdateDownloadProgress(u64 received, u64 total)
+{
+    if (total > 0)
+        m_sPDProgress.Progress = float(received) / float(total);
+}
+
+void CMainMenu::OnUpdateDownloadCompleted(bool ok)
+{
+    m_sPDProgress.IsInProgress = false;
+    if (!ok)
+    {
+        Msg("! updater: download failed");
+        SetErrorDialog(PatchDownloadError);
+        return;
+    }
+
+    Msg("updater: download complete -> %s (sha256=%s, size=%u)",
+        m_pendingDownloadPath, m_pendingManifest.Sha256.c_str(), m_pendingManifest.Size);
+    // SHA256 verification is a follow-up issue (OpenSSL/CommonCrypto on
+    // macOS). For the VPN-trusted MVP we trust transport integrity.
+    SetErrorDialog(PatchDownloadSuccess);
+}
+
+void CMainMenu::OnPatchRestartYes(CUIWindow*, void*)
+{
+    // Atomic swap of the running .app is out of scope for this issue (see
+    // plan, open question 2). For now, the user manually replaces the .app
+    // from m_pendingDownloadPath after quitting.
+    Msg("updater: restart requested; pending update at %s", m_pendingDownloadPath);
+}
+
 void CMainMenu::OnSessionTerminate(LPCSTR reason)
 {
     if (m_NeedErrDialog == SessionTerminate && (Device.dwTimeGlobal - m_start_time) < 8000)
@@ -713,6 +865,8 @@ void CMainMenu::OnLoadError(LPCSTR module)
 
 void CMainMenu::CancelDownload()
 {
+    if (m_pGameSpyFull && m_pGameSpyFull->GetGameSpyHTTP())
+        m_pGameSpyFull->GetGameSpyHTTP()->StopDownload();
     m_sPDProgress.IsInProgress = false;
 }
 
