@@ -27,7 +27,7 @@ RELEASE_BIN      := bin/$(HOST_ARCH)/ReleaseMasterGold/xr_3da
 DIST_APP         := dist/OpenXRay.app
 
 .DEFAULT_GOAL := help
-.PHONY: help setup check-configure-prereqs configure build build-release profile run run-lldb all clean rebuild install-game link-gamedata codesign bundle package install all-in-one test test-encoding ship promote install-hooks uninstall-hooks sync-issues sync-issues-dry unpack-cop
+.PHONY: help setup check-configure-prereqs configure build build-release profile run run-lldb all clean rebuild install-game link-gamedata codesign bundle package install all-in-one test test-encoding ship promote install-hooks uninstall-hooks sync-issues sync-issues-dry unpack-cop pack-cop
 
 help: ## Show this help and current settings
 	@echo "OpenXRay macOS automation"
@@ -201,6 +201,25 @@ unpack-cop: ## Unpack vanilla CoP .db archives into _workspace/cop-vanilla
 	echo; \
 	echo "Vanilla CoP tree unpacked into _workspace/cop-vanilla/"; \
 	echo "Edit a config / UI file there, copy to <install>/gamedata/<...> as overlay."
+
+pack-cop: ## Repack _workspace/cop-vanilla into a .xdb archive for distribution
+	@compressor="bin/$(HOST_ARCH)/$(BUILD_TYPE)/xrCompress"; \
+	if [ ! -x "$$compressor" ]; then \
+		echo "ERROR: $$compressor not found. Run 'make build' (BUILD_TYPE=$(BUILD_TYPE)) first."; exit 1; \
+	fi; \
+	src="_workspace/cop-vanilla"; \
+	if [ ! -d "$$src" ]; then \
+		echo "ERROR: $$src not found (run 'make unpack-cop' first)"; exit 1; \
+	fi; \
+	out="_workspace/cop-packed"; \
+	mkdir -p "$$out"; \
+	ltx="$$out/include_all.ltx"; \
+	printf '[include_folders]\n.\\ = true\n' > "$$ltx"; \
+	echo "==> $$compressor $$src -xdb -filename $$out/gamedata.xdb -ltx $$ltx"; \
+	"$$compressor" "$$src" -xdb -filename "$$out/gamedata.xdb" -ltx "$$ltx" || exit $$?; \
+	echo; \
+	echo "Packed archive: $$out/gamedata.xdb"; \
+	echo "Round-trip check: bin/$(HOST_ARCH)/$(BUILD_TYPE)/xrUnpack --list $$out/gamedata.xdb"
 
 codesign: ## Ad-hoc sign xr_3da with get-task-allow so macOS writes .ips on crash
 	@bin=$$(find bin -name xr_3da -type f 2>/dev/null | head -1); \

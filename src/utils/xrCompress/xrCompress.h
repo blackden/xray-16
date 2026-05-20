@@ -2,6 +2,12 @@
 #ifndef XR_COMPRESS_H_INCLUDED
 #define XR_COMPRESS_H_INCLUDED
 
+// Reconstructed argv concatenated with single spaces. Populated in main() so
+// strstr/sscanf parsing in ProcessDifference() works without GetCommandLine()
+// on POSIX. On Windows it carries the same argv content; the original WinAPI
+// GetCommandLine() is no longer queried.
+extern char g_xrCompress_cmdline[4096];
+
 class xrCompressor
 {
     bool bFast{};
