@@ -131,10 +131,14 @@ playthrough native arm64**, плюс readme/build/distribution docs для
 **Functional (1):** 5/6
 - [x] Native arm64 build.
 - [x] CoP playthrough (user verified, см. `notes/session-*.md`).
-- [ ] Save/load 100x round-trip soak — не проводился систематически.
+- [ ] Save/load 100x round-trip soak — harness landed (#23),
+      user-side прогон pending.
 - [x] Safe-mode recovery.
-- [x] `.app` signed (codesign -).
-- [x] DMG на M1 (M2/M3 не verified).
+- [x] `.app` signed (codesign -) — three-pass seal, codesign --verify
+      passes, valid on disk (#25, fix 08335164c).
+- [x] DMG на M1 (#25) — user-verified clean-install: mount, drag-drop,
+      first launch, save/load, thumbnails — все PASS. M2/M3 out of
+      scope per user.
 
 **Quality bar (2):** ~95%
 - [x] Нет открытых P0/P1.
@@ -163,14 +167,14 @@ playthrough native arm64**, плюс readme/build/distribution docs для
 
 ### Что блокирует 1.0 сейчас (обновлено 2026-05-20)
 
+**Один пункт остался:**
+
 1. **Save/load 100x soak** — harness landed (`scripts/soak/save_load.sh`,
    #23), прогон не выполнен. User-side ~27-минутный запуск.
-2. **DMG smoke-test на M1** (M2/M3 out of scope per user) — codesign
-   fix в работе (#25); после rebuild + clean-install verify галка
-   ставится.
 
-Оба пункта требуют user-side ручной активации; код-уровневая работа
-по 1.0 завершена. Дальше — upstream backlog (отдельная сессия).
+Код-уровневая работа по 1.0 **завершена**. После того как soak пройдёт
+без R_ASSERT / format mismatch / crash, форк можно считать 1.0-ready.
+Дальше — upstream backlog (отдельная сессия).
 
 ### Также появились в эту сессию
 
