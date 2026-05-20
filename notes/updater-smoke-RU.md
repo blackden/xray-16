@@ -20,11 +20,12 @@
 ```sh
 cd ~/fedorov_tech/xray-16
 git checkout issue-39-updater-button
-cmake --build build --parallel
+make build
 ```
 
-Должно собраться чисто. Если у тебя дефолтная сборка под другой config —
-дай знать, я подскажу как пересобрать.
+`make build` сам пересобирает и проверяет что бинарь native Mach-O.
+Если хочется заодно сразу запустить — пропусти Шаг 2 и используй `make run`
+(см. ниже).
 
 ---
 
@@ -71,11 +72,15 @@ curl -s http://127.0.0.1:8000/manifest-stable.ltx
 
 ```sh
 cd ~/fedorov_tech/xray-16
-./bin/arm64/Mixed/xr_3da -fsltx $COP_LTX_FILE_PATH
+make run
 ```
 
-(Если переменная `COP_LTX_FILE_PATH` у тебя не настроена — подставь
-явный путь к `fsgame.ltx` от CoP, как в `.vscode/launch.json`.)
+`make run` сам:
+- пересобирает (если нужно)
+- запускает `xr_3da` с правильным `-fsltx`
+- стримит лог в `_workspace/sessions/<timestamp>/` — туда смотрим в Шаге 3
+
+Если хочется лог сразу видеть в терминале — `make run | tee /tmp/xr.log`.
 
 Окно игры открылось — переходим к проверкам.
 
@@ -83,16 +88,22 @@ cd ~/fedorov_tech/xray-16
 
 ## Шаг 3. **Сценарий 0** — проверка плумбинга версии (без клика)
 
-В логе движка (открывается из главного меню «Дневник» → «Лог», или
-`tail -f ~/Library/Logs/OpenXRay/*.log`) должна быть строка:
+В логе движка должна быть строка:
 
 ```
 Fork version: 1.6.fork.dev
 ```
 
-рядом со стандартной `OpenXRay ... build NNNN ...`. **Это подтверждает 39.a
-без какого-либо клика.** Если её нет — что-то пошло не так с
-`XRAY_FORK_VERSION`, дай знать.
+рядом со стандартной `OpenXRay ... build NNNN ...`. Лог берём из текущей
+сессии `make run`:
+
+```sh
+ls -t _workspace/sessions/ | head -1   # имя самой свежей сессии
+tail -f _workspace/sessions/<имя>/xr_3da.log | grep -E "Fork version|OpenXRay"
+```
+
+**Это подтверждает 39.a без какого-либо клика.** Если строки нет — что-то
+пошло не так с `XRAY_FORK_VERSION`, дай знать.
 
 ---
 
