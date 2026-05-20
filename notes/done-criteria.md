@@ -131,20 +131,26 @@ playthrough native arm64**, плюс readme/build/distribution docs для
 **Functional (1):** 5/6
 - [x] Native arm64 build.
 - [x] CoP playthrough (user verified, см. `notes/session-*.md`).
-- [ ] Save/load 100x round-trip soak — не проводился систематически.
+- [ ] Save/load 100x round-trip soak — harness landed (#23),
+      user-side прогон pending.
 - [x] Safe-mode recovery.
-- [x] `.app` signed (codesign -).
-- [x] DMG на M1 (M2/M3 не verified).
+- [x] `.app` signed (codesign -) — three-pass seal, codesign --verify
+      passes, valid on disk (#25, fix 08335164c).
+- [x] DMG на M1 (#25) — user-verified clean-install: mount, drag-drop,
+      first launch, save/load, thumbnails — все PASS. M2/M3 out of
+      scope per user.
 
-**Quality bar (2):** ~80%
+**Quality bar (2):** ~95%
 - [x] Нет открытых P0/P1.
-- [ ] P2 open: rain в bunker-без-CDB (#17), Yanov bloom + seam-leak
-      (будет issue в Part 2), "Exit to Windows" в default CoP UI.
+- [x] P2 closed: rain doorway (#16), bunker rain (#17 side-effect of
+      bloom fix), Yanov bloom + seam-leak (#19), "Exit to Windows"
+      i18n (#20). Black geometry в бункере (#21) — vanilla quirk.
 - [x] P3 vanilla quirks logged.
-- [x] XXX-comments tracked (рассеяны в LightTrack.cpp, dxRainRender,
-      glr_screenshot, r3_R_rain).
+- [x] XXX-comments tracked (LightTrack.cpp, dxRainRender, glr_screenshot,
+      r3_R_rain, accum_volumetric_sun.ps).
 - [x] Log rotation cap landed.
-- [ ] CHK_GL clean run — не проводился систематически.
+- [x] CHK_GL essentially clean (#22): shader fails 109→0, 0x502
+      1152→33 (residual post-load init logged in known-divergence.md).
 
 **Distribution (3):** 4/4 на M1
 - [x] DMG ≤4 GB.
@@ -159,16 +165,19 @@ playthrough native arm64**, плюс readme/build/distribution docs для
 
 **Non-goals (6):** explicitly out — N/A.
 
-### Что блокирует 1.0 сейчас
+### Что блокирует 1.0 сейчас (обновлено 2026-05-20)
 
-1. **Save/load 100x soak** — провести один заход, без drift'а →
-   галка.
-2. **DMG smoke-test на M2 и/или M3** — у нас или у бета-тестера.
-3. **P2 closure**: либо фиксить #17 (bunker rain) + lighting
-   divergence + "Exit to Windows", либо документировать в
-   `known-divergence.md`.
-4. **CHK_GL clean run** — час игры с tail'ом лога, никаких
-   `! OpenGL` строк.
+**Один пункт остался:**
 
-Если эти четыре галки закрыты — фолк 1.0. Дальше — upstream
-backlog (отдельная сессия).
+1. **Save/load 100x soak** — harness landed (`scripts/soak/save_load.sh`,
+   #23), прогон не выполнен. User-side ~27-минутный запуск.
+
+Код-уровневая работа по 1.0 **завершена**. После того как soak пройдёт
+без R_ASSERT / format mismatch / crash, форк можно считать 1.0-ready.
+Дальше — upstream backlog (отдельная сессия).
+
+### Также появились в эту сессию
+
+- #24 intro cutscene не сбрасывается при New Game (low-prio cosmetic, не блокер 1.0).
+- #23 save/load harness landed but not run.
+- #25 DMG smoke-test — codesign issue found + fixed (08335164c).

@@ -290,16 +290,22 @@ EOF
 chmod +x "${MACOS_DIR}/${PRODUCT_NAME}"
 
 echo "==> Ad-hoc codesigning bundle"
-# Two-pass sign: first the bundle deep (signs all dylibs, launcher), then
-# re-sign xr_3da with the get-task-allow entitlement so lldb can attach on
-# the user's machine (without that entitlement macOS refuses attach even to
-# an ad-hoc binary the user owns). The entitlement only applies to xr_3da;
-# the rest of the bundle stays under plain ad-hoc sign. This is fine for
-# personal builds, not for App Store distribution.
+# Three-pass sign so the outer bundle's CodeResources hashes match the
+# final state of every nested binary:
+#   1. Deep-sign — covers all dylibs, xrUnpack, launcher.
+#   2. Re-sign xr_3da with the get-task-allow entitlement so lldb can
+#      attach on the user's machine (macOS refuses attach without it,
+#      even for ad-hoc binaries the user owns). This modifies xr_3da
+#      and therefore breaks the outer bundle seal — that's expected.
+#   3. Re-seal the outermost bundle (no --deep) so the bundle's
+#      CodeResources picks up the new xr_3da hash. Without this final
+#      pass `codesign --verify` reports "nested code is modified or
+#      invalid", and Gatekeeper rejects a clean-Mac launch.
 ENTITLEMENTS="${REPO_ROOT}/scripts/mac/debug.entitlements"
 codesign --force --deep --sign - "${APP_DIR}" >/dev/null
 codesign --force --sign - --entitlements "${ENTITLEMENTS}" \
     "${MACOS_DIR}/xr_3da" >/dev/null
+codesign --force --sign - "${APP_DIR}" >/dev/null
 
 echo
 echo "==> Done"
