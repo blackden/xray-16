@@ -134,6 +134,17 @@ shim, либо drain GPU queue before delete.
 существует/удалён. Не путай с APPDATA_DIR root (без `_appdata_/`) —
 прошлый bug.
 
+**Cached `CTheoraSurface` нужно rewind'ить при UI gap.**
+*Где:* `Layers/xrRender/SH_Texture.cpp::apply_theora`,
+`Layers/xrRenderGL/glSH_Texture.cpp::apply_theora` — gap-check на
+`m_theora_last_apply_frame`; `pTheora->Rewind()` при >10 кадров без apply.
+*Симптом:* интро/outro/любое OGM-видео при повторном открытии экрана
+играет с произвольного кадра. Корень: `CTexture` живёт в глобальном
+`m_textures`-кэше, `pTheora->playing` не сбрасывается между сессиями UI,
+GL-бэкенд грузит OGM в looped-mode. Если правишь видео-поведение — не
+лезь в `Play()`, для `<auto_static>`-backed видео он не вызывается;
+только для `<item type="video">` (которых в `intro_game.xml` нет).
+
 **PreCache: 20 frames на Apple, 60 на остальных.**
 *Где:* `game_sv_single.cpp:344-357`.
 *Симптом:* первое движение после load может dropp'нуть FPS на Apple —
