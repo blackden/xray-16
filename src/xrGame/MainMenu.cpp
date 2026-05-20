@@ -800,11 +800,14 @@ void CMainMenu::OnPatchAcceptYes(CUIWindow*, void*)
         return;
     }
 
-    // Land in $app_data_root$/updates/pending.app.zip. Parent dir creation is
-    // handled by ghttpSaveExA itself on first write attempt; if it fails the
-    // completion handler will surface PatchDownloadError.
+    // Land in $app_data_root$/updates/pending.app.zip. Engine FS returns the
+    // path with backslashes (Windows-style internally) and we need POSIX
+    // separators for ghttp's fopen on macOS — convert_path_separators flips
+    // \ -> / in place. VerifyPath creates the parent dirs if missing.
     string_path raw;
     FS.update_path(raw, "$app_data_root$", "updates/pending.app.zip");
+    convert_path_separators(raw);
+    VerifyPath(raw);
     xr_strcpy(m_pendingDownloadPath, raw);
 
     Msg("updater: downloading %s -> %s", m_pendingManifest.AssetUrl.c_str(), m_pendingDownloadPath);
