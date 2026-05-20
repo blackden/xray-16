@@ -108,6 +108,7 @@ class XRCORE_API xrCore
     static const pcstr buildDate;
     static const pcstr buildCommit;
     static const pcstr buildBranch;
+    static const pcstr buildForkVersion;
 
 public:
     xrCore();
@@ -130,6 +131,7 @@ public:
     static pcstr GetBuildDate() { return buildDate; }
     static pcstr GetBuildCommit() { return buildCommit; }
     static pcstr GetBuildBranch() { return buildBranch; }
+    static pcstr GetForkVersion() { return buildForkVersion; }
 
 private:
     void CalculateBuildId();
