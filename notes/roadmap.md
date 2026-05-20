@@ -167,6 +167,60 @@ done-criteria — «когда останавливаемся».
   cleanly. `user.ltx` persists per-user overrides, so the default
   change only affects fresh installs.
 
+## Live-confirmed (2026-05-21, in-game updater MVP)
+
+Issue #39 closed by merge `2bdc27b71`. End-to-end smoke against
+`python -m http.server` walked the four mandatory scenarios:
+
+- Manifest fetch + version compare against `xrCore::GetForkVersion()`
+- "Доступно обновление. Загрузить сейчас?" dialog (`msg_box_new_patch`)
+- Asset download into `$app_data_root$/updates/pending.app.zip`
+- "Применить при следующем запуске?" dialog (`msg_box_patch_download_success`)
+
+What landed:
+
+- **`XRAY_FORK_VERSION` plumbing** (`faf94034b`). CMake `set(... CACHE
+  STRING)` → `target_compile_definitions` → `xrCore::buildForkVersion`,
+  printed on engine init next to the upstream build ID. Default
+  `1.6.fork.dev`; override at release time with `-DXRAY_FORK_VERSION=...`.
+- **`CGameSpy_HTTP::FetchString`** (`119feb7af`). New in-memory GET
+  variant for the manifest, mirrors the existing `DownloadFile` API
+  shape via `fastdelegate`. Same commit fixes a pre-existing
+  use-after-free on `DownloadContext` (was stack-allocated, ghttp
+  invokes callbacks asynchronously after the stack frame is gone) —
+  candidate upstream PR.
+- **`ParseUpdateManifest`** (`9313db07d` then rewritten in `08e6d9725`).
+  First pass tried `CInifile` over a memory buffer; failed because
+  CInifile treats `//` as a comment marker and silently truncates
+  `asset_url = http://...` to `http:`. Final version is a 60-line
+  hand-rolled key=value scanner — single `;`/`#` line comment, no
+  `//` special-casing.
+- **Updater UI integration** (`8b6c28810`, refined by `c88087dff`).
+  `CMainMenu::TriggerUpdateCheck` kicks the fetch; three new
+  `EErrorDlg` entries (`NewPatch`, `PatchDownloadError`,
+  `PatchDownloadSuccess`) reuse XML templates that vanilla shipped but
+  never wired up. Strings live in our `openxray.xml` so we control the
+  text without touching upstream localisation files.
+- **Path plumbing across engine FS / ghttp boundary** (`715820e35`,
+  `1012d4ffe`, `b28433e7f`). Three iterations to land the right
+  recipe: pass suffix with `\\` so the assembled path is uniformly
+  engine-style → `VerifyPath` to mkdir each segment up to the file →
+  `convert_path_separators` for ghttp's POSIX fopen. The bug that took
+  longest to nail was VerifyPath's "mkdirs every segment before a
+  separator but not the trailing one"; with a `/` before `updates`,
+  the directory itself never got created.
+- **`updater_manifest_url` console cvar.** Tunable from console, no
+  rebuild needed when the intranet host appears.
+- **Smoke recipe doc** (`notes/updater-smoke-RU.md`,
+  `notes/updater-smoke.md`). Nine scenarios with exact shell commands.
+
+Follow-ups filed and not blocking:
+
+- #41 SHA256 verification (CommonCrypto on macOS — manifest field is
+  read but unenforced today)
+- #42 Atomic `.app` swap on next launch
+- #43 `cancel_download` console cmd / Cancel button
+
 ## Deferred from ALife Inspector v0 (next-layer features)
 
 - Per-object detail panel — select an NPC in the list → its task,
