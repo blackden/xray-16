@@ -65,6 +65,41 @@ behavior расходится. Возможные источники (не inves
 
 ---
 
+## post-load init 0x502 burst (low-priority cosmetic)
+
+**Symptom**: ~30 \`! GL draw 0x502\` (GL_INVALID_OPERATION) lines appear
+in the engine log right after \`st_loading_textures\` completes, before
+gameplay starts. Affects vao=14/15/16 — UI / loading-screen overlay
+VAOs.
+
+**Investigated** (2026-05-20, issue #22):
+
+- Down from 1152 occurrences pre-fix (cascade caused by shader
+  compile failures producing draws with no program bound).
+- Volumetric-sun shader fix in 46743dba5 eliminated the cascade;
+  residual 33 are isolated to the post-load init window.
+- No visible artefacts during gameplay — purely log spam.
+- Doesn't recur during normal play; correlates with VAO numbers
+  recently allocated for the loading screen.
+
+**Root cause** (unconfirmed): some VAO/pipeline state isn't fully
+flushed when the loading screen tears down and gameplay rendering
+takes over. The very first frames after \`st_loading_textures\` issue
+draws against VAOs that have an invalid binding for a pass.
+
+**Mitigation**: none yet. Cosmetic only, no gameplay impact, log spam
+bounded.
+
+**To investigate later**:
+
+- Add CHK_GL diagnostic to capture which GL state field is invalid
+  (program, sampler, uniform binding).
+- Check loading-screen teardown in \`src/Layers/xrRender/\`.
+- Possibly tied to the VAO cache leak we patched earlier — separate
+  invocation path.
+
+---
+
 ## (template for future entries)
 
 ## title
