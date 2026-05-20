@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "xrCompress.h"
 
 string_path target_folder;
 string_path new_folder, old_folder;
@@ -84,7 +85,7 @@ struct file_comparer
 
 int ProcessDifference()
 {
-    cpcstr params = GetCommandLine();
+    cpcstr params = g_xrCompress_cmdline;
     Flags32 _flags;
     _flags.zero();
     if (strstr(params, "-diff /?"))
@@ -153,7 +154,9 @@ int ProcessDifference()
     {
         const LPCSTR fn = target_file_list[i];
         xr_sprintf(stats, "%d of %d (%3.1f%%)", i, total, 100.0f * ((float)i / (float)total));
+#if defined(XR_PLATFORM_WINDOWS)
         SetConsoleTitle(stats);
+#endif
 
         strconcat(sizeof(out_path), out_path, target_folder, "\\", fn);
         VerifyPath(out_path);

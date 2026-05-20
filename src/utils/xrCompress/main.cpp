@@ -3,12 +3,20 @@
 
 extern int ProcessDifference();
 
+char g_xrCompress_cmdline[4096] = "";
+
 int __cdecl main(int argc, char* argv[])
 {
-    cpcstr params = GetCommandLine();
+    for (int i = 0; i < argc; ++i)
+    {
+        if (i > 0)
+            xr_strcat(g_xrCompress_cmdline, " ");
+        xr_strcat(g_xrCompress_cmdline, argv[i]);
+    }
+    cpcstr params = g_xrCompress_cmdline;
 
     xrDebug::Initialize(params);
-    Core.Initialize("xrCompress", nullptr, false);
+    Core.Initialize("xrCompress", params, false);
     printf("\n\n");
 
 
@@ -41,7 +49,7 @@ int __cdecl main(int argc, char* argv[])
 
         string_path folder;
         strconcat(sizeof(folder), folder, argv[1], "\\");
-        _strlwr_s(folder, sizeof(folder));
+        xr_strlwr(folder);
         printf("\nCompressing files (%s)...\n\n", folder);
 
         FS._initialize(CLocatorAPI::flTargetFolderOnly, folder);
