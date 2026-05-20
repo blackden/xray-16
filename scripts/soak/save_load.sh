@@ -94,10 +94,13 @@ tail -n "+$((START_LINES + 1))" "$LOG" > "$RESULTS_DIR/engine-slice.log"
     echo "log_lines_added:   $((END_LINES - START_LINES))"
     echo
     echo "==== error counts (in slice) ===="
+    # grep -c always prints the count; the previous `|| echo 0` fallback
+    # caused double-zero output when there were no matches (grep prints
+    # "0" then exits 1, fallback echoed another "0"). Use `|| true`.
     for pat in 'R_ASSERT' '! ALife save format' 'shader compilation failed' \
                '0x502' 'OpenGL: 0x' 'FATAL' 'crash' 'segmentation fault'; do
-        c=$(grep -c "$pat" "$RESULTS_DIR/engine-slice.log" || echo 0)
-        printf '  %-32s %s\n' "$pat" "$c"
+        c=$(grep -c "$pat" "$RESULTS_DIR/engine-slice.log" || true)
+        printf '  %-32s %s\n' "$pat" "${c:-0}"
     done
 } | tee "$RESULTS_DIR/summary.txt"
 
