@@ -173,6 +173,13 @@ public: //	Public class members (must be encapsulated further)
         u32 seqMSPF; // Sequence data milliseconds per frame
     };
 
+    // Last engine frame on which apply_theora actually ran. Used to detect
+    // a "session gap" — when the texture is re-bound after going idle (e.g.
+    // user ESC's the intro cutscene and clicks New Game again), the cached
+    // CTheoraSurface needs to be rewound so playback restarts at frame 0
+    // instead of continuing wherever Update() last left it.
+    u32 m_theora_last_apply_frame{ 0 };
+
     int curr_slice{ -1 };
     int last_slice{ -1 };
 

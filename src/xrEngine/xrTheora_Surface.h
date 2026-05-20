@@ -49,6 +49,10 @@ public:
     void DecompressFrame(u32* dst, u32 _width, int& count);
 
     void Play(bool _looped, u32 _time);
+    // Rewind to frame 0 while keeping playing/looped state — used when a
+    // cached video texture is re-bound after a UI gap (e.g. second New Game
+    // re-uses the same CTexture from m_textures cache).
+    void Rewind(u32 _time);
     void Pause(bool _pause) { playing = !_pause; }
     void Stop()
     {
