@@ -800,14 +800,14 @@ void CMainMenu::OnPatchAcceptYes(CUIWindow*, void*)
         return;
     }
 
-    // Land in $app_data_root$/updates/pending.app.zip. Engine FS returns the
-    // path with backslashes (Windows-style internally) and we need POSIX
-    // separators for ghttp's fopen on macOS — convert_path_separators flips
-    // \ -> / in place. VerifyPath creates the parent dirs if missing.
+    // Land in $app_data_root$/updates/pending.app.zip. VerifyPath splits
+    // the path by the engine's internal separator (\) and mkdirs each
+    // intermediate segment, so it must run BEFORE we flip \ -> /. Then
+    // convert_path_separators for ghttp's POSIX fopen on macOS.
     string_path raw;
     FS.update_path(raw, "$app_data_root$", "updates/pending.app.zip");
-    convert_path_separators(raw);
     VerifyPath(raw);
+    convert_path_separators(raw);
     xr_strcpy(m_pendingDownloadPath, raw);
 
     Msg("updater: downloading %s -> %s", m_pendingManifest.AssetUrl.c_str(), m_pendingDownloadPath);
