@@ -83,6 +83,15 @@ void CTexture::apply_load(CBackend& cmd_list, u32 dwStage)
 
 void CTexture::apply_theora(CBackend& cmd_list, u32 dwStage)
 {
+    // Detect a UI gap: if this texture wasn't applied for many frames, the
+    // pTheora state from the previous run is stale. Rewind to frame 0 so
+    // playback restarts cleanly (e.g. second New Game re-uses the cached
+    // CTexture for intro_game and the decoder would otherwise pick up
+    // somewhere mid-stream).
+    if (m_theora_last_apply_frame != 0 && Device.dwFrame - m_theora_last_apply_frame > 10)
+        pTheora->Rewind(Device.dwTimeContinual);
+    m_theora_last_apply_frame = Device.dwFrame;
+
     if (pTheora->Update(m_play_time != 0xFFFFFFFF ? m_play_time : Device.dwTimeContinual))
     {
         R_ASSERT(D3DRTYPE_TEXTURE == pSurface->GetType());
