@@ -134,6 +134,8 @@ target_sources(xrGame PRIVATE
     ALifeInspector.h
     WeatherGatePanel.cpp
     WeatherGatePanel.h
+    Updater_Manifest.cpp
+    Updater_Manifest.h
     ai_stalker_alife.cpp
     alife_abstract_registry.h
     alife_abstract_registry_inline.h
