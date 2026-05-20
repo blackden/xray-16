@@ -159,10 +159,15 @@ pipeline stall как на NVIDIA driver.
 *Симптом:* WIP-коммит не должен генерировать ship-noise — exporting
 `OPENXRAY_AUTO_SHIP=0` перед коммитом.
 
-**`gh` CLI должен быть `gh auth login` на target repo (blackden/xray-16).**
+**`tea` CLI должен быть авторизован на `git.fedorov.tech` (Gitea-host).**
 *Где:* `scripts/issues/sync.sh`.
-*Симптом:* `sync-issues` валится — у `gh` нет credentials. Workaround:
-`gh auth login` вручную в свой fork.
+*Симптом:* `sync-issues` валится — нет логина под `$GITEA_HOST`.
+Workaround: `tea login add --name fedorov --url https://git.fedorov.tech
+--token <pat>`. PAT с scope'ами `read:repository, write:issue` создаётся
+в `git.fedorov.tech/-/user/settings/applications`.
+Примечание: в Claude-сессиях issues пушатся через Gitea MCP server
+(`mcp__gitea__issue_write`); скрипт нужен только для cron / out-of-session
+backfill'ов.
 
 ---
 
