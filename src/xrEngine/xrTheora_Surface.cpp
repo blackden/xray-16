@@ -44,6 +44,15 @@ void CTheoraSurface::Reset()
 bool CTheoraSurface::Valid() { return ready; }
 void CTheoraSurface::Play(bool _looped, u32 _time)
 {
+    // Rewind the decoder so the next playback starts at frame 0.
+    // Without this the CTheora surfaces are kept in the global texture
+    // cache across CUISequencer instances (each new CUISequenceVideoItem
+    // looks up "intro_game" by name and gets the existing CTexture +
+    // CTheoraSurface back), so the second New Game would resume from
+    // wherever the previous intro was ESC'd out at. Reset() is the same
+    // call Load() makes at end of init and Update() makes on loop
+    // wrap-around — Play() simply missed it on subsequent starts.
+    Reset();
     playing = true;
     looped = _looped;
     tm_start = _time;
