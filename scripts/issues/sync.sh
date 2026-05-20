@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Sync recent commits to GitHub issues.
+# Sync recent commits to Gitea issues.
 #
 # For every commit since the last sync (cursor stored in
 # .git/last-issue-sync), scan the commit message for references in the
@@ -14,13 +14,20 @@
 #   scripts/issues/sync.sh --since <sha>   # sync from sha forward (overrides cursor)
 #   scripts/issues/sync.sh --dry-run       # print what would happen
 #
-# Requirements: gh CLI authenticated for the target repo.
+# Requirements: `tea` CLI authenticated for the Gitea host
+# (`tea login add --name fedorov --url https://git.fedorov.tech
+#  --token <token>`). The repo is detected from the cwd's git remote.
+#
+# Note: in Claude sessions we usually use the Gitea MCP server directly
+# (mcp__gitea__issue_write) instead of this script. This wrapper is
+# kept for cron / out-of-session backfills.
 
 set -eu
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
-REPO="${OPENXRAY_ISSUES_REPO:-blackden/xray-16}"
+REPO="${OPENXRAY_ISSUES_REPO:-ragnar/xray-16}"
+GITEA_HOST="${OPENXRAY_GITEA_HOST:-git.fedorov.tech}"
 CURSOR_FILE=".git/last-issue-sync"
 DRY=0
 SINCE=""
@@ -52,9 +59,10 @@ if [ "$SINCE" = "$HEAD_SHA" ]; then
     exit 0
 fi
 
-GH="$(command -v gh || echo /opt/homebrew/bin/gh)"
-if ! "$GH" auth status >/dev/null 2>&1; then
-    echo "ERROR: gh CLI not authenticated. Run 'gh auth login'." >&2
+TEA="$(command -v tea || echo /opt/homebrew/bin/tea)"
+if ! "$TEA" logins list 2>/dev/null | grep -q "$GITEA_HOST"; then
+    echo "ERROR: tea CLI not configured for $GITEA_HOST." >&2
+    echo "  Run: tea login add --name fedorov --url https://${GITEA_HOST} --token <token>" >&2
     exit 1
 fi
 
@@ -82,21 +90,21 @@ for sha in $commits; do
         num=$(echo "$ref" | awk '{print $2}')
         [ -z "$num" ] && continue
 
-        commit_url="https://github.com/${REPO}/commit/${sha}"
+        commit_url="https://${GITEA_HOST}/${REPO}/commit/${sha}"
         case "$keyword" in
             CLOSES|FIXES|RESOLVES|CLOSE|FIX|RESOLVE)
                 comment="Addressed in [${short}](${commit_url}): ${subject}"
                 note "Issue #$num <-- close via $short"
                 if [ "$DRY" = 0 ]; then
-                    "$GH" issue comment "$num" --repo "$REPO" --body "$comment" >/dev/null
-                    "$GH" issue close "$num" --repo "$REPO" --reason completed >/dev/null
+                    "$TEA" issues comment "$num" --repo "$REPO" --content "$comment" >/dev/null
+                    "$TEA" issues close "$num" --repo "$REPO" >/dev/null
                 fi
                 ;;
             *)
                 comment="Referenced in [${short}](${commit_url}): ${subject}"
                 note "Issue #$num <-- ref via $short"
                 if [ "$DRY" = 0 ]; then
-                    "$GH" issue comment "$num" --repo "$REPO" --body "$comment" >/dev/null
+                    "$TEA" issues comment "$num" --repo "$REPO" --content "$comment" >/dev/null
                 fi
                 ;;
         esac

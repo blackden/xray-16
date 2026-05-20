@@ -17,6 +17,10 @@
 > playable end-to-end. Upstream OpenXRay targets Windows; this tree adds the
 > macOS-specific fixes that path needs.
 >
+> **Primary git host:** [`git.fedorov.tech/ragnar/xray-16`](https://git.fedorov.tech/ragnar/xray-16).
+> Issues, branches, and active development live there (since 2026-05-20).
+> The GitHub mirror is a private backup only.
+>
 > See [`notes/`](notes/) for working docs:
 > [`done-criteria.md`](notes/done-criteria.md) (**what 1.0 means**),
 > [`apple-silicon.md`](notes/apple-silicon.md),
