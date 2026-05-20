@@ -369,6 +369,11 @@ void ide::IR_OnKeyboardPress(int key)
             ToggleNamedTool("ALife Inspector");
         return;
 
+    case kWEATHER_GATE:
+        if (g_dev_tools)
+            ToggleNamedTool("Weather Gate");
+        return;
+
     case kCONSOLE:
         if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_AnyWindow))
         {

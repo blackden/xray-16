@@ -66,6 +66,8 @@ bool CEffect_Rain::Born(Item& dest, float radius)
 {
     ZoneScoped;
 
+    ++m_dbg_born_attempts;
+
     Fvector axis;
     axis.set(0, -1, 0);
     float gust = g_pGamePersistent->Environment().wind_strength_factor / 10.f;
@@ -98,8 +100,13 @@ bool CEffect_Rain::Born(Item& dest, float radius)
         float r = 5.f;
         collide::ray_cache cache;
         bool blocked = g_pGameLevel->ObjectSpace.RayTest(dest.P, up, r, collide::rqtStatic, &cache, E);
+        m_dbg_last_spawn = dest.P;
+        m_dbg_last_rejected = blocked;
         if (blocked)
+        {
+            ++m_dbg_born_rejected;
             return false;
+        }
     }
 #endif
 
@@ -145,6 +152,9 @@ void CEffect_Rain::RenewItem(Item& dest, float height, bool bHit)
 void CEffect_Rain::OnFrame()
 {
     ZoneScoped;
+
+    m_dbg_born_attempts = 0;
+    m_dbg_born_rejected = 0;
 
 #ifndef _EDITOR
     if (!g_pGameLevel)
