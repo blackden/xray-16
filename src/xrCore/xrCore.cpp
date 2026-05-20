@@ -243,11 +243,19 @@ static u32 init_counter = 0;
 #define GIT_INFO_CURRENT_BRANCH "unknown"
 #endif
 
+// Fork-local version string, distinct from upstream OpenXRay's date-derived
+// build_id. Set at configure time via -DXRAY_FORK_VERSION=...; consumed by the
+// in-game updater to compare against the manifest's "version" field.
+#ifndef XRAY_FORK_VERSION
+#define XRAY_FORK_VERSION "1.6.fork.dev"
+#endif
+
 void SDLLogOutput(void* userdata, int category, SDL_LogPriority priority, const char* message);
 
 const pcstr xrCore::buildDate = __DATE__;
 const pcstr xrCore::buildCommit = GIT_INFO_CURRENT_COMMIT;
 const pcstr xrCore::buildBranch = GIT_INFO_CURRENT_BRANCH;
+const pcstr xrCore::buildForkVersion = XRAY_FORK_VERSION;
 
 void SanitizeString(pcstr str)
 {
@@ -310,6 +318,7 @@ void xrCore::CalculateBuildId()
 void xrCore::PrintBuildInfo()
 {
     Msg("%s %s build %d, %s (%s)", ApplicationName, XRAY_BUILD_CONFIGURATION, buildId, buildDate, XRAY_BUILD_CONFIGURATION2);
+    Msg("Fork version: %s", buildForkVersion);
 
     pcstr name      = "Custom";
     pcstr buildUniqueId = nullptr;

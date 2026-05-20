@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <string_table>
+	<string id="ui_st_xrupdater_new_patch_text">
+		<text>Доступно обновление. Загрузить сейчас?</text>
+	</string>
+	<string id="ui_st_xrupdater_patch_download_error_text">
+		<text>Не удалось загрузить обновление. Подробности в логе.</text>
+	</string>
+	<string id="ui_st_xrupdater_patch_download_success_text">
+		<text>Обновление загружено. Применить при следующем запуске?</text>
+	</string>
+
 	<string id="st_unload_magazine_after_pickup">
 		<text>Разряжать ор. при поднятии</text>
 	</string>
