@@ -78,6 +78,16 @@ private:
     // wet-surface contribution fade out under roofs.
     float m_hemi_factor{0.f};
 
+    // Diagnostic counters (reset per OnFrame). Read by WeatherGatePanel
+    // to confirm whether the per-spawn indoor gate in Born() actually
+    // rejects rain streaks above a cellar ceiling — the suspect bug
+    // when the camera-centric m_hemi_factor reports 0 but rain still
+    // visibly falls through the roof.
+    mutable u32 m_dbg_born_attempts{0};
+    mutable u32 m_dbg_born_rejected{0};
+    Fvector     m_dbg_last_spawn{0.f, 0.f, 0.f};
+    bool        m_dbg_last_rejected{false};
+
     // Utilities
     void p_create();
     void p_destroy();
@@ -103,6 +113,12 @@ public:
     void OnFrame();
 
     float get_hemi_factor() const { return m_hemi_factor; }
+
+    // Diagnostic accessors for WeatherGatePanel.
+    u32     dbg_born_attempts() const { return m_dbg_born_attempts; }
+    u32     dbg_born_rejected() const { return m_dbg_born_rejected; }
+    Fvector dbg_last_spawn()    const { return m_dbg_last_spawn; }
+    bool    dbg_last_rejected() const { return m_dbg_last_rejected; }
 };
 
 #endif // RainH
