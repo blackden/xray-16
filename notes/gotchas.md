@@ -84,6 +84,14 @@ production-critical checks используй `Msg("! ...") + early return`, н�
 *Симптом:* коммит на feature branch — hook молчит. Если нужно сшипить с
 feature-branch — `make ship` руками.
 
+**`git merge` НЕ дёргает `post-commit` — нужен `post-merge`.**
+*Где:* `scripts/git-hooks/post-merge` — trampoline, форвардит на
+`post-commit`. Установлено через `make install-hooks`.
+*Симптом:* issue-driven merges в master не триггерят auto-ship, ship-логов
+нет, бинарь в `.app` отстаёт от исходников. Если добавляешь новый hook —
+прикинь, бывает ли он на «обоих» путях (commit + merge), иначе merge-only
+flow его пропустит.
+
 **Auto-ship лог: `$HOME/Library/Logs/OpenXRay/ship-${sha}.log`.**
 *Где:* `scripts/git-hooks/post-commit`.
 *Симптом:* билд провалился, нужно понять что — открой этот файл.
