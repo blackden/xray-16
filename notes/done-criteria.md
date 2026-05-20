@@ -167,16 +167,46 @@ playthrough native arm64**, плюс readme/build/distribution docs для
 
 **Non-goals (6):** explicitly out — N/A.
 
-### Что блокирует 1.0 сейчас (обновлено 2026-05-20)
+### Что блокирует 1.0 сейчас (финальный snapshot 2026-05-20)
 
 **Ничего.** Все Functional, Quality и Distribution checklist items —
 галки.
 
-Форк **1.0-ready** на M1, ReleaseMasterGold. Open issues (#23 closed,
-#24 cosmetic intro cutscene) — не блокеры.
+Форк **1.0-ready** на M1, ReleaseMasterGold.
 
-Дальше — upstream backlog (отдельная сессия): отправить PRs в
-`OpenXRay/xray-16:dev`. Список — секция 5 выше.
+### Closed в этой сессии (хронологически)
+
+| # | Title | Merge SHA |
+|---|---|---|
+| 16 | Rain v3 doorway + sound floor | 13eef6634 |
+| 17 | Bunker rain (closed as side-effect of bloom fix) | — |
+| 18 | done-criteria.md (this doc) | a1ddbafec |
+| 19 | Lighting divergence (Yanov bloom + seam-leak) | 33abe3d27 |
+| 20 | Quit string i18n | 767f7f537 |
+| 21 | Black geometry (vanilla quirk, closed) | — |
+| 22 | Shader cascades + 0x502 (97% drop) | 885076e35 |
+| 23 | Save/load 100× soak | 46ea95dd3 |
+| 24 | Intro cutscene reset | 2faa308f3 |
+| 25 | M1 DMG smoke-test | 4737ed7d1 |
+| 26 | Pre-push hook | e4978e951 |
+| 27 | Post-migration cleanup (Gitea) | 00678e9ba |
+
+### Migrated 2026-05-20
+
+GitHub `blackden/xray-16` → Gitea `ragnar/xray-16` на
+`git.fedorov.tech`. Issue-номера сохранены. GitHub fork стал private
+mirror. Active development живёт на Gitea.
+
+### Open (post-1.0, не блокеры)
+
+- **#28 / #29 / #30** — Phase 0 starters для epics #13 / #14 / #15.
+- **#1, #11, #15** — пустые трекеры / epics ожидающие Phase-0 действий.
+- pause-save soft-lock — не открытый issue этой сессии, ждёт future
+  расследования. Корневая причина: `Device::Pause` флаг + save/load
+  не coordinated с pause input-receiver.
+
+Дальше — upstream backlog (теперь нюанс: форк private, нужно решить
+что отдаём обратно в `OpenXRay/xray-16:dev`).
 
 ### Также появились в эту сессию
 
