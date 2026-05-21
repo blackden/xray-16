@@ -118,3 +118,15 @@ void CEngine::OnFrame()
 {
     Event.OnFrame();
 }
+
+#if defined(XR_PLATFORM_APPLE)
+// C-linkage glue for the macOS Cocoa shim (macos_cocoa_shim.mm). That file
+// cannot include Engine.h because xrCore headers conflict with Foundation
+// types when compiled as Objective-C++ (see SKIP_PRECOMPILE_HEADERS in
+// CMakeLists.txt). Same defer sequence as CCC_Quit::Execute in xr_ioc_cmd.cpp.
+extern "C" void OpenXRay_RequestGracefulQuit()
+{
+    Engine.Event.Defer("KERNEL:disconnect");
+    Engine.Event.Defer("KERNEL:quit");
+}
+#endif
