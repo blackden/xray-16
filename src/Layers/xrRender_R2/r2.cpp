@@ -525,6 +525,14 @@ void CRender::create()
 
 void CRender::destroy()
 {
+    // NOTE: do not call Lights.Unload() here. This function runs from
+    // D3DXRenderBase::OnDeviceDestroy via CRenderDevice::Destroy, which
+    // happens in CApplication::~CApplication AFTER g_pGamePersistent has
+    // been destroyed (x_ray.cpp:338-339 vs :354) — and g_pGamePersistent
+    // owns the ISpatial_DB that light::~light tries to lock. Cleaning up
+    // lights here would deadlock on the dead mutex. Light cleanup must
+    // happen earlier via level_Unload() during eDisconnect, while every
+    // subsystem is still alive.
 #if defined(USE_DX11)
     FluidManager.Destroy();
 #endif

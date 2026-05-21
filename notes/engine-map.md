@@ -158,6 +158,86 @@
     minimum (1280x720, AA/sun/DOF off, supersample 0). Used as
     recovery from any hang or crash that happened mid-level-load.
 
+## Shutdown / quit sequence
+
+Three entry points all converge on the same deferred-event sequence:
+
+- Console `quit` command (`CCC_Quit::Execute`): `src/xrEngine/xr_ioc_cmd.cpp:62-76`
+  — also reached via pause-menu "Quit to Windows" and main-menu's
+  Quit button.
+- SDL window-close button (red traffic light, Cmd+W on some configs):
+  `src/xrEngine/device.cpp:380-389` (`SDL_WINDOWEVENT_CLOSE` case).
+- macOS Cocoa Cmd+Q + Apple menu Quit: `src/xrEngine/macos_cocoa_shim.mm`
+  (`handleQuitRequest:`) → `OpenXRay_RequestGracefulQuit` in
+  `src/xrEngine/Engine.cpp:124-132` (Apple-only C-linkage glue, written
+  so the `.mm` doesn't need to include xrCore headers, which collide
+  with Foundation types under ObjC++).
+
+All three set `g_bShuttingDown = true` (declared in
+`src/xrCore/xrCore.h:144-151`, defined in `src/xrCore/xrCore.cpp:33`)
+and then `Engine.Event.Defer("KERNEL:disconnect")` + `Defer("KERNEL:quit")`.
+
+Save & Exit / "return to main menu" UI handlers defer **only**
+`KERNEL:disconnect` — they keep the engine alive for the next level
+load. They must not set the flag.
+
+**Event handler chain on next frame:**
+- `IGame_Persistent::OnEvent(eDisconnect)` (`src/xrEngine/IGame_Persistent.cpp:284-304`)
+  → `g_pGameLevel->net_Stop()` + `DestroyLevel(g_pGameLevel)` → `~CLevel`
+  → `~IGame_Level` (`src/xrEngine/IGame_Level.cpp:34-55`) →
+  `GEnv.Render->level_Unload()` (`src/Layers/xrRender_R2/r2_loader.cpp:111-200`,
+  cleans `Lights`, `HOM`, `Details`, `Visuals`, VBs/IBs, etc.) +
+  `GEnv.Sound->destroy_scene(Sound)` → `~CSoundRender_Scene`
+  (`src/xrSound/SoundRender_Scene.cpp:10-44`).
+- `CEngine::OnEvent(eQuit)` (`src/xrEngine/Engine.cpp:100-115`):
+  `pInput->GrabInput(false)` + `SDL_PushEvent(SDL_QUIT)` → main loop
+  exits.
+
+**Process teardown (`CApplication::~CApplication`, `src/xrEngine/x_ray.cpp:331-378`):**
+
+  Order matters and has been a foot-gun:
+  1. `g_pGamePersistent->OnAppEnd()` (line 336).
+  2. `destroy_persistent(g_pGamePersistent)` (line 339) — **destroys
+     CGamePersistent which owns `SpatialSpace` (the `ISpatial_DB`
+     used by every `SpatialBase::spatial_register/unregister`)**.
+  3. ...input / settings / console / sound / etc.
+  4. `Device.Destroy()` (line 354) → `CRenderDevice::Destroy`
+     (`src/xrEngine/Device_destroy.cpp:6-37`) → `GEnv.Render->FlushGpuQueue()`
+     (Apple-only glFinish) → cascade through `D3DXRenderBase::OnDeviceDestroy`
+     → `CRender::destroy()` (`src/Layers/xrRender_R2/r2.cpp:526-547`) →
+     `CHW::DestroyDevice()` (`src/Layers/xrRenderGL/glHW.cpp:182-199`).
+
+  **Foot-gun**: `CRender::destroy()` runs AFTER step 2 — by then
+  `ISpatial_DB` is dead memory. Anything that calls
+  `spatial_unregister()` from this point (including `Lights.Unload()`
+  or `~CLight_DB` during static destruction) will deadlock on the
+  destroyed `m_lock` mutex (`pthread_mutex_lock` hangs forever on
+  macOS pthread). Cleanup of `SpatialBase`-derived objects (lights,
+  npcs, etc.) MUST happen during `level_Unload`/`net_Stop` while
+  `CGamePersistent` is still alive.
+
+  The `g_bShuttingDown` fast-quit flag does NOT solve this — it
+  enables `~CSoundRender_Scene` to skip per-emitter destruction at
+  exit (saving ~2.5s on a CoP level), but guarding
+  `spatial_unregister` itself with the flag leaves stale entries in
+  the octree → subsequent `q_box` queries (e.g. from physics during
+  `CObjectList::Update`) hit dangling pointers and walk into
+  infinite recursion. **The right fix is order, not guards.** See
+  gitea #49 commit history for the false-start.
+
+**Quick canary if Cmd+Q regresses again:**
+- Grep the engine log for `level_Unload: g_pGameLevel=... b_loaded=...
+  sun=...` (one line on disconnect entry, `r2_loader.cpp`). Absence =
+  disconnect path skipped level cleanup.
+- Grep for `! ~CLight_DB at process exit with live lights` — fires only
+  if lights survived into static destruction; means
+  `~IGame_Level → level_Unload → Lights.Unload` didn't run.
+- Grep for `==> teardown[snd]: ~CSoundRender_Scene SKIP emitter cleanup
+  (g_bShuttingDown=1)` — confirms fast-quit path engaged.
+- Apple Activity Monitor → Sample Process on the wedged xr_3da gives a
+  C stack trace that disambiguates the wedge point quickly (event-pump
+  inside disconnect vs. static destruction vs. `Engine.Destroy()` tail).
+
 ## Input / keybinds
 
 - Key map (key name → key code): `src/xrEngine/xr_level_controller.cpp:225`.

@@ -33,6 +33,7 @@ void CRenderDevice::Destroy()
     xr_delete(Statistic);
 
     SDL_DestroyWindow(m_sdlWnd);
+    Log("Render destroyed.");
 }
 
 void CRenderDevice::Reset(bool precache /*= true*/)

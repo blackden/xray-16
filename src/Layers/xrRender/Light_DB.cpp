@@ -9,7 +9,23 @@
 namespace xray::render::RENDER_NAMESPACE
 {
 CLight_DB::CLight_DB() : sun(nullptr) {}
-CLight_DB::~CLight_DB() {}
+CLight_DB::~CLight_DB()
+{
+    // Canary: if v_static / v_hemi are non-empty here, we are inside C++
+    // static destruction (after main() returned) and about to call
+    // light::~light() → spatial_unregister() → ISpatial_DB::remove() on a
+    // singleton that may already be destroyed. On macOS pthread that hangs
+    // forever on a dead recursive_mutex. The visible engine teardown
+    // (level_Unload during disconnect) should have left these empty.
+    // See gitea #49. The log may already be closed by this point, but on
+    // success this is a no-op anyway (zeros, no follow-up work).
+    if (!v_static.empty() || !v_hemi.empty() || sun)
+    {
+        Msg("! ~CLight_DB at process exit with live lights: "
+            "v_static.size=%zu v_hemi.size=%zu sun=%p — spatial_unregister may deadlock",
+            v_static.size(), v_hemi.size(), (void*)sun._get());
+    }
+}
 void CLight_DB::Load(IReader* fs)
 {
     IReader* F = fs->open_chunk(fsL_LIGHT_DYNAMIC);

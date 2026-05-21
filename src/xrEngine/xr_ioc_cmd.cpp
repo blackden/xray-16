@@ -65,7 +65,11 @@ public:
     CCC_Quit(pcstr N) : IConsole_Command(N) { bEmptyArgsHandled = true; };
     virtual void Execute(pcstr args)
     {
-        // TerminateProcess(GetCurrentProcess(),0);
+        // Set fast-exit flag before deferring — ~CSoundRender_Scene (and any
+        // other subsystem that opts in) skips heavyweight per-object cleanup
+        // since OS reclaims at process death. Same set point pattern in
+        // SDL_WINDOWEVENT_CLOSE and the Cocoa shim's quit glue.
+        g_bShuttingDown = true;
         Console->Hide();
         Engine.Event.Defer("KERNEL:disconnect");
         Engine.Event.Defer("KERNEL:quit");
