@@ -168,6 +168,9 @@ run-lldb: build ## Launch xr_3da under lldb to capture a backtrace on crash
 		     -k "quit" \
 		     -- ./xr_3da 2>&1 | tee "$$abs_session/lldb.log"
 
+sample-hang: ## Sample a hung xr_3da process to ~/Downloads/sample-TIMESTAMP.txt (use sudo make sample-hang if it fails)
+	@scripts/mac/sample-hang.sh
+
 install-game: ## Install CoP/CS via steamcmd into GAME_DIR (needs STEAM_LOGIN; optional LANGUAGE=russian)
 	@if [ -z "$(STEAM_LOGIN)" ]; then \
 		echo "ERROR: STEAM_LOGIN is empty. Examples:"; \
