@@ -1049,7 +1049,38 @@ void CLocatorAPI::_initialize(u32 flags, pcstr target_folder, pcstr fs_name)
             pLogsPath->_set_root(c_newAppPathRoot);
         if (pAppdataPath)
         {
+            // Snapshot old $app_data_root$ before re-rooting so we can re-base
+            // any child paths (e.g. $game_saves$, $screenshots$, $downloads$)
+            // that were resolved against the original root at fsgame.ltx parse
+            // time. FS_Path stores only the resolved string, not a parent
+            // back-reference, so without this walk child paths silently keep
+            // pointing at $fs_root$/_appdata_/ even after the overlay
+            // redirect — breaking save/screenshot persistence in
+            // sandboxed-bundle distributions. Safe against sibling false
+            // positives because m_Path/_set_root always terminate with
+            // _DELIMITER, so the prefix match has a built-in boundary.
+            string_path old_appdata;
+            xr_strcpy(old_appdata, pAppdataPath->m_Path);
+            const size_t old_len = xr_strlen(old_appdata);
+
             pAppdataPath->_set_root(c_newAppPathRoot);
+            const pcstr new_appdata = pAppdataPath->m_Path;
+
+            for (auto &kv : m_paths)
+            {
+                FS_Path* P = kv.second;
+                if (P == pAppdataPath || P == pLogsPath || !P->m_Root)
+                    continue;
+                if (xr_strlen(P->m_Root) >= old_len && strncmp(P->m_Root, old_appdata, old_len) == 0)
+                {
+                    string_path new_root;
+                    strconcat(sizeof(new_root), new_root, new_appdata, P->m_Root + old_len);
+                    P->_set_root(new_root);
+                    if (P->m_Flags.is(FS_Path::flRecurse))
+                        rescan_path(P->m_Path, true);
+                }
+            }
+
             rescan_path(pAppdataPath->m_Path, pAppdataPath->m_Flags.is(FS_Path::flRecurse));
         }
     }
