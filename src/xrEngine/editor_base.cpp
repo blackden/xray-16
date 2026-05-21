@@ -2,6 +2,7 @@
 
 #include "editor_base.h"
 #include "editor_helper.h"
+#include "RendererPlayground.h" // required for unique_ptr<RendererPlayground> ~ide()
 #include "XR_IOConsole.h"
 
 namespace xray::editor
@@ -181,6 +182,58 @@ void ide::SetState(visible_state state)
 
     default: NODEFAULT;
     }
+}
+
+void ide::TogglePlayground()
+{
+    if (!m_playground)
+        return;
+
+    bool& opened = m_playground->get_open_state();
+    opened = !opened;
+
+    // Full mode (not light): ImGui windows in light mode get NoInputs|NoNav
+    // window-flags (see ide::get_default_window_flags), which kills tab
+    // switching and selectable interaction. The diagnostic panel needs
+    // clicks, so we capture input the same way F10 (kEDITOR) does. The
+    // game pauses its input handling while the panel is open; F11 again
+    // returns to gameplay.
+    if (opened && m_state != visible_state::full)
+    {
+        SetState(visible_state::full);
+    }
+    else if (!opened && !is_shown())
+    {
+        SetState(visible_state::hidden);
+    }
+}
+
+bool ide::ToggleNamedTool(pcstr name)
+{
+    if (!name)
+        return false;
+
+    ide_tool* found = nullptr;
+    for (auto* tool : m_tools)
+    {
+        if (tool && tool->tool_name() && xr_strcmp(tool->tool_name(), name) == 0)
+        {
+            found = tool;
+            break;
+        }
+    }
+    if (!found)
+        return false;
+
+    bool& opened = found->get_open_state();
+    opened = !opened;
+
+    if (opened && m_state != visible_state::full)
+        SetState(visible_state::full);
+    else if (!opened && !is_shown())
+        SetState(visible_state::hidden);
+
+    return true;
 }
 
 void ide::SwitchToNextState()

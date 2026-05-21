@@ -154,8 +154,18 @@ ICF void CBackend::set_Format(SDeclaration* _decl)
         decl = _decl;
         CHK_GL(glBindVertexArray(_decl->dcl));
 
-        // Clear cached index buffer
+        // Clear cached buffer bindings. The new VAO doesn't yet hold any
+        // GL_ELEMENT_ARRAY_BUFFER or vertex-attrib-pointer state -- those
+        // are per-VAO bits that the previous VAO owned. On Apple GL 4.1
+        // (no ARB_vertex_attrib_binding) skipping the vb reset was a real
+        // bug: set_Vertices's vb cache short-circuited because the GLuint
+        // happened to match the previous VAO's vb, and SetGLVertexPointer
+        // was never re-run for the new VAO -- glDrawElementsBaseVertex
+        // then tripped GL_INVALID_OPERATION (0x502) on draws using the
+        // freshly bound but pointer-less VAO.
         ib = 0;
+        vb = 0;
+        vb_stride = 0;
     }
 }
 
@@ -326,7 +336,36 @@ ICF void CBackend::Render(D3DPRIMITIVETYPE T, u32 baseV, u32 startV, u32 countV,
     stat.render.verts += countV;
     stat.render.polys += PC;
     constants.flush();
+#if defined(XR_PLATFORM_APPLE)
+    // Phase 5 0x502 hunt: legacy-analyst's call-chain audit found that
+    // every documented draw path binds a non-zero VAO; the storm is more
+    // likely a stale glVertexAttribPointer binding on Apple's legacy
+    // attrib-binding fallback. Log VAO + EBO + decl identity once when
+    // GL_INVALID_OPERATION trips so we can see whether VAO is zero
+    // (control-flow gap), non-zero-with-bad-EBO (Invalidate race), or
+    // non-zero-clean (attrib state mismatch, the prime suspect).
+    {
+        GLint curVAO = 0, curEAB = 0;
+        glGetIntegerv(GL_VERTEX_ARRAY_BINDING, &curVAO);
+        glGetIntegerv(GL_ELEMENT_ARRAY_BUFFER_BINDING, &curEAB);
+        glDrawElementsBaseVertex(Topology, iIndexCount, GL_UNSIGNED_SHORT,
+                                  (void*)(startI * sizeof(GLushort)), baseV);
+        if (const GLenum err = glGetError(); err != GL_NO_ERROR)
+        {
+            static u32 reported = 0;
+            if (reported < 32)
+            {
+                Msg("! GL draw 0x%X: vao=%d eab=%d ib=%u vb=%u decl=%p topo=0x%X idxCnt=%u baseV=%u startI=%u",
+                    err, curVAO, curEAB, ib, vb, decl, Topology, iIndexCount, baseV, startI);
+                ++reported;
+                if (reported == 32)
+                    Msg("! GL draw 0x%X: silencing further reports", err);
+            }
+        }
+    }
+#else
     CHK_GL(glDrawElementsBaseVertex(Topology, iIndexCount, GL_UNSIGNED_SHORT, (void*)(startI * sizeof(GLushort)), baseV));
+#endif
     PGO(Msg("PGO:DIP:%dv/%df", countV, PC));
 }
 

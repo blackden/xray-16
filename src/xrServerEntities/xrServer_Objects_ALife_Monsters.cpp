@@ -249,6 +249,17 @@ void CSE_ALifeTraderAbstract::STATE_Read(NET_Packet& tNetPacket, u16 size)
         if (m_wVersion > 104)
         {
             load_data(m_character_name, tNetPacket);
+            // Saves authored before the UTF-8 migration stored character
+            // names as cp1251 bytes; the Phase 1 renderer would render
+            // those as '?'. Transcode on load so legacy saves keep
+            // working without a separate save format bump.
+            if (!m_character_name.empty() && !xr_is_valid_utf8(m_character_name.c_str()))
+            {
+                char buf[256];
+                xr_strcpy(buf, sizeof(buf), m_character_name.c_str());
+                xr_cp1251_to_utf8(buf, sizeof(buf));
+                m_character_name = buf;
+            }
         }
     }
 

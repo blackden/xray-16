@@ -79,9 +79,32 @@ void CALifeStorageManager::save(LPCSTR save_name_no_check, bool update_name)
         dest_count = rtc_compress(dest_data, dest_count, source_data, source_count);
     }
 
+    // cp1251 -> UTF-8 normalization for non-UTF-8 save names is now handled
+    // one layer down: CFileWriter retries fopen() with a transcoded path on
+    // EILSEQ (write side), and CLocatorAPI::check_for_file does the same
+    // for the m_files lookup (read side). Keeping the conversion here would
+    // duplicate that logic.
     string_path temp;
     FS.update_path(temp, "$game_saves$", m_save_name);
+
+    Msg("* Game save attempt: name='%s' bytes=%u path='%s'",
+        m_save_name, (unsigned)xr_strlen(m_save_name), temp);
+
     IWriter* writer = FS.w_open(temp);
+    // FS.w_open never returns null in non-_EDITOR builds — CFileWriter
+    // constructs and stores the bad-handle case internally. Probe valid()
+    // explicitly so an EILSEQ from APFS (cp1251 bytes in autosave names)
+    // doesn't get masked by the otherwise-cheerful "successfully saved"
+    // line that follows.
+    if (!writer || !writer->valid())
+    {
+        Msg("! Game save FAILED: w_open could not create file '%s' "
+            "(check earlier 'Can't write file' line for OS errno)", temp);
+        if (writer)
+            FS.w_close(writer);
+        xr_free(dest_data);
+        return;
+    }
     writer->w_u32(u32(-1));
     writer->w_u32(ALIFE_VERSION);
 
@@ -89,12 +112,8 @@ void CALifeStorageManager::save(LPCSTR save_name_no_check, bool update_name)
     writer->w(dest_data, dest_count);
     xr_free(dest_data);
     FS.w_close(writer);
-#ifdef DEBUG
-    Msg("* Game %s is successfully saved to file '%s' (%d bytes compressed to %d)", m_save_name, temp, source_count,
-        dest_count + 4);
-#else // DEBUG
-    Msg("* Game %s is successfully saved to file '%s'", m_save_name, temp);
-#endif // DEBUG
+    Msg("* Game %s is successfully saved to file '%s' (%d bytes compressed to %d)",
+        m_save_name, temp, source_count, dest_count + 4);
 
 	//Alundaio: To get the savegame fname to make our own custom save states
     luabind::functor<void> funct2;
@@ -180,6 +199,11 @@ bool CALifeStorageManager::load(LPCSTR save_name_no_check)
     {
         strconcat(sizeof(m_save_name), m_save_name, save_name, gameSaveExtension);
     }
+
+    // CLocatorAPI::check_for_file now retries the m_files lookup with a
+    // cp1251 -> UTF-8 transcoded query when the exact match fails, so
+    // legacy cp1251 names flow through transparently. No per-callsite
+    // normalization needed.
     string_path file_name;
     FS.update_path(file_name, "$game_saves$", m_save_name);
 

@@ -2,7 +2,12 @@
 
 #include "editor_base.h"
 #include "editor_helper.h"
+#include "RendererPlayground.h"
 #include "XR_IOConsole.h"
+
+// Defined in RendererPlayground.cpp. Returns a function pointer the xrCore
+// CHK_GL macro will invoke on each Apple-side GL error.
+extern "C" xr_gl_error_sink_fn RendererPlayground_GetGLErrorSink();
 
 #include <imgui_internal.h>
 
@@ -114,6 +119,19 @@ void ide::InitBackend()
         }
     };
     ImGui::AddSettingsHandler(&ini_handler);
+
+    // Construct after ImGui context exists and settings handler is registered
+    // so the playground's apply_setting/save_settings round-trip through the
+    // ImGui ini. The tool registers itself with this ide via ide_tool ctor.
+    if (!m_playground)
+    {
+        m_playground = std::make_unique<RendererPlayground>();
+
+        // Plug the playground into the Apple-side CHK_GL hook so GL errors
+        // captured anywhere in the renderer land in the Event Log tab.
+        // xrCore declares xr_gl_error_sink; xrEngine owns the callback.
+        xr_gl_error_sink = RendererPlayground_GetGLErrorSink();
+    }
 }
 
 void ide::ProcessEvent(const SDL_Event& event)
@@ -339,6 +357,21 @@ void ide::IR_OnKeyboardPress(int key)
     {
     case kEDITOR:
         SwitchToNextState();
+        return;
+
+    case kRENDER_PLAYGROUND:
+        if (g_dev_tools)
+            TogglePlayground();
+        return;
+
+    case kALIFE_INSPECTOR:
+        if (g_dev_tools)
+            ToggleNamedTool("ALife Inspector");
+        return;
+
+    case kWEATHER_GATE:
+        if (g_dev_tools)
+            ToggleNamedTool("Weather Gate");
         return;
 
     case kCONSOLE:

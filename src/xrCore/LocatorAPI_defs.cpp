@@ -84,6 +84,12 @@ void FS_Path::_set_root(pcstr root)
 {
     string_path temp;
     xr_strcpy(temp, root);
+    // Normalize incoming separators to the engine's internal '\' form, matching
+    // FS_Path::FS_Path. Without this, paths passed in POSIX form (e.g. from
+    // -overlaypath on macOS/Linux) keep their '/' separators while files
+    // indexed under this root are normalized to '\' — lookups then miss in
+    // m_files due to the format mismatch, and FS.exist falsely returns false.
+    restore_path_separators(temp);
     if (*temp && temp[xr_strlen(temp) - 1] != _DELIMITER)
         xr_strcat(temp, DELIMITER);
     xr_free(m_Root);

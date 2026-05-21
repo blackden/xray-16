@@ -45,8 +45,12 @@ void CRenderDevice::Initialize()
     TimerMM.Start();
 
     {
+        // ALLOW_HIGHDPI lets SDL_GL_GetDrawableSize report physical pixel
+        // dimensions on Retina / scaled HiDPI displays. Without it macOS
+        // backs the GL context with a backbuffer matching window points and
+        // the engine renders into a quarter of the visible area at 2x scale.
         Uint32 flags = SDL_WINDOW_BORDERLESS | SDL_WINDOW_HIDDEN |
-            SDL_WINDOW_RESIZABLE;
+            SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
 
         GEnv.Render->ObtainRequiredWindowFlags(flags);
 

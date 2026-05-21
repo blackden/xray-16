@@ -59,17 +59,14 @@ void CStringTable::Init()
     xr_sprintf(files_mask, "text" DELIMITER "%s" DELIMITER "*.xml", pData->m_sLanguage.c_str());
     FS.file_list(fset, "$game_config$", FS_ListFiles, files_mask);
 
-    auto fit = fset.begin();
-    auto fit_e = fset.end();
-
-    for (; fit != fit_e; ++fit)
+    xr_parallel_for_each(fset, [this](const FS_File& it)
     {
         string_path fn, ext;
-        _splitpath(fit->name.c_str(), nullptr, nullptr, fn, ext);
+        _splitpath(it.name.c_str(), nullptr, nullptr, fn, ext);
         xr_strcat(fn, ext);
 
         Load(fn);
-    }
+    });
 
     if (!translate("st_currency", pData->m_sCurrency) &&
         !translate("ui_st_money_descr", pData->m_sCurrency) && // OGSR
@@ -238,7 +235,7 @@ void CStringTable::Load(LPCSTR xml_file_full)
         [[maybe_unused]] bool duplicate{};
         const STRING_VALUE str_val = ParseLine(string_text); // NOLINT
         {
-            //std::lock_guard guard{ pDataMutex };
+            std::lock_guard guard{ pDataMutex };
 #ifndef MASTER_GOLD
             duplicate = pData->m_StringTable.find(string_name) != pData->m_StringTable.end();
 #endif
@@ -310,6 +307,14 @@ STRING_VALUE CStringTable::translate(const STRING_ID& str_id) const
     return str_id;
 }
 
+STRING_VALUE CStringTable::translate(const STRING_ID& str_id, const STRING_ID& str_id2) const
+{
+    STRING_VALUE out = str_id;
+    if (!translate(str_id, out))
+        translate(str_id2, out);
+    return out;
+}
+
 bool CStringTable::translate(const STRING_ID& str_id, STRING_VALUE& out) const
 {
     if (!pData)
@@ -323,11 +328,10 @@ bool CStringTable::translate(const STRING_ID& str_id, STRING_VALUE& out) const
     return false;
 }
 
-pcstr CStringTable::translate(const STRING_ID& str_id, pcstr default_value) const
+bool CStringTable::has_translation(const STRING_ID& str_id) const
 {
-    STRING_VALUE out;
-    if (translate(str_id, out))
-        return out.c_str();
+    if (!pData)
+        return false;
 
-    return default_value;
+    return pData->m_StringTable.find(str_id) != pData->m_StringTable.end();
 }

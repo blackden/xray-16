@@ -2,6 +2,7 @@
 
 #include "xrEngine/IGameFont.hpp"
 #include "xrCommon/xr_vector.h"
+#include "xrCommon/xr_unordered_map.h"
 #include "xrCore/_vector3d.h"
 #ifdef DEBUG
 #include "xrCore/xrstring.h"
@@ -54,8 +55,31 @@ protected:
     Fvector* TCMap{};
     IFontRender* pFontRender;
 
+    // Maps a Unicode codepoint to the atlas slot index in TCMap. Built at
+    // load time:
+    //   - single-byte fonts: iterates 0..255 and inserts
+    //     xr_cp1251_to_unicode[i] -> i; this is what makes UTF-8 input
+    //     resolvable against a font atlas authored as cp1251 byte indices.
+    //   - multi-byte fonts: left empty; their TCMap is already keyed by
+    //     BMP codepoint, so SlotForCodepoint returns the codepoint directly.
+    //
+    // Used only when s_utf8_mode is enabled (Phase 1 final step). With the
+    // flag off, the legacy byte-indexed rendering path is unchanged.
+    xr_unordered_map<u32, u16> m_codepointToSlot;
+
 protected:
     const Fvector& GetCharTC(u16 c) const { return TCMap[c]; }
+
+    // Resolve a Unicode codepoint to a TCMap slot. Returns '?' (0x3F) as a
+    // visible fallback when the font lacks a glyph for the codepoint.
+    u16 SlotForCodepoint(u32 cp) const;
+
+public:
+    // Engine-wide toggle for the codepoint-aware rendering path. Default
+    // false during Phase 1 buildup; flipped to true once every renderer
+    // call site is migrated (Phase 1 Step 1.8). Static so test fixtures
+    // and the future r__utf8_mode console var can flip it uniformly.
+    static bool s_utf8_mode;
 
 public:
     CGameFont(pcstr section, u8 flags = 0);
@@ -74,6 +98,7 @@ public:
     virtual float SizeOf_(pcstr s) override;
     virtual float SizeOf_(const xr_wide_char* wsStr) override;
     virtual float SizeOf_(const char cChar); // only ANSII
+    float SizeOfCp(xr_codepoint cp) const; // single codepoint, UTF-8-aware callers
     virtual float CurrentHeight_() override;
     virtual void OutSetI(float x, float y) override;
     virtual void OutSet(float x, float y) override;

@@ -66,6 +66,17 @@ IC HRESULT CreateQuery(GLuint* pQuery, D3D_QUERY type)
 
 IC HRESULT GetData(GLuint query, void* pData, u32 DataSize)
 {
+    // Match the DX11 semantics: return S_FALSE while the result is not yet
+    // available so the caller polls (R_occlusion::occq_get already has the
+    // SwitchToThread / Sleep / timeout loop for this). Asking directly for
+    // GL_QUERY_RESULT blocks the calling thread inside the driver until the
+    // GPU finishes — on Apple's Metal-backed GL that's a synchronous mach_msg
+    // wait per query, and on a heavy first frame those waits compound into
+    // multi-second stalls (occasionally an unkillable TX state).
+    GLint available = GL_FALSE;
+    glGetQueryObjectiv(query, GL_QUERY_RESULT_AVAILABLE, &available);
+    if (available == GL_FALSE)
+        return S_FALSE;
     if (DataSize == sizeof(GLint64))
         CHK_GL(glGetQueryObjecti64v(query, GL_QUERY_RESULT, (GLint64*)pData));
     else

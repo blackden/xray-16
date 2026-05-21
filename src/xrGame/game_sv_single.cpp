@@ -19,7 +19,7 @@ game_sv_Single::~game_sv_Single() { delete_data(m_alife_simulator); }
 void game_sv_Single::Create(shared_str& options)
 {
     inherited::Create(options);
-    if (strstr(*options, "/alife"))
+    if (strstr(options.c_str(), "/alife"))
         m_alife_simulator = xr_new<CALifeSimulator>(&server(), &options);
     switch_Phase(GAME_PHASE_INPROGRESS);
 }
@@ -97,8 +97,8 @@ BOOL game_sv_Single::OnTouch(u16 eid_who, u16 eid_what, BOOL bForced)
 #ifdef DEBUG
         else if (psAI_Flags.test(aiALife))
         {
-            Msg("Cannot attach object [%s][%s][%d] to object [%s][%s][%d]", e_what->name_replace(), *e_what->s_name,
-                e_what->ID, e_who->name_replace(), *e_who->s_name, e_who->ID);
+            Msg("Cannot attach object [%s][%s][%d] to object [%s][%s][%d]", e_what->name_replace(), e_what->s_name.c_str(),
+                e_what->ID, e_who->name_replace(), e_who->s_name.c_str(), e_who->ID);
         }
 #endif
     }
@@ -146,7 +146,7 @@ void game_sv_Single::OnDetach(u16 eid_who, u16 eid_what)
             else if (psAI_Flags.test(aiALife))
             {
                 Msg("Cannot detach object [%s][%s][%d] from object [%s][%s][%d]",
-                    l_tpALifeInventoryItem->base()->name_replace(), *l_tpALifeInventoryItem->base()->s_name,
+                    l_tpALifeInventoryItem->base()->name_replace(), l_tpALifeInventoryItem->base()->s_name.c_str(),
                     l_tpALifeInventoryItem->base()->ID, l_tpDynamicObject->base()->name_replace(),
                     l_tpDynamicObject->base()->s_name.c_str(), l_tpDynamicObject->ID);
             }
@@ -243,7 +243,7 @@ bool game_sv_Single::load_game(NET_Packet& net_packet, ClientID sender)
         return (inherited::load_game(net_packet, sender));
     shared_str game_name;
     net_packet.r_stringZ(game_name);
-    return (alife().load_game(*game_name, true));
+    return (alife().load_game(game_name.c_str(), true));
 }
 
 void game_sv_Single::reload_game(NET_Packet& net_packet, ClientID sender) {}
@@ -341,6 +341,19 @@ void game_sv_Single::restart_simulator(LPCSTR saved_game_name)
     g_pGamePersistent->LoadBegin();
     m_alife_simulator = xr_new<CALifeSimulator>(&server(), &options);
     g_pGamePersistent->LoadTitle("st_client_synchronising");
-    Device.PreCache(60, true);
+    // PreCache spins the camera through `count` frames worth of view-cone
+    // angles to warm shaders / shadow cascades / occlusion queries. On
+    // Apple GL each frame stacks dozens of mach_msg GPU waits (compressed
+    // textures × shadow cascades × lights), and 60 frames pushed the
+    // driver into TX-state on max settings during early bring-up. The
+    // Phase 2 occlusion-poll fix relieved most of it, but a 20-frame
+    // budget keeps the precache cheap-and-correct on M1/M3 even when
+    // future shader paths add more sync points.
+#if defined(XR_PLATFORM_APPLE)
+    constexpr u32 PRECACHE_FRAMES = 20;
+#else
+    constexpr u32 PRECACHE_FRAMES = 60;
+#endif
+    Device.PreCache(PRECACHE_FRAMES, true);
     g_pGamePersistent->LoadEnd();
 }

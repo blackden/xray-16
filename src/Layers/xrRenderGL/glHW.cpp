@@ -145,12 +145,48 @@ void CHW::CreateDevice(SDL_Window* hWnd)
 
     ComputeShadersSupported = false; // XXX: Implement compute shaders support
 
+    // Core profile requires a non-zero VAO bound for every draw. Engine flow
+    // binds per-format VAOs via set_Format, but any draw issued before the
+    // first set_Format (or after frame-end Invalidate clears the cache) hit
+    // a GL_INVALID_OPERATION storm on Apple GL 4.1. A persistent default VAO
+    // gives a known-good fallback.
+    glGenVertexArrays(1, &m_defaultVAO);
+    CHK_GL(glBindVertexArray(m_defaultVAO));
+
+    // One-shot startup diagnostic for HiDPI / viewport mismatch debugging.
+    // Reports point dims vs drawable dims vs default-framebuffer size and
+    // whether the SDL window picked up SDL_WINDOW_ALLOW_HIGHDPI. Goes to
+    // stdout (captured by launcher even on hard-exit) since the engine log
+    // FILE* buffer is lost when the player double-Cmd+Q's a broken frame.
+    if (m_window)
+    {
+        int wPts = 0, hPts = 0, wPx = 0, hPx = 0;
+        SDL_GetWindowSize(m_window, &wPts, &hPts);
+        SDL_GL_GetDrawableSize(m_window, &wPx, &hPx);
+        const Uint32 winFlags = SDL_GetWindowFlags(m_window);
+        GLint fbBinding = -1, viewport[4] = {0, 0, 0, 0};
+        glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbBinding);
+        glGetIntegerv(GL_VIEWPORT, viewport);
+        Msg("* GL surface: window=%dx%d drawable=%dx%d allow_hidpi=%d "
+            "fb_binding=%d viewport=%dx%d default_vao=%u",
+            wPts, hPts, wPx, hPx,
+            (winFlags & SDL_WINDOW_ALLOW_HIGHDPI) ? 1 : 0,
+            (int)fbBinding, viewport[2], viewport[3],
+            (unsigned)m_defaultVAO);
+    }
+
     if (glGenFramebuffers && glBindFramebuffer)
         UpdateViews();
 }
 
 void CHW::DestroyDevice()
 {
+    if (m_defaultVAO)
+    {
+        glDeleteVertexArrays(1, &m_defaultVAO);
+        m_defaultVAO = 0;
+    }
+
     CHK_GL(glDeleteFramebuffers(1, &pFB));
     pFB = 0;
 
@@ -236,6 +272,21 @@ void CHW::EndScene() { }
 
 void CHW::Present()
 {
+    // One-shot diagnostic: log src (Device.dwWidth/dwHeight, RT-attached) vs
+    // dest (SDL drawable) on the first Present so we can confirm whether the
+    // blit math matches the default framebuffer's actual backing size.
+    static bool s_loggedFirst = false;
+    if (!s_loggedFirst)
+    {
+        s_loggedFirst = true;
+        int pxW = 0, pxH = 0;
+        SDL_GL_GetDrawableSize(m_window, &pxW, &pxH);
+        Msg("* Present[0]: src=%ux%u dest=%ux%u drawable=%dx%d pFB=%u",
+            Device.dwWidth, Device.dwHeight,
+            Device.dwWidth, Device.dwHeight,
+            pxW, pxH, (unsigned)pFB);
+    }
+
 #if 0 // kept for historical reasons
     RImplementation.Target->phase_flip();
 #else
@@ -257,13 +308,20 @@ DeviceState CHW::GetDeviceState() const
     return DeviceState::Normal;
 }
 
-std::pair<u32, u32> CHW::GetSurfaceSize()
+std::pair<u32, u32> CHW::GetSurfaceSize() const
 {
-    return
+    // Drawable size is in physical pixels — on HiDPI / Retina that's 2x the
+    // window points the user picked in vid_mode. The render path (RT
+    // allocation, glViewport, Present blit) needs pixels; mouse / UI input
+    // continues to use point dims via SDL_GetWindowSize elsewhere.
+    if (m_window)
     {
-        psDeviceMode.Width,
-        psDeviceMode.Height
-    };
+        int w = 0, h = 0;
+        SDL_GL_GetDrawableSize(m_window, &w, &h);
+        if (w > 0 && h > 0)
+            return { static_cast<u32>(w), static_cast<u32>(h) };
+    }
+    return { psDeviceMode.Width, psDeviceMode.Height };
 }
 
 bool CHW::ThisInstanceIsGlobal() const

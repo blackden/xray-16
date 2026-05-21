@@ -6,6 +6,8 @@
 #if !defined(AFX_GAMEOBJECT_H__3DA72D03_C759_4688_AEBB_89FA812AA873__INCLUDED_)
 #define AFX_GAMEOBJECT_H__3DA72D03_C759_4688_AEBB_89FA812AA873__INCLUDED_
 
+#include <atomic>
+
 #include "xrEngine/xr_object.h"
 
 #include "xrServer_Space.h"
@@ -73,7 +75,7 @@ protected:
     u32 dbg_update_cl;
 #endif
     u32 dwFrame_UpdateCL;
-    u32 dwFrame_AsCrow;
+    std::atomic_uint32_t dwFrame_AsCrow;
 
 private:
     shared_str m_sTipText;
@@ -329,6 +331,10 @@ public:
     {
         VERIFY(m_ai_location);
         return *m_ai_location;
+    }
+    virtual bool is_spawned() const override
+    {
+        return m_spawned;
     }
     virtual u32 spawn_time() const override
     {

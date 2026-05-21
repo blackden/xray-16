@@ -254,8 +254,6 @@ public:
     // data
     CFrustum ViewBase;
 
-    bool hud_loading;
-
 public:
     // feature level
     virtual GenerationLevel GetGeneration() const = 0;
@@ -375,6 +373,17 @@ public:
     //	Resources control
     virtual void DeferredLoad(bool E) = 0;
     virtual void ResourcesDeferredUpload() = 0;
+    virtual void ResourcesDeferredUploadBegin() = 0;
+    virtual bool ResourcesDeferredUploadStep(u32 max_count) = 0;
+    virtual bool ResourcesIsUploading() const = 0;
+    // Drain pending GPU commands. The default does nothing on backends
+    // that don't need it (DX submits commands per-frame anyway); the GL
+    // backend overrides to call glFinish() so a Prefetch_Tick that just
+    // landed thousands of texture uploads doesn't kick off the first
+    // scene render while the driver is still queueing transfer commands.
+    // On Apple specifically the queued mach_msg-style waits compound on
+    // the first scene frame and can drive the GPU process into TX-state.
+    virtual void FlushGpuQueue() {}
     virtual void ResourcesDeferredUnload() = 0;
     virtual void ResourcesGetMemoryUsage(u32& m_base, u32& c_base, u32& m_lmaps, u32& c_lmaps) = 0;
     virtual void ResourcesDestroyNecessaryTextures() = 0;
@@ -388,6 +397,48 @@ public:
     virtual DeviceState GetDeviceState() = 0;
     virtual bool GetForceGPU_REF() = 0;
     virtual u32 GetCacheStatPolys() = 0;
+
+    // Renderer playground (epic #12) — diagnostic queries exposed to the
+    // in-engine debug overlay. Default to empty / zeroed for backends that
+    // don't implement them.
+    struct PlaygroundGLState
+    {
+        u32 vao{};
+        u32 program{};
+        u32 drawFbo{};
+        u32 readFbo{};
+        u32 drawCalls{};
+        u32 verts{};
+        u32 polys{};
+    };
+    virtual PlaygroundGLState GetPlaygroundGLState() const { return {}; }
+
+    struct PlaygroundRenderTarget
+    {
+        const char* name{};
+        u32         colorId{};   // GLuint / native handle low bits
+        u32         depthId{};
+        u32         width{};
+        u32         height{};
+        bool        hasColor{};
+        bool        hasDepth{};
+    };
+    virtual void EnumerateRenderTargets(xr_vector<PlaygroundRenderTarget>& /*out*/) const {}
+
+    // Pipeline stage gates exposed to the playground. Default-on so a build
+    // without playground integration renders exactly as before. The pointer
+    // is mutable on purpose — the playground writes directly to flip a stage
+    // off, the render path reads the flags inline (zero overhead when the
+    // playground hasn't touched them).
+    struct DebugRenderToggles
+    {
+        bool shadows{ true };   // sun cascades (DEFER_SUN block)
+        bool occq{ true };      // light visibility / occlusion queries
+        bool details{ true };   // detail / grass renderer
+        bool wallmarks{ true }; // decals on geometry
+        bool lights{ true };    // render_lights for both LP_normal and LP_pending
+    };
+    virtual DebugRenderToggles* GetDebugToggles() { return nullptr; }
     virtual void OnCameraUpdated() = 0;
     virtual void Begin() = 0;
     virtual void Clear() = 0;

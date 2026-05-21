@@ -5,8 +5,13 @@ if (APPLE)
         if ($ENV{MACOSX_DEPLOYMENT_TARGET})
             set(CMAKE_OSX_DEPLOYMENT_TARGET $ENV{MACOSX_DEPLOYMENT_TARGET})
         else()
-            message(NOTICE "CMAKE_OSX_DEPLOYMENT_TARGET is not set, defaulting it to your system's version: ${CMAKE_SYSTEM_VERSION}")
-            set(CMAKE_OSX_DEPLOYMENT_TARGET ${CMAKE_SYSTEM_VERSION})
+            # CMAKE_SYSTEM_VERSION on macOS is the Darwin kernel version (e.g. 25.3.0
+            # for macOS 26 Tahoe), not the macOS product version that clang expects.
+            execute_process(COMMAND sw_vers -productVersion
+                OUTPUT_VARIABLE _xr_macos_version
+                OUTPUT_STRIP_TRAILING_WHITESPACE)
+            message(NOTICE "CMAKE_OSX_DEPLOYMENT_TARGET is not set, defaulting it to your system's version: ${_xr_macos_version}")
+            set(CMAKE_OSX_DEPLOYMENT_TARGET ${_xr_macos_version})
         endif()
     endif()
     message(STATUS "CMAKE_OSX_DEPLOYMENT_TARGET: ${CMAKE_OSX_DEPLOYMENT_TARGET}")
@@ -139,11 +144,6 @@ endif()
 if (CMAKE_BUILD_TYPE STREQUAL "Debug")
     add_compile_options(-Og)
 endif()
-
-add_compile_definitions(
-    _MT
-    _CPPUNWIND
-)
 
 if (NOT WIN32)
     find_package(SDL2 2.0.18 REQUIRED)

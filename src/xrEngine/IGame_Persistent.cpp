@@ -15,7 +15,6 @@
 #include "Render.h"
 #include "PS_instance.h"
 #include "CustomHUD.h"
-#include "perlin.h"
 #endif
 
 ENGINE_API IGame_Persistent* g_pGamePersistent = nullptr;
@@ -32,10 +31,6 @@ IGame_Persistent::IGame_Persistent()
     Device.seqFrame.Add(this, REG_PRIORITY_HIGH + 1);
     Device.seqAppActivate.Add(this);
     Device.seqAppDeactivate.Add(this);
-
-    PerlinNoise1D = xr_new<CPerlinNoise1D>(Random.randI(0, 0xFFFF));
-    PerlinNoise1D->SetOctaves(2);
-    PerlinNoise1D->SetAmplitude(0.66666f);
 
     pEnvironment = xr_new<CEnvironment>();
 
@@ -61,7 +56,6 @@ IGame_Persistent::~IGame_Persistent()
     Engine.Event.Handler_Detach(eStart, this);
     Engine.Event.Handler_Detach(eStartMPDemo, this);
 
-    xr_delete(PerlinNoise1D);
 #ifndef _EDITOR
     xr_delete(pEnvironment);
 #endif
@@ -385,7 +379,15 @@ void IGame_Persistent::OnGameStart()
 #ifndef _EDITOR
     LoadTitle("st_prefetching_objects");
     if (!strstr(Core.Params, "-noprefetch"))
+    {
+#if defined(XR_PLATFORM_APPLE)
+        // macOS hang detection kills the process if the main thread blocks
+        // for >2s. Run prefetch incrementally so the main loop keeps pumping.
+        Prefetch_Begin();
+#else
         Prefetch();
+#endif
+    }
 #endif
 }
 
@@ -412,6 +414,52 @@ void IGame_Persistent::Prefetch()
 
     Msg("* [prefetch] time:   %d ms", timer.GetElapsed_ms());
     Msg("* [prefetch] memory: %d Kb", memoryAfter / 1024);
+}
+
+void IGame_Persistent::Prefetch_Begin()
+{
+    ZoneScoped;
+
+    m_prefetch_timer.Start();
+    m_prefetch_memory_before = Memory.mem_usage();
+
+    Log("Loading objects...");
+    ObjectPool.prefetch();
+
+    Log("Loading models...");
+    GEnv.Render->models_Prefetch();
+
+    Log("Loading textures (async)...");
+    GEnv.Render->ResourcesDeferredUploadBegin();
+    m_prefetching = true;
+}
+
+bool IGame_Persistent::Prefetch_Tick()
+{
+    if (!m_prefetching)
+        return true;
+
+    ZoneScoped;
+
+    // Upload a small batch each frame to keep the main loop responsive.
+    // 32 textures per frame on macOS yields ~22 frames for a 700-texture
+    // level prefetch — well under the 2-second hang threshold per frame.
+    constexpr u32 kBatchSize = 32;
+    const bool done = GEnv.Render->ResourcesDeferredUploadStep(kBatchSize);
+
+    if (done)
+    {
+        // Drain queued GPU commands (Apple GL: glFinish) so the first
+        // scene frame doesn't race the still-running texture uploads
+        // and snowball them into TX-state.
+        GEnv.Render->FlushGpuQueue();
+
+        const auto memoryAfter = Memory.mem_usage() - m_prefetch_memory_before;
+        Msg("* [prefetch] time:   %d ms", m_prefetch_timer.GetElapsed_ms());
+        Msg("* [prefetch] memory: %d Kb", memoryAfter / 1024);
+        m_prefetching = false;
+    }
+    return done;
 }
 #endif
 
@@ -451,6 +499,26 @@ void IGame_Persistent::LoadEnd()
 void IGame_Persistent::LoadTitle(pcstr ls_title, bool change_tip, shared_str map_name)
 {
     ZoneScoped;
+
+    // Per-phase timing for the loading pipeline. Logs `[load] phase 'X'
+    // took N ms` each time a new phase begins, so the previous phase's
+    // duration is recorded at the moment we transition. Grep the engine
+    // log for `[load] phase` to see the breakdown after a load. Static
+    // state is single-threaded — LoadTitle is called from the main load
+    // sequence only.
+    static CTimer s_phase_timer;
+    static string256 s_last_phase = { 0 };
+    static bool s_phase_active = false;
+    if (ls_title)
+    {
+        if (s_phase_active && s_last_phase[0])
+        {
+            Msg("[load] phase '%s' took %.1f ms", s_last_phase, s_phase_timer.GetElapsed_sec() * 1000.0f);
+        }
+        xr_strcpy(s_last_phase, ls_title);
+        s_phase_timer.Start();
+        s_phase_active = true;
+    }
 
     if (ls_title)
     {
@@ -559,16 +627,16 @@ void IGame_Persistent::OnFrame()
 {
     ZoneScoped;
 
+#ifndef _EDITOR
+    Prefetch_Tick();
+#endif
+
     SpatialSpace.update();
     SpatialSpacePhysic.update();
 
 #ifndef _EDITOR
     if (!Device.Paused() || Device.dwPrecacheFrame)
-    {
         Environment().OnFrame();
-        UpdateHudRaindrops();
-        UpdateRainGloss();
-    }
 
     stats.Starting = ps_needtoplay.size();
     stats.Active = ps_active.size();

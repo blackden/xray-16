@@ -689,6 +689,12 @@ public:
         StaticDrawableWrapper* _s = CurrentGameUI()->AddCustomStatic("game_saved", true, compat ? 3.0f : -1.0f);
 
         pstr save_name;
+        // Both halves of the concat are UTF-8 now (StringTable translations
+        // pass through the Phase 2 XML shim, save name comes from
+        // SDL_TEXTINPUT). The Phase 1 renderer expects UTF-8 directly,
+        // so no encoding bridge is needed -- the previous
+        // xr_utf8_to_cp1251 here turned cyrillic save names into '?' on
+        // the in-game "Игра сохранена: ..." toast.
         STRCONCAT(save_name, StringTable().translate("st_game_saved").c_str(), ": ", S);
         _s->wnd()->TextItemControl()->SetText(save_name);
 
@@ -1402,13 +1408,13 @@ public:
                 l_iErrorCode = lua_pcall(GEnv.ScriptEngine->lua(), 0, 0, 0);
                 if (l_iErrorCode)
                 {
-                    GEnv.ScriptEngine->print_output(GEnv.ScriptEngine->lua(), *m_script_name, l_iErrorCode);
+                    GEnv.ScriptEngine->print_output(GEnv.ScriptEngine->lua(), m_script_name.c_str(), l_iErrorCode);
                     GEnv.ScriptEngine->on_error(GEnv.ScriptEngine->lua());
                     return;
                 }
             }
 
-            GEnv.ScriptEngine->print_output(GEnv.ScriptEngine->lua(), *m_script_name, l_iErrorCode);
+            GEnv.ScriptEngine->print_output(GEnv.ScriptEngine->lua(), m_script_name.c_str(), l_iErrorCode);
         }
     } // void	Execute
 
@@ -1757,7 +1763,7 @@ public:
 
         Msg("bones for model \"%s\"", arguments);
         for (u16 i = 0, n = kinematics->LL_BoneCount(); i < n; ++i)
-            Msg("%s", *kinematics->LL_GetData(i).name);
+            Msg("%s", kinematics->LL_GetData(i).name.c_str());
 
         GEnv.Render->model_Delete(visual);
     }
@@ -1849,39 +1855,25 @@ public:
     virtual void Execute(LPCSTR) { Level().Objects.dump_all_objects(); }
 };
 
+// In-game updater (issue #39) — bound by CCC_String to `updater_manifest_url`
+// below, read by CMainMenu::TriggerUpdateCheck. The default points at a local
+// dev HTTP server so smoke tests need no real host configured.
+char g_updater_manifest_url[512] = "http://127.0.0.1:8000/manifest-stable.ltx";
+
 class CCC_GSCheckForUpdates : public IConsole_Command
 {
-    bool m_informNoPatch = true;
-
-    void SetupCallParams(pcstr args)
-    {
-        m_informNoPatch = true;
-        if (args && *args)
-        {
-            int bInfo = 1;
-            sscanf(args, "%d", &bInfo);
-            m_informNoPatch = (bInfo != 0);
-        }
-    }
-
 public:
     CCC_GSCheckForUpdates(LPCSTR N) : IConsole_Command(N)
     {
         bEmptyArgsHandled = true;
     };
 
-    virtual void Execute(LPCSTR arguments)
+    virtual void Execute(LPCSTR /*arguments*/)
     {
         auto mm = MainMenu();
         if (mm == nullptr)
             return;
-
-        SetupCallParams(arguments);
-
-        if (m_informNoPatch)
-        {
-            mm->OnPatchCheck(false);
-        }
+        mm->TriggerUpdateCheck();
     }
 };
 
@@ -2233,6 +2225,15 @@ void CCC_RegisterCommands()
     CMD3(CCC_Mask, "lua_debug", &g_LuaDebug, 1);
     CMD4(CCC_Integer, "lua_dump_depth", &g_LuaDumpDepth, 0, 16);
 
+    // Diagnostic for the Phase 2 UTF-8 read shim. Set to 1 to log every
+    // XML/INI file that was loaded as cp1251 and transcoded on the fly.
+    CMD4(CCC_Integer, "r__trace_encoding", &g_r__trace_encoding, 0, 1);
+
+    // Master switch for the Phase 2 read shim. Default ON for vanilla CoP
+    // gamedata (cp1251 inside gamedata.db). Modders with a fully UTF-8
+    // pack can set this to 0 to skip the per-line UTF-8 validator.
+    CMD4(CCC_Integer, "r__legacy_encoding", &g_r__legacy_encoding, 0, 1);
+
     CMD1(CCC_LuaProfiler, CCC_LuaProfiler::COMMAND_LUA_PROFILER_STATUS);
     CMD1(CCC_LuaProfiler, CCC_LuaProfiler::COMMAND_LUA_PROFILER_START);
     CMD1(CCC_LuaProfiler, CCC_LuaProfiler::COMMAND_LUA_PROFILER_START_SAMPLING_MODE);
@@ -2542,6 +2543,7 @@ void CCC_RegisterCommands()
 #endif // MASTER_GOLD
 
     CMD1(CCC_GSCheckForUpdates, "check_for_updates");
+    CMD3(CCC_String, "updater_manifest_url", g_updater_manifest_url, sizeof(g_updater_manifest_url));
 #ifdef DEBUG
     CMD1(CCC_Crash, "crash");
     CMD1(CCC_DumpObjects, "dump_all_objects");

@@ -158,6 +158,79 @@ u16 mbhMulti2Wide(xr_wide_char* WideStr, xr_wide_char* WidePos, u16 WideStrSize,
     return dpos;
 }
 
+bool xr_decode_utf8(const char*& p, xr_codepoint& cp)
+{
+    cp = 0;
+    if (!p)
+        return false;
+    const unsigned char* up = reinterpret_cast<const unsigned char*>(p);
+    if (*up == 0)
+        return false;
+
+    if (*up < 0x80)
+    {
+        cp = *up;
+        p += 1;
+        return true;
+    }
+    if ((*up & 0xE0) == 0xC0)
+    {
+        // 2-byte sequence. Validate: continuation byte + not overlong.
+        if (*up < 0xC2 || (up[1] & 0xC0) != 0x80)
+        {
+            cp = XR_UNICODE_REPLACEMENT;
+            p += 1;
+            return false;
+        }
+        cp = (xr_codepoint(*up & 0x1F) << 6) | xr_codepoint(up[1] & 0x3F);
+        p += 2;
+        return true;
+    }
+    if ((*up & 0xF0) == 0xE0)
+    {
+        // 3-byte sequence. Validate: two continuations, no overlong, no surrogate.
+        if ((up[1] & 0xC0) != 0x80 || (up[2] & 0xC0) != 0x80
+            || (*up == 0xE0 && up[1] < 0xA0)         // overlong
+            || (*up == 0xED && up[1] >= 0xA0))       // surrogate half
+        {
+            cp = XR_UNICODE_REPLACEMENT;
+            p += 1;
+            return false;
+        }
+        cp = (xr_codepoint(*up & 0x0F) << 12)
+           | (xr_codepoint(up[1] & 0x3F) << 6)
+           | xr_codepoint(up[2] & 0x3F);
+        p += 3;
+        return true;
+    }
+    if ((*up & 0xF8) == 0xF0)
+    {
+        // 4-byte sequence. Validate: three continuations, no overlong, ≤ U+10FFFF.
+        if (*up > 0xF4
+            || (up[1] & 0xC0) != 0x80 || (up[2] & 0xC0) != 0x80 || (up[3] & 0xC0) != 0x80
+            || (*up == 0xF0 && up[1] < 0x90)         // overlong
+            || (*up == 0xF4 && up[1] >= 0x90))       // > U+10FFFF
+        {
+            cp = XR_UNICODE_REPLACEMENT;
+            p += 1;
+            return false;
+        }
+        cp = (xr_codepoint(*up & 0x07) << 18)
+           | (xr_codepoint(up[1] & 0x3F) << 12)
+           | (xr_codepoint(up[2] & 0x3F) << 6)
+           | xr_codepoint(up[3] & 0x3F);
+        p += 4;
+        return true;
+    }
+
+    // Lone continuation byte (0x80-0xBF), or 5/6-byte lead (forbidden by RFC
+    // 3629). Emit replacement and advance one byte so a tight loop can keep
+    // making progress past malformed input.
+    cp = XR_UNICODE_REPLACEMENT;
+    p += 1;
+    return false;
+}
+
 xr_string StringFromUTF8(const char* in, const std::locale& locale)
 {
     using wcvt = std::wstring_convert<std::codecvt_utf8<wchar_t>, wchar_t>;

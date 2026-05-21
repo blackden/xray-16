@@ -153,6 +153,9 @@ game_action actions[] =
     { "kick",                   kKICK,                      _sp },
 
     { "editor",                 kEDITOR,                    _both },
+    { "render_playground",      kRENDER_PLAYGROUND,         _both },
+    { "alife_inspector",        kALIFE_INSPECTOR,           _sp },
+    { "weather_gate",           kWEATHER_GATE,              _sp },
 
     // Contextual actions:
     // UI
@@ -666,6 +669,9 @@ game_action* ActionNameToPtr(pcstr name, [[maybe_unused]] bool silent /*= false*
 
 bool IsBinded(EGameActions action_id, int dik, EKeyContext context /*= EKeyContext::Undefined*/)
 {
+    if (action_id >= kNOTBINDED)
+        return false;
+
     key_binding* binding = &g_key_bindings[action_id];
     for (u8 i = 0; i < bindtypes_count; ++i)
     {
@@ -678,6 +684,9 @@ bool IsBinded(EGameActions action_id, int dik, EKeyContext context /*= EKeyConte
 
 int GetActionDik(EGameActions action_id, int idx)
 {
+    if (action_id >= kNOTBINDED)
+        return SDL_SCANCODE_UNKNOWN;
+
     key_binding* binding = &g_key_bindings[action_id];
 
     if (idx == -1)
@@ -760,7 +769,7 @@ bool IsGroupMatching(EKeyGroup g1, EKeyGroup g2)
 
 bool IsContextNotConflicted(EKeyContext c1, EKeyContext c2)
 {
-    return c1 != c2;
+    return c1 != c2 || (c1 == EKeyContext::Undefined && c2 == EKeyContext::Undefined);
 }
 
 bool IsContextMatching(EKeyContext c1, EKeyContext c2)
@@ -1047,6 +1056,16 @@ class CCC_DefControls : public CCC_UnBindAll
         { kTALK_LOG_SCROLL_DOWN,    { SDL_SCANCODE_E,       SDL_SCANCODE_PAGEDOWN,      SDL_SCANCODE_UNKNOWN } },
 
         { kEDITOR,                  { SDL_SCANCODE_F10,     SDL_SCANCODE_UNKNOWN,       XR_CONTROLLER_BUTTON_INVALID } },
+        // F6/F7 for the two dev panels — chosen because on macOS the F11
+        // and F12 keys are reserved (F11 = Mission Control "Show Desktop"
+        // even after disable in some setups; F12 = hardware Volume Up
+        // intercepted before SDL ever sees it). F6/F7 reach SDL cleanly
+        // with no system-level claim. Both hotkeys are gated at runtime
+        // by the `dev_tools` cvar (default 0 in MasterGold), so shipped
+        // builds don't expose them to end-users.
+        { kRENDER_PLAYGROUND,       { SDL_SCANCODE_F6,      SDL_SCANCODE_UNKNOWN,       XR_CONTROLLER_BUTTON_INVALID } },
+        { kALIFE_INSPECTOR,         { SDL_SCANCODE_F7,      SDL_SCANCODE_UNKNOWN,       XR_CONTROLLER_BUTTON_INVALID } },
+        { kWEATHER_GATE,            { SDL_SCANCODE_F8,      SDL_SCANCODE_UNKNOWN,       XR_CONTROLLER_BUTTON_INVALID } },
     };
     // clang-format on
 

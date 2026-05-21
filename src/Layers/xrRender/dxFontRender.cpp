@@ -73,6 +73,64 @@ void dxFontRender::OnRender(CGameFont& owner)
         for (; i < last; i++)
         {
             CGameFont::String& PS = owner.strings[i];
+
+            if (CGameFont::s_utf8_mode)
+            {
+                const u32 lenCp = owner.smart_strlen(PS.string);
+                if (!lenCp) continue;
+
+                float X = float(iFloor(PS.x));
+                float Y = float(iFloor(PS.y));
+                float S = PS.height * g_current_font_scale.y;
+                float Y2 = Y + S;
+                float fSize = (PS.align ? owner.SizeOf_(PS.string) : 0.0f);
+                switch (PS.align)
+                {
+                case CGameFont::alCenter: X -= (iFloor(fSize * 0.5f)) * g_current_font_scale.x; break;
+                case CGameFont::alRight: X -= iFloor(fSize); break;
+                }
+                const u32 clr = PS.c;
+                u32 clr2 = PS.c;
+                if (owner.uFlags & CGameFont::fsGradient)
+                {
+                    const u32 r = color_get_R(clr) / 2;
+                    const u32 g = color_get_G(clr) / 2;
+                    const u32 b = color_get_B(clr) / 2;
+                    const u32 a = color_get_A(clr);
+                    clr2 = color_rgba(r, g, b, a);
+                }
+#ifndef USE_DX9
+                X -= 0.5f;
+                Y -= 0.5f;
+                Y2 -= 0.5f;
+#endif
+                const char* p = PS.string;
+                xr_codepoint cp = 0;
+                while (*p)
+                {
+                    if (*p == GAME_ACTION_MARK)
+                    {
+                        ++p;
+                        static_assert(kLASTACTION < type_max<u8>, "Modify the code to have more than 255 actions.");
+                        const EGameActions actionId = static_cast<EGameActions>(static_cast<u8>(*p));
+                        ++p;
+                        pcstr binding = GetActionBinding(actionId);
+                        while (*binding)
+                        {
+                            xr_codepoint bcp = 0;
+                            xr_decode_utf8(binding, bcp);
+                            const Fvector l = owner.GetCharTC(owner.SlotForCodepoint(bcp));
+                            ImprintCharCp(l, owner, v, X, Y2, clr2, Y, clr, bcp);
+                        }
+                        continue;
+                    }
+                    xr_decode_utf8(p, cp);
+                    const Fvector l = owner.GetCharTC(owner.SlotForCodepoint(cp));
+                    ImprintCharCp(l, owner, v, X, Y2, clr2, Y, clr, cp);
+                }
+                continue;
+            }
+
             xr_wide_char wsStr[MAX_MB_CHARS];
 
             const u16 len = owner.IsMultibyte() ? mbhMulti2Wide(wsStr, nullptr, MAX_MB_CHARS, PS.string) : xr_strlen(PS.string);
@@ -204,6 +262,34 @@ inline void dxFontRender::ImprintChar(Fvector l, const CGameFont& owner, FVF::TL
     {
         X -= 2;
         if (IsNeedSpaceCharacter(wsStr[1 + j]))
+            X += owner.fXStep;
+    }
+}
+
+inline void dxFontRender::ImprintCharCp(Fvector l, const CGameFont& owner, FVF::TL*& v, float& X, float Y2, u32 clr2, float Y, u32 clr, xr_codepoint cp)
+{
+    // Mirror of ImprintChar but takes the codepoint directly, used by the
+    // UTF-8 render path. Multi-byte fonts keep the "subtract 2 + maybe add
+    // fXStep" CJK spacing rule; single-byte fonts retain their per-glyph
+    // advance unchanged.
+    float scw = l.z * g_current_font_scale.x;
+    float fTCWidth = l.z / owner.vTS.x;
+
+    if (!fis_zero(l.z))
+    {
+        float tu = (l.x / owner.vTS.x);
+        float tv = (l.y / owner.vTS.y);
+
+        v->set(X, Y2, clr2, tu, tv + owner.fTCHeight); v++;
+        v->set(X, Y, clr, tu, tv); v++;
+        v->set(X + scw, Y2, clr2, tu + fTCWidth, tv + owner.fTCHeight); v++;
+        v->set(X + scw, Y, clr, tu + fTCWidth, tv); v++;
+    }
+    X += scw * owner.vInterval.x;
+    if (owner.IsMultibyte())
+    {
+        X -= 2;
+        if (IsNeedSpaceCharacter(cp))
             X += owner.fXStep;
     }
 }

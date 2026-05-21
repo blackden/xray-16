@@ -283,8 +283,6 @@ public:
     float wind_strength_factor{};
     float wind_gust_factor{};
 
-    float wetness_factor{};
-
     // wind blast params
     float wind_blast_strength{};
     Fvector wind_blast_direction{};
@@ -389,4 +387,3 @@ private:
 
 ENGINE_API extern Flags32 psEnvFlags;
 ENGINE_API extern float psVisDistance;
-ENGINE_API extern float SunshaftsIntensity;

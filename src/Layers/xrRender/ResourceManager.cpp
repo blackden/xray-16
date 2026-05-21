@@ -156,8 +156,6 @@ Shader* CResourceManager::_cpp_Create(
     C.BT = B;
     C.bFFP = RImplementation.o.ffp;
     C.bDetail = FALSE;
-    C.HudElement = false;
-
 #ifdef _EDITOR
     if (!C.BT)
     {
@@ -173,13 +171,6 @@ Shader* CResourceManager::_cpp_Create(
     _ParseList(C.L_textures, s_textures);
     _ParseList(C.L_constants, s_constants);
     _ParseList(C.L_matrices, s_matrices);
-
-#if defined(USE_DX11)
-    if (RImplementation.hud_loading && RImplementation.o.new_shader_support)
-    {
-        C.HudElement = true;
-    }
-#endif
 
     // Compile element	(LOD0 - HQ)
     {
@@ -378,6 +369,42 @@ void CResourceManager::DeferredUpload()
 #else
 #   error No graphics API selected or enabled!
 #endif
+}
+
+void CResourceManager::DeferredUploadBegin()
+{
+    if (!Device.b_is_Ready)
+        return;
+    m_upload_iterator = m_textures.begin();
+    m_upload_in_progress = true;
+}
+
+bool CResourceManager::DeferredUploadStep(u32 max_count)
+{
+    if (!m_upload_in_progress)
+        return true;
+    if (!Device.b_is_Ready)
+    {
+        m_upload_in_progress = false;
+        return true;
+    }
+
+    ZoneScoped;
+
+    u32 count = 0;
+    while (m_upload_iterator != m_textures.end() && count < max_count)
+    {
+        m_upload_iterator->second->Load();
+        ++m_upload_iterator;
+        ++count;
+    }
+
+    if (m_upload_iterator == m_textures.end())
+    {
+        m_upload_in_progress = false;
+        return true;
+    }
+    return false;
 }
 
 void CResourceManager::DeferredUnload()

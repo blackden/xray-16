@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# OpenXRay macOS: after every commit on the active dev branch, run
+# `make ship` in the background so the next launch already has the new
+# binary installed.
+#
+# Activation:
+#   make install-hooks   # symlinks this into .git/hooks/post-commit
+#
+# Skip:
+#   - commit lands on stable (we don't auto-build stable — promote does that)
+#   - OPENXRAY_AUTO_SHIP=0 in env (e.g. WIP commit you don't want shipped yet)
+#   - commit only touches notes/, docs/, *.md (no code paths)
+#
+# Output:
+#   $HOME/Library/Logs/OpenXRay/ship-${sha}.log
+
+set -u
+LOG_DIR="$HOME/Library/Logs/OpenXRay"
+mkdir -p "$LOG_DIR"
+
+branch=$(git rev-parse --abbrev-ref HEAD)
+sha=$(git rev-parse --short HEAD)
+
+if [ "${OPENXRAY_AUTO_SHIP:-1}" = "0" ]; then
+    echo "[post-commit hook] OPENXRAY_AUTO_SHIP=0, skipping ship for $sha"
+    exit 0
+fi
+
+# Only auto-ship from the active dev branch. Stable is handled by `make promote`.
+case "$branch" in
+    macos/blackden/master|macos/dev)
+        ;;
+    *)
+        echo "[post-commit hook] branch '$branch' is not auto-ship, skipping $sha"
+        exit 0
+        ;;
+esac
+
+# Skip if commit only touches non-build paths.
+changed=$(git diff --name-only HEAD^ HEAD 2>/dev/null || true)
+if [ -n "$changed" ]; then
+    code_changed=0
+    while IFS= read -r f; do
+        case "$f" in
+            notes/*|*.md|.claude-tmp/*|.gitignore|.git-blame-ignore-revs|tests/regression_checks.sh)
+                ;;
+            *)
+                code_changed=1
+                break
+                ;;
+        esac
+    done <<< "$changed"
+    if [ "$code_changed" -eq 0 ]; then
+        echo "[post-commit hook] commit $sha is docs-only, skipping ship"
+        exit 0
+    fi
+fi
+
+# Fire and forget. nohup keeps make ship alive after the git command exits.
+repo_root=$(git rev-parse --show-toplevel)
+log_file="$LOG_DIR/ship-${sha}.log"
+
+echo "[post-commit hook] auto-ship for $sha → $log_file (background)"
+(
+    cd "$repo_root"
+    nohup make ship >"$log_file" 2>&1 &
+)
+
+# Optional: native macOS notification when done (best-effort).
+if command -v osascript >/dev/null 2>&1; then
+    (
+        cd "$repo_root"
+        # Wait for the background `make ship` to finish, then notify.
+        # We watch for the trailing "Installed. Launch:" line in the log.
+        for _ in $(seq 1 300); do
+            sleep 2
+            if grep -q "Installed\. Launch:" "$log_file" 2>/dev/null; then
+                osascript -e "display notification \"ship done for $sha\" with title \"OpenXRay\"" >/dev/null 2>&1 || true
+                exit 0
+            fi
+            # Anchor to canonical compiler/linker error patterns so we don't
+            # false-positive on the word "fatal" appearing as a function
+            # parameter name in compile output (e.g. `bool fatal = true`).
+            if grep -qE ": error:|: fatal error:|^ld: error|^Error 1$|undefined (reference|symbol)" "$log_file" 2>/dev/null; then
+                osascript -e "display notification \"ship FAILED for $sha — see $log_file\" with title \"OpenXRay\" sound name \"Sosumi\"" >/dev/null 2>&1 || true
+                exit 0
+            fi
+        done
+    ) &
+fi

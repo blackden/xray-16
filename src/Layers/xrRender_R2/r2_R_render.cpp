@@ -181,7 +181,7 @@ void CRender::Render()
         dsgraph.render_hud();
         dsgraph.render_graph(0);
         dsgraph.render_lods(true, true);
-        if (Details)
+        if (Details && m_debugToggles.details)
             Details->Render(dsgraph.cmd_list);
         Target->phase_scene_end();
     }
@@ -199,7 +199,8 @@ void CRender::Render()
 #endif
 
     //******* Occlusion testing of volume-limited light-sources
-    Target->phase_occq();
+    if (m_debugToggles.occq)
+        Target->phase_occq();
     LP_normal.clear();
     LP_pending.clear();
     if (o.msaa)
@@ -280,7 +281,7 @@ void CRender::Render()
         Target->phase_scene_begin();
         dsgraph.render_hud();
         dsgraph.render_lods(true, true);
-        if (Details)
+        if (Details && m_debugToggles.details)
             Details->Render(dsgraph.cmd_list);
         Target->phase_scene_end();
     }
@@ -292,7 +293,7 @@ void CRender::Render()
     }
 
     // Wall marks
-    if (Wallmarks)
+    if (Wallmarks && m_debugToggles.wallmarks)
     {
         PIX_EVENT(DEFER_WALLMARKS);
         Target->phase_wallmarks();
@@ -329,9 +330,9 @@ void CRender::Render()
     }
 
     r_rain.sync();
-    RCache.ClearRT(Target->rt_Accumulator, {});
 
     // Directional light - fucking sun
+    if (m_debugToggles.shadows)
     {
         PIX_EVENT(DEFER_SUN);
         Stats.l_visible++;
@@ -365,12 +366,14 @@ void CRender::Render()
     }
 
     // Lighting, non dependant on OCCQ
+    if (m_debugToggles.lights)
     {
         PIX_EVENT(DEFER_LIGHT_NO_OCCQ);
         render_lights(LP_normal);
     }
 
     // Lighting, dependant on OCCQ
+    if (m_debugToggles.lights)
     {
         PIX_EVENT(DEFER_LIGHT_OCCQ);
         render_lights(LP_pending);
@@ -381,9 +384,6 @@ void CRender::Render()
         PIX_EVENT(DEFER_LIGHT_COMBINE);
         Target->phase_combine();
     }
-
-    if (Details)
-        Details->details_clear();
 
     VERIFY(dsgraph.mapDistort.empty());
 }
