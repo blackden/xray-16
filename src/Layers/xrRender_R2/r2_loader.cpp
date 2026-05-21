@@ -112,6 +112,14 @@ void CRender::level_Unload()
 {
     ZoneScoped;
 
+    // Diagnostic canary. If the engine ever wedges in ~CLight_DB at process
+    // exit again, the absence of this line in the log would confirm that
+    // level_Unload was skipped during disconnect — meaning lights survived
+    // into static destruction phase where ISpatial_DB is already gone.
+    // Cheap (one log line on disconnect). See gitea #49.
+    Msg("level_Unload: g_pGameLevel=%p b_loaded=%d sun=%p",
+        (void*)g_pGameLevel, (int)b_loaded, (void*)Lights.sun._get());
+
     if (!g_pGameLevel)
         return;
     if (!b_loaded)
