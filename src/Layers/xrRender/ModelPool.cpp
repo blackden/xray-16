@@ -1,5 +1,6 @@
 #include "stdafx.h"
 
+#include "Common/PostLogMark.hpp"
 #include "ModelPool.h"
 
 #include "xrMaterialSystem/GameMtlLib.h"
@@ -222,8 +223,10 @@ CModelPool::CModelPool()
 
 CModelPool::~CModelPool()
 {
+    POSTLOG_MARK("~CModelPool enter");
     Destroy();
     xr_delete(g_pMotionsContainer);
+    POSTLOG_MARK("~CModelPool exit");
 }
 
 dxRender_Visual* CModelPool::Instance_Find(LPCSTR N)

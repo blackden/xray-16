@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #pragma hdrstop
 
+#include "Common/PostLogMark.hpp"
 #include "xrCore/buffer_vector.h"
 
 #include "ResourceManager.h"
@@ -105,10 +106,12 @@ void mdump(C c)
 
 CResourceManager::~CResourceManager()
 {
+    POSTLOG_MARK("~CResourceManager enter");
     DestroyNecessaryTextures();
 #ifndef MASTER_GOLD
     Dump(false);
 #endif
+    POSTLOG_MARK("~CResourceManager exit");
 }
 
 void CResourceManager::Dump(bool bBrief)
