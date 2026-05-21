@@ -3,41 +3,34 @@
 // Cmd+Q on macOS normally dispatches through the Application menu's Quit item
 // to [NSApp terminate:], which calls applicationShouldTerminate: on the
 // NSApplicationDelegate. SDL2 installs its own delegate that responds by
-// posting SDL_QUIT, which drives the engine into Device.Shutdown() and the GL
-// teardown path. On the current macOS GL stack, that teardown either crashes
-// (PAC trap in xrDebug::Fail) or wedges the GPU driver (uninterruptible TX
-// state). Neither is acceptable as a user-facing quit gesture.
+// posting SDL_QUIT directly. We need a Cmd+Q that walks the same path as the
+// in-game "Quit to Windows" button, so net_Stop/DestroyLevel run before
+// SDL_QUIT is pushed — otherwise the engine tears down the GL context while
+// level state is still live and the process wedges with no user recovery.
 //
-// We intercept Cmd+Q at TWO layers, primary first:
+// We intercept Cmd+Q at TWO layers and route both to the same handler:
 //
-//   1. NSEvent local key-down monitor. This fires BEFORE the menu/terminate
+//   1. NSEvent local key-down monitor. Fires BEFORE the menu/terminate
 //      dispatch, regardless of which delegate AppKit thinks it should call.
 //      Reliable across SDL versions and SDL delegate replacements.
 //
-//   2. applicationShouldTerminate: override on a wrapped delegate. This is the
-//      fallback for menu-driven quit (e.g. Apple menu -> Quit OpenXRay) where
-//      no key-down event fires.
+//   2. applicationShouldTerminate: override on a wrapped delegate. Fallback
+//      for menu-driven quit (Apple menu -> Quit OpenXRay) where no key-down
+//      event fires.
 //
-// Both paths call -handleQuitRequest: on the same shim instance, implementing
-// a two-stage behavior:
+// Both paths defer KERNEL:disconnect then KERNEL:quit on the engine's event
+// queue. This is exactly what `CCC_Quit::Execute` (xr_ioc_cmd.cpp) and the
+// SDL_WINDOWEVENT_CLOSE handler (device.cpp) already do — verified to
+// teardown cleanly in any state (in-game, paused, main menu).
 //
-//   Stage 1 — first Cmd+Q: synthesize SDL_KEYDOWN+SDL_KEYUP for Escape. The
-//   in-game pause menu opens; the user can exit via "Quit to Windows", which
-//   is the vanilla code path the engine actually tests.
-//
-//   Stage 2 — second Cmd+Q within 3 s: call _exit(0). macOS reaps the process
-//   immediately, no teardown, no dialogs. Unsaved state is lost — this is a
-//   deliberate trade for stability over save data. Documented in the bundle
-//   README and notes/macos-build-guide.md.
-//
-// After the 3 s window elapses without a second press, the counter resets and
-// the next Cmd+Q is treated as a fresh "first press".
-//
-// Caveat: if the main thread is wedged in the GPU driver (typical TX state
-// after a load hang), neither path helps — our key monitor and delegate both
-// run on the main thread. windowed mode is the complementary safety net for
-// that case: a regular NSWindow stays addressable by Cmd+Opt+Esc Force Quit
-// even when the app's own event loop is dead.
+// No two-stage state, no _exit(0) backstop, no Escape synthesis. An earlier
+// revision used a "first press = Esc, second press within 3s = _exit(0)"
+// workaround because graceful teardown was triggering a PAC trap in
+// xrDebug::Fail on ARM64. That trap is fixed; the workaround was masking
+// future regressions of the same teardown path. If teardown ever hangs
+// again it's a bug to root-cause, not to paper over — macOS-level Force
+// Quit (Cmd+Opt+Esc, Activity Monitor) is the user fallback, not in-app
+// self-kill.
 
 #include <SDL.h>
 #include <unistd.h>
@@ -46,9 +39,13 @@
 #import <AppKit/AppKit.h>
 #import <Foundation/Foundation.h>
 
+// Defined in Engine.cpp under XR_PLATFORM_APPLE — defers KERNEL:disconnect
+// then KERNEL:quit on the engine event queue. Out-of-line to keep this .mm
+// free of xrCore headers (they collide with Foundation types under ObjC++).
+extern "C" void OpenXRay_RequestGracefulQuit(void);
+
 @interface OpenXRayCocoaShim : NSObject <NSApplicationDelegate>
 @property (nonatomic, strong) id sdlDelegate;
-@property (nonatomic, assign) NSTimeInterval lastQuitRequestTime;
 - (void)handleQuitRequest:(NSString *)origin;
 @end
 
@@ -56,65 +53,18 @@
 
 - (void)handleQuitRequest:(NSString *)origin
 {
-    NSTimeInterval now = [NSDate timeIntervalSinceReferenceDate];
-    NSTimeInterval delta = now - self.lastQuitRequestTime;
-    const NSTimeInterval HARD_EXIT_WINDOW = 3.0;
-
-    if (self.lastQuitRequestTime > 0.0 && delta <= HARD_EXIT_WINDOW)
-    {
-        // Stage 2: hard exit. Bypass everything.
-        char buf[128];
-        int n = snprintf(buf, sizeof buf, "==> Cocoa shim: hard exit (second Cmd+Q via %s)\n", origin.UTF8String);
-        if (n > 0)
-            ::write(STDERR_FILENO, buf, (size_t)n);
-        ::_exit(0);
-    }
-
-    // Stage 1: synthesize Escape so the in-game pause menu opens.
-    self.lastQuitRequestTime = now;
-
-    SDL_Event keydown;
-    SDL_zero(keydown);
-    keydown.type = SDL_KEYDOWN;
-    keydown.key.state = SDL_PRESSED;
-    keydown.key.repeat = 0;
-    keydown.key.keysym.scancode = SDL_SCANCODE_ESCAPE;
-    keydown.key.keysym.sym = SDLK_ESCAPE;
-    keydown.key.keysym.mod = KMOD_NONE;
-    SDL_PushEvent(&keydown);
-
-    SDL_Event keyup;
-    SDL_zero(keyup);
-    keyup.type = SDL_KEYUP;
-    keyup.key.state = SDL_RELEASED;
-    keyup.key.repeat = 0;
-    keyup.key.keysym.scancode = SDL_SCANCODE_ESCAPE;
-    keyup.key.keysym.sym = SDLK_ESCAPE;
-    keyup.key.keysym.mod = KMOD_NONE;
-    SDL_PushEvent(&keyup);
-
     char buf[160];
     int n = snprintf(buf, sizeof buf,
-        "==> Cocoa shim: Cmd+Q -> Esc (via %s; press Cmd+Q again within 3s to hard-exit)\n",
+        "==> Cocoa shim: Cmd+Q -> graceful quit (via %s)\n",
         origin.UTF8String);
     if (n > 0)
         ::write(STDERR_FILENO, buf, (size_t)n);
 
-    // Reset the counter after the window expires.
-    __weak OpenXRayCocoaShim *weakSelf = self;
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(HARD_EXIT_WINDOW * NSEC_PER_SEC)),
-                   dispatch_get_main_queue(), ^{
-        OpenXRayCocoaShim *strongSelf = weakSelf;
-        if (!strongSelf)
-            return;
-        NSTimeInterval cur = [NSDate timeIntervalSinceReferenceDate];
-        if (cur - strongSelf.lastQuitRequestTime >= HARD_EXIT_WINDOW - 0.01)
-            strongSelf.lastQuitRequestTime = 0.0;
-    });
+    OpenXRay_RequestGracefulQuit();
 }
 
 // Fallback for menu-driven quit (Apple menu -> Quit). Routes through the same
-// two-stage handler as the key monitor.
+// graceful handler as the key monitor.
 - (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender
 {
     [self handleQuitRequest:@"appShouldTerminate"];
@@ -158,10 +108,9 @@ extern "C" void OpenXRay_InstallCocoaShim(void)
 
         installed = [[OpenXRayCocoaShim alloc] init];
         installed.sdlDelegate = existing;
-        installed.lastQuitRequestTime = 0.0;
 
         // Wrap the SDL delegate so menu-driven quit (Apple menu -> Quit) also
-        // hits our two-stage handler.
+        // hits our graceful handler.
         [app setDelegate:installed];
 
         // Primary intercept: NSEvent local key-down monitor. Fires BEFORE
