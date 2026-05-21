@@ -126,6 +126,8 @@ void CEngine::OnFrame()
 // CMakeLists.txt). Same defer sequence as CCC_Quit::Execute in xr_ioc_cmd.cpp.
 extern "C" void OpenXRay_RequestGracefulQuit()
 {
+    // Same fast-exit flag pattern as CCC_Quit and the SDL window-close handler.
+    g_bShuttingDown = true;
     Engine.Event.Defer("KERNEL:disconnect");
     Engine.Event.Defer("KERNEL:quit");
 }
