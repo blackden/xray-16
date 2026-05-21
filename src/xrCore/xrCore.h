@@ -140,6 +140,15 @@ private:
 
 extern XRCORE_API xrCore Core;
 
+// One-shot flag, set true by anything initiating process exit (CCC_Quit,
+// SDL_WINDOWEVENT_CLOSE, Cocoa shim's applicationShouldTerminate / NSEvent
+// Cmd+Q monitor). Read by subsystem teardown to enable a fast-exit path that
+// skips heavyweight per-object cleanup — OS reclaims memory and kills threads
+// at process death anyway. Currently used by ~CSoundRender_Scene to skip
+// CSoundRender_Emitter destruction (vector<u8> temp_buf[10] dealloc dominates
+// disconnect time on macOS — ~2.5 sec on a CoP level). Never reset to false.
+extern XRCORE_API bool g_bShuttingDown;
+
 // Convert a UTF-8 string in-place to cp1251. Used to bridge POSIX UTF-8
 // strings (filesystem, getpwuid) into the engine's cp1251 font tables for
 // display. On Windows this is a no-op since OS APIs already return cp1251 in
