@@ -14,6 +14,12 @@
 #include "xrCore/Threading/TaskManager.hpp"
 #include "xrNetServer/NET_AuthCheck.h"
 
+#if defined(XR_PLATFORM_POSIX)
+#include <sys/stat.h>
+#include <unistd.h>
+#include <errno.h>
+#endif
+
 #include "IGame_Persistent.h"
 #include "LightAnimLibrary.h"
 #include "XR_IOConsole.h"
@@ -21,7 +27,7 @@
 #if defined(XR_PLATFORM_WINDOWS)
 #include "AccessibilityShortcuts.hpp"
 #include "Text_Console.h"
-#elif defined(XR_PLATFORM_LINUX) || defined(XR_PLATFORM_BSD) || defined(XR_PLATFORM_APPLE)
+#else
 #define CTextConsole CConsole
 #pragma todo("Implement text console or it's alternative")
 #endif
@@ -33,6 +39,10 @@
 #define USE_DISCORD_INTEGRATION
 
 #include "xrCore/Text/StringConversion.hpp"
+#endif
+
+#if defined(XR_PLATFORM_APPLE)
+extern "C" void OpenXRay_InstallCocoaShim(void);
 #endif
 
 // global variables
@@ -221,6 +231,14 @@ CApplication::CApplication(pcstr commandLine, GameModule* game, const std::array
         R_ASSERT3(SDL_Init(flags) == 0, "Unable to initialize SDL", SDL_GetError());
     }
 
+#if defined(XR_PLATFORM_APPLE)
+    // Install Cocoa shim that wraps SDL's NSApplicationDelegate. Required to
+    // intercept Cmd+Q before it drives the engine into an unsafe shutdown path
+    // (see src/xrEngine/macos_cocoa_shim.mm for details). Must happen AFTER
+    // SDL_InitSubSystem(SDL_INIT_VIDEO) because SDL only sets its delegate then.
+    OpenXRay_InstallCocoaShim();
+#endif
+
 #ifdef XR_PLATFORM_WINDOWS
     AccessibilityShortcuts shortcuts;
     if (!GEnv.isDedicatedServer)
@@ -369,6 +387,19 @@ int CApplication::Run()
     HideSplash();
     Device.Run();
 
+    // Safe-mode boot recovery. Launcher dropped a sentinel at
+    // ~/.openxray-data/_appdata_/.boot_in_progress before exec. We
+    // remove it once the engine has run a handful of frames -- by then
+    // the early-init phases (renderer, prefetch, alife, first level
+    // load) have all proven they don't crash. If we crash before this
+    // point the sentinel stays put and the next launch enters safe
+    // mode with reduced graphics. STABLE_BOOT_FRAMES is small but not
+    // tiny: prefetch can run for tens of frames, and we want safe-mode
+    // to trigger on prefetch-stage crashes too.
+    constexpr u32 STABLE_BOOT_FRAMES = 120;
+    bool sentinelCleared = false;
+    u32 framesSinceStart = 0;
+
     while (!SDL_QuitRequested()) // SDL_PumpEvents is here
     {
         FrameMarkStart(FRAME_MARK_APPLICATION_RUN);
@@ -431,6 +462,38 @@ int CApplication::Run()
         }
 
         Device.ProcessFrame();
+
+        if (!sentinelCleared && ++framesSinceStart >= STABLE_BOOT_FRAMES)
+        {
+            // FS.exist would miss this file: launcher creates the sentinel
+            // AFTER the LocatorAPI rescan that builds m_files, so the
+            // dynamic file isn't in the cache even though it's on disk.
+            // Resolve the path through update_path (so it tracks -overlaypath)
+            // but stat / unlink it at the raw filesystem layer.
+            //
+            // FS.update_path returns the engine-internal form with backslash
+            // separators ("\Users\...") which the POSIX stat() won't accept;
+            // convert_path_separators flips them to forward slashes before
+            // the syscall.
+            string_path sentinel;
+            FS.update_path(sentinel, "$app_data_root$", ".boot_in_progress");
+            convert_path_separators(sentinel);
+            struct stat st{};
+            if (::stat(sentinel, &st) == 0)
+            {
+                if (xr_unlink(sentinel) == 0)
+                    Msg("* Safe-mode sentinel cleared after %u stable frames.", framesSinceStart);
+                else
+                    Msg("! Safe-mode sentinel could not be removed: '%s' (errno=%d)",
+                        sentinel, errno);
+            }
+            else
+            {
+                Msg("* Safe-mode sentinel not present at '%s' (errno=%d) -- no cleanup needed.",
+                    sentinel, errno);
+            }
+            sentinelCleared = true;
+        }
 
         UpdateDiscordStatus();
         FrameMarkEnd(FRAME_MARK_APPLICATION_RUN);

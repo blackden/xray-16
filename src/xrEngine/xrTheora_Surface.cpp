@@ -44,8 +44,16 @@ void CTheoraSurface::Reset()
 bool CTheoraSurface::Valid() { return ready; }
 void CTheoraSurface::Play(bool _looped, u32 _time)
 {
+    Reset();
     playing = true;
     looped = _looped;
+    tm_start = _time;
+    prefetch = -2;
+}
+
+void CTheoraSurface::Rewind(u32 _time)
+{
+    Reset();
     tm_start = _time;
     prefetch = -2;
 }

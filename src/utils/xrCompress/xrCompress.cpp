@@ -102,7 +102,9 @@ bool xrCompressor::testVFS(LPCSTR path) const
 bool xrCompressor::testEqual(LPCSTR path, IReader* base)
 {
     bool res = false;
-    IReader* test = FS.r_open(path);
+    IReader* test = FS.r_open("$target_folder$", path);
+    if (!test)
+        return false;
 
     if (test->length() == base->length())
     {
@@ -147,6 +149,7 @@ void xrCompressor::CompressOne(LPCSTR path)
     string_path fn;
     strconcat(sizeof(fn), fn, target_name.c_str(), "\\", path);
 
+#if defined(XR_PLATFORM_WINDOWS)
     if (::GetFileAttributes(fn) == u32(-1))
     {
         filesSKIP++;
@@ -156,6 +159,16 @@ void xrCompressor::CompressOne(LPCSTR path)
     }
 
     IReader* src = FS.r_open(fn);
+#else
+    // POSIX: the existence guard the Windows path uses (GetFileAttributes)
+    // works only when `fn` matches OS-native separator convention. The
+    // engine joins target_name with '\\' regardless of platform, so we'd
+    // need to convert before stat()/access(). Skipping that guard here:
+    // FS.r_open already returns null when the file isn't indexed, and we
+    // hand it the FS-relative `path` (which is what the indexer stored)
+    // so the lookup hits m_files directly without the External fallback.
+    IReader* src = FS.r_open("$target_folder$", path);
+#endif
     if (0 == src)
     {
         filesSKIP++;
@@ -273,7 +286,13 @@ void xrCompressor::CompressOne(LPCSTR path)
         // Register for future aliasing
         ALIAS R
         {
-            /*.path =*/ xr_strdup(fn),
+            // Store FS-relative path so testEqual can re-open via the
+            // engine's `$target_folder$` alias (works cross-platform).
+            // Storing the absolute disk path `fn` works on Windows because
+            // exist(External) -> stat(fn) accepts backslash separators;
+            // POSIX stat does not, and FS.r_open(fn) then returns null and
+            // testEqual crashes deref'ing it.
+            /*.path =*/ xr_strdup(path),
             /*.crc =*/ c_crc32,
             /*.c_ptr =*/ c_ptr,
             /*.c_size_real =*/ c_size_real,
@@ -408,7 +427,9 @@ void xrCompressor::PerformWork()
     for (size_t it = 0; it < files_list->size(); it++)
     {
         xr_sprintf(caption, "Compress files: %d/%d - %d%%", it, files_list->size(), (it * 100) / files_list->size());
+#if defined(XR_PLATFORM_WINDOWS)
         SetWindowText(GetConsoleWindow(), caption);
+#endif
         printf("\n%-80s   ", (*files_list)[it]);
 
         if (fs_pack_writer->tell() > XRP_TARGET_SIZE)

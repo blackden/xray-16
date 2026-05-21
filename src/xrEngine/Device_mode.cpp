@@ -159,6 +159,21 @@ void CRenderDevice::UpdateWindowProps()
     SDL_PumpEvents();
     UpdateWindowRects();
 
+    // Replace point-sized dwWidth/dwHeight (set in SelectResolution from
+    // psDeviceMode) with physical pixel drawable size. On HiDPI/Retina with
+    // SDL_WINDOW_ALLOW_HIGHDPI this is 2x the points; on non-HiDPI it equals
+    // the window size, so this is a no-op cross-platform. Render path (RT
+    // sizes, glViewport, Present blit) consumes dwWidth/dwHeight as pixels.
+    {
+        int pxW = 0, pxH = 0;
+        SDL_GL_GetDrawableSize(m_sdlWnd, &pxW, &pxH);
+        if (pxW > 0 && pxH > 0)
+        {
+            dwWidth = static_cast<u32>(pxW);
+            dwHeight = static_cast<u32>(pxH);
+        }
+    }
+
     ImGuiIO& io = ImGui::GetIO();
 
     io.DisplaySize = { static_cast<float>(psDeviceMode.Width), static_cast<float>(psDeviceMode.Height) };
@@ -231,6 +246,37 @@ void CRenderDevice::SelectResolution(const bool windowed)
             psDeviceMode.Height = closest.h;
             psDeviceMode.RefreshRate = closest.refresh_rate;
         }
+    }
+
+    // Clamp the user-requested resolution to what actually fits on the
+    // display in points. macOS otherwise silently shrinks the window after
+    // SDL_SetWindowSize succeeds (e.g. a vid_mode of 2560x1600 ends up as
+    // 1680x907 on an M1 Air at "More Space" scaling), and the RT
+    // allocation we do later from psDeviceMode + drawable becomes 2x larger
+    // than the actual default framebuffer — the engine then renders into a
+    // bottom-left quadrant of the visible area. Doing it here keeps the
+    // engine's state (psDeviceMode, RT sizes, drawable size, blit math) in
+    // agreement instead of relying on a post-resize SIZE_CHANGED round-trip
+    // that only fires after the first broken frame.
+    if (windowed && !GEnv.isDedicatedServer)
+    {
+        SDL_Rect usable, full;
+        const bool gotUsable = SDL_GetDisplayUsableBounds(psDeviceMode.Monitor, &usable) == 0
+            && usable.w > 0 && usable.h > 0;
+        const bool gotFull = SDL_GetDisplayBounds(psDeviceMode.Monitor, &full) == 0
+            && full.w > 0 && full.h > 0;
+        Msg("* SelectResolution: requested=%ux%u monitor=%u usable=%dx%d full=%dx%d",
+            psDeviceMode.Width, psDeviceMode.Height, psDeviceMode.Monitor,
+            gotUsable ? usable.w : -1, gotUsable ? usable.h : -1,
+            gotFull ? full.w : -1, gotFull ? full.h : -1);
+        if (gotUsable)
+        {
+            if (psDeviceMode.Width > static_cast<u32>(usable.w))
+                psDeviceMode.Width = static_cast<u32>(usable.w);
+            if (psDeviceMode.Height > static_cast<u32>(usable.h))
+                psDeviceMode.Height = static_cast<u32>(usable.h);
+        }
+        Msg("* SelectResolution: after clamp=%ux%u", psDeviceMode.Width, psDeviceMode.Height);
     }
 
     dwWidth = psDeviceMode.Width;

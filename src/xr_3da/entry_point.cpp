@@ -4,7 +4,7 @@
 #include "xrGame/xrGame.h"
 #include "Include/xrRender/xrRender.h"
 
-#if defined(XR_PLATFORM_LINUX) || defined(XR_PLATFORM_BSD) || defined(XR_PLATFORM_APPLE)
+#if !defined(XR_PLATFORM_WINDOWS)
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
@@ -77,10 +77,19 @@ int APIENTRY WinMain(HINSTANCE inst, HINSTANCE prevInst, char* commandLine, int 
 
     return result;
 }
-#elif defined(XR_PLATFORM_LINUX) || defined(XR_PLATFORM_BSD) || defined(XR_PLATFORM_APPLE)
+#else
 int main(int argc, char *argv[])
 {
     int result = EXIT_FAILURE;
+
+#if defined(XR_PLATFORM_APPLE)
+    // Phase 1 diagnostic for the silent-exit issue on macOS. Unbuffer stdout
+    // so nothing is lost on abrupt termination, and register an atexit marker
+    // so we can tell "exit() was called from somewhere" apart from "killed by
+    // a signal (atexit doesn't run)".
+    setvbuf(stdout, nullptr, _IONBF, 0);
+    atexit([]() { fprintf(stderr, "==> ATEXIT fired\n"); fflush(stderr); });
+#endif
 
     try
     {
@@ -88,9 +97,9 @@ int main(int argc, char *argv[])
         int i;
         if(argc > 1)
         {
-            size_t sum = 0;
+            size_t sum = 1;
             for(i = 1; i < argc; ++i)
-                sum += strlen(argv[i]) + strlen(" \0");
+                sum += strlen(argv[i]) + 1;
 
             commandLine = (char*)xr_malloc(sum);
             ZeroMemory(commandLine, sum);
@@ -126,8 +135,11 @@ int main(int argc, char *argv[])
     // this executes if f() throws std::string or int or any other unrelated type
     }
 
+#if defined(XR_PLATFORM_APPLE)
+    // Phase 1 diagnostic: did main reach this point (normal return path)?
+    fprintf(stderr, "==> main returning with code %d\n", result);
+    fflush(stderr);
+#endif
     return result;
 }
-#else
-#   error Select or add an implementation for your platform
 #endif

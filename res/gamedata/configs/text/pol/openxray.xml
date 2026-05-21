@@ -1,7 +1,7 @@
-<?xml version="1.0" encoding="windows-1250" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <string_table>
 	<string id="st_unload_magazine_all">
-		<text>rozładuj wszystkie bronie</text>
+		<text>rozĹ‚aduj wszystkie bronie</text>
 	</string>
 	<string id="st_unequip">
 		<text>Zdejmij</text>
@@ -10,10 +10,10 @@
 		<text>Podaruj</text>
 	</string>
 	<string id="st_loading_lights">
-		<text>Wczytywanie oświetlenia</text>
+		<text>Wczytywanie oĹ›wietlenia</text>
 	</string>
 	<string id="st_client_connecting_to">
-		<text>Klient: Łączenie z</text>
+		<text>Klient: ĹÄ…czenie z</text>
 	</string>
 	<string id="st_client_spawning">
 		<text>Klient: Odradzanie</text>
@@ -25,10 +25,10 @@
 		<text>Tworzenie nowej gry</text>
 	</string>
 	<string id="ui_mm_always_active">
-		<text>Działanie w tle (Alt+Tab)</text>
+		<text>DziaĹ‚anie w tle (Alt+Tab)</text>
 	</string>
 	<string id="ui_mm_detail_radius">
-		<text>Odległość rys. trawy</text>
+		<text>OdlegĹ‚oĹ›Ä‡ rys. trawy</text>
 	</string>
 	<string id="ui_mm_ui_style">
 		<text>Styl interfejsu</text>
@@ -37,19 +37,19 @@
 		<text>Zew Prypeci</text>
 	</string>
 	<string id="ui_mm_simplified_item_pickup">
-		<text>Uproszczone podn. przedmiotów</text>
+		<text>Uproszczone podn. przedmiotĂłw</text>
 	</string>
 	<string id="ui_mm_multi_item_pickup">
-		<text>Podn. wsz. przedmiotów na raz</text>
+		<text>Podn. wsz. przedmiotĂłw na raz</text>
 	</string>
 	<string id="ui_mm_loadingstages">
-		<text>Postęp wczytywania</text>
+		<text>PostÄ™p wczytywania</text>
 	</string>
 	<string id="renderer_rgl">
-		<text>Rozsz. pełne ośw. dynam. (OpenGL)</text>
+		<text>Rozsz. peĹ‚ne oĹ›w. dynam. (OpenGL)</text>
 	</string>
 	<string id="ui_mm_window_mode">
-		<text>Tryb wyświetlania</text>
+		<text>Tryb wyĹ›wietlania</text>
 	</string>
 	<string id="st_opt_windowed">
 		<text>Okienkowy</text>
@@ -58,31 +58,31 @@
 		<text>Okienkowy (bez ramek)</text>
 	</string>
 	<string id="st_opt_fullscreen">
-		<text>Pełnoekranowy</text>
+		<text>PeĹ‚noekranowy</text>
 	</string>
 	<string id="st_opt_fullscreen_borderless">
-		<text>Pełnoekranowy (szybki Alt+Tab)</text>
+		<text>PeĹ‚noekranowy (szybki Alt+Tab)</text>
 	</string>
 	<string id="ui_mm_r2_smap_size">
-		<text>Jakość cieni map</text>
+		<text>JakoĹ›Ä‡ cieni map</text>
 	</string>
 	<string id="ui_mm_r3_dynamic_wet_surfaces_near">
-		<text>Mokre pow. na blisk. odległości</text>
+		<text>Mokre pow. na blisk. odlegĹ‚oĹ›ci</text>
 	</string>
 	<string id="ui_mm_r3_dynamic_wet_surfaces_far">
-		<text>Mokre pow. na dal. odległości</text>
+		<text>Mokre pow. na dal. odlegĹ‚oĹ›ci</text>
 	</string>
 	<string id="ui_mm_r3_dynamic_wet_surfaces_sm_res">
-		<text>Jakość mokrych powierzchni</text>
+		<text>JakoĹ›Ä‡ mokrych powierzchni</text>
 	</string>
 	<string id="ui_mm_fov">
-		<text>Kąt widzenia</text>
+		<text>KÄ…t widzenia</text>
 	</string>
 	<string id="ui_mm_hud_fov">
-		<text>Kąt widzenia HUD</text>
+		<text>KÄ…t widzenia HUD</text>
 	</string>
 	<string id="ui_mm_localization">
-		<text>Język</text>
+		<text>JÄ™zyk</text>
 	</string>
 	<string id="ui_mm_gamepad_setup">
 		<text>Konfiguracja gamepada</text>
@@ -93,52 +93,10 @@
 	<string id="ui_mm_fps_limit_in_menu">
 		<text>Limit FPS w menu</text>
 	</string>
-	<string id="ui_mm_shader_preset">
-		<text>Tryb graficzny</text>
-	</string>
-	<string id="ui_mm_shader_preset_vanilla">
-		<text>Vanilla</text>
-	</string>
-	<string id="ui_mm_shader_preset_enhanced_default">
-		<text>Rozszerzany (Domyślny)</text>
-	</string>
-	<string id="ui_mm_shader_preset_enhanced_high">
-		<text>Rozszerzany (Wysoki)</text>
-	</string>
-	<string id="ui_mm_color_grading_preset">
-		<text>Kolorystyka</text>
-	</string>
-	<string id="ui_mm_color_grading_default">
-		<text>Domyślna</text>
-	</string>
-	<string id="ui_mm_color_grading_cold">
-		<text>Chłodna</text>
-	</string>
-	<string id="ui_mm_color_grading_filmic_01">
-		<text>Filmic 1</text>
-	</string>
-	<string id="ui_mm_color_grading_filmic_02">
-		<text>Filmic 2</text>
-	</string>
-	<string id="ui_mm_color_grading_filmic_03">
-		<text>Filmic 3</text>
-	</string>
-	<string id="ui_mm_color_grading_hollywood">
-		<text>Hollywood</text>
-	</string>
-	<string id="ui_mm_color_grading_vanilla">
-		<text>Vanilla</text>
-	</string>
-	<string id="ui_mm_color_grading_vibrant">
-		<text>Vibrant</text>
-	</string>
-	<string id="ui_mm_color_grading_warm">
-		<text>Ciepła</text>
-	</string>
-	<string id="cze">
-    	<text>Czeski (Czech)</text>
-	</string>
-	<string id="eng">
+  <string id="cze">
+    <text>Czeski (Czech)</text>
+  </string>
+  <string id="eng">
 		<text>Angielski (English)</text>
 	</string>
 	<string id="fra">
@@ -148,10 +106,10 @@
 		<text>Niemiecki (German)</text>
 	</string>
 	<string id="jpn">
-    	<text>Japoński (Japanese)</text>
+    	<text>JapoĹ„ski (Japanese)</text>
 	</string>
 	<string id="ita">
-		<text>Włoski (Italian)</text>
+		<text>WĹ‚oski (Italian)</text>
 	</string>
 	<string id="pol">
 		<text>Polski (Polish)</text>
@@ -160,9 +118,12 @@
 		<text>Rosyjski (Russian)</text>
 	</string>
 	<string id="spa">
-		<text>Hiszpański (Spanish)</text>
+		<text>HiszpaĹ„ski (Spanish)</text>
 	</string>
 	<string id="ukr">
-    	<text>Ukraiński (Ukrainian)</text>
+    	<text>UkraiĹ„ski (Ukrainian)</text>
+	</string>
+	<string id="ui_mm_quit2windows">
+		<text>WyjdĹş do macOS</text>
 	</string>
 </string_table>

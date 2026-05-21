@@ -41,6 +41,12 @@ public:
     //	Resources control
     virtual void DeferredLoad(bool E) override;
     virtual void ResourcesDeferredUpload() override;
+    virtual void ResourcesDeferredUploadBegin() override;
+    virtual bool ResourcesDeferredUploadStep(u32 max_count) override;
+    virtual bool ResourcesIsUploading() const override;
+#if defined(USE_OGL)
+    virtual void FlushGpuQueue() override;
+#endif
     virtual void ResourcesDeferredUnload() override;
     virtual void ResourcesGetMemoryUsage(u32& m_base, u32& c_base, u32& m_lmaps, u32& c_lmaps) override;
     virtual void ResourcesDestroyNecessaryTextures() override;
@@ -52,6 +58,9 @@ public:
     virtual DeviceState GetDeviceState() override;
     virtual bool GetForceGPU_REF() override;
     virtual u32 GetCacheStatPolys() override;
+    PlaygroundGLState GetPlaygroundGLState() const override;
+    void EnumerateRenderTargets(xr_vector<PlaygroundRenderTarget>& out) const override;
+    DebugRenderToggles* GetDebugToggles() override { return &m_debugToggles; }
     virtual void Begin() override;
     virtual void Clear() override;
     virtual void End() override;
@@ -173,5 +182,10 @@ private:
 
 protected:
     bool b_loaded{};
+
+public:
+    // Renderer playground (epic #12) Pipeline Toggles tab writes here.
+    // Default-all-true; read inline at gate sites in r2_R_render.cpp.
+    DebugRenderToggles m_debugToggles{};
 };
 } // namespace xray::render::RENDER_NAMESPACE

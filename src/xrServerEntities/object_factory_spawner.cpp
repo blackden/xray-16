@@ -61,7 +61,7 @@ void CObjectFactory::init_spawn_data()
             cpcstr npc_random = pSettings->read_if_exists<pcstr>(name, "npc_random", "");
             _GetItem(npc ? npc : npc_random, 0, temp);
 
-            if (!temp.empty())
+            if (!temp.empty() && pSettings->line_exist(temp.c_str(), "class"))
             {
                 const auto npc_clsid    = pSettings->r_clsid(temp.c_str(), "class");
                 const auto npc_kind     = pSettings->read_if_exists<pcstr>(temp.c_str(), "kind", nullptr);
@@ -240,17 +240,12 @@ void CObjectFactory::on_tool_frame()
             constexpr pcstr styles[] =
             {
                 "Game",
-                "LTX"
+                "LTX",
             };
 
             ImGui::SetNextItemWidth(ImGui::CalcTextSize(" Game ").x); // shrink to minimal
-            ImGui::SliderInt("", &display_mode, 0, std::size(styles) - 1, styles[display_mode], ImGuiSliderFlags_NoInput);
-            if (ImGui::IsItemDeactivated() && !ImGui::IsItemDeactivatedAfterEdit())
-            {
-                display_mode = !display_mode;
-            }
-
-            imgui::ItemHelp("Left-click on the item in this list to spawn it.\n"
+            imgui::Selector("", display_mode, styles, std::size(styles),
+                            "Left-click on the item in this list to spawn it.\n"
                             "You can also select between displaying game names or ltx sections by using a switch.");
             ImGui::EndMenuBar();
         }
@@ -262,11 +257,14 @@ void CObjectFactory::on_tool_frame()
             {
             case DisplayGameNames:
             {
-                const std::locale locale("");
+                // StringTable().translate() already returns UTF-8 after the
+                // Phase 2 read shim. The previous StringToUTF8(narrow_locale)
+                // round-tripped UTF-8 through the C locale, which on macOS
+                // dropped any non-ASCII codepoint -- ImGui debug overlay then
+                // displayed cyrillic NPC/item names as '?'.
                 if (cpcstr inv_name = pSettings->read_if_exists<pcstr>(section->Name.c_str(), "inv_name", nullptr))
                 {
-                    const auto translated = StringTable().translate(inv_name);
-                    name = StringToUTF8(translated.c_str(), locale);
+                    name = StringTable().translate(inv_name).c_str();
                     break;
                 }
                 if (cpcstr character_profile = pSettings->read_if_exists<pcstr>(section->Name.c_str(), "character_profile", nullptr))
@@ -278,8 +276,7 @@ void CObjectFactory::on_tool_frame()
                         cpcstr character_name = character.Name();
                         if (character_name[0] && !strstr(character_name, "GENERATE_NAME"))
                         {
-                            const auto translated = StringTable().translate(character_name);
-                            name = StringToUTF8(translated.c_str(), locale);
+                            name = StringTable().translate(character_name).c_str();
                             break;
                         }
                     }

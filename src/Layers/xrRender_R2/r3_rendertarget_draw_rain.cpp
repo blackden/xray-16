@@ -6,6 +6,17 @@ void CRenderTarget::draw_rain(CBackend& cmd_list, light& RainSetup)
 {
     float fRainFactor = g_pGamePersistent->Environment().CurrentEnv.rain_density;
 
+    // Gate wet-shader contribution by sky visibility so indoor walls
+    // don't pick up the wet look while it's raining outside.
+    // See dxRainRender.cpp for the gate range — keep these in sync.
+    if (auto* eff = g_pGamePersistent->Environment().eff_Rain)
+    {
+        float hemi = eff->get_hemi_factor();
+        float t = (hemi - 0.2f) / 0.4f;
+        clamp(t, 0.f, 1.f);
+        fRainFactor *= t * t * (3.f - 2.f * t); // smoothstep over [0.2, 0.6]
+    }
+
     // Common calc for quad-rendering
     u32 Offset;
     u32 C = color_rgba(255, 255, 255, 255);
@@ -25,7 +36,7 @@ void CRenderTarget::draw_rain(CBackend& cmd_list, light& RainSetup)
     W_dirZ.normalize();
 
     // recalculate d_Z, to perform depth-clipping
-	float fRainFar = ps_ssfx_gloss_method == 0 ? ps_r3_dyn_wet_surf_far : 250.f;
+    const float fRainFar = ps_r3_dyn_wet_surf_far;
 
     Fvector center_pt;
     center_pt.mad(Device.vCameraPosition, Device.vCameraDirection, fRainFar);

@@ -1,171 +1,174 @@
-<?xml version="1.0" encoding="windows-1250" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <string_table>
 	<string id="st_unload_magazine_after_pickup">
-		<text>Po sebrání automaticky vyložit zbraň</text>
+		<text>Po sebrĂˇnĂ­ automaticky vyloĹľit zbraĹ</text>
 	</string>
 	<string id="st_unload_magazine_all">
-		<text>Vyložit všechny zbraně</text>
+		<text>VyloĹľit vĹˇechny zbranÄ›</text>
 	</string>
 	<string id="st_unequip">
-		<text>Odstranit výbavu</text>
+		<text>Odstranit vĂ˝bavu</text>
 	</string>
 	<string id="st_donate">
 		<text>Darovat</text>
 	</string>
 	<string id="st_loading_lights">
-		<text>Načítání světel</text>
+		<text>NaÄŤĂ­tĂˇnĂ­ svÄ›tel</text>
 	</string>
 	<string id="st_client_connecting_to">
-		<text>KLIENT: Připojování k</text>
+		<text>KLIENT: PĹ™ipojovĂˇnĂ­ k</text>
 	</string>
 	<string id="st_client_spawning">
-		<text>KLIENT: Objevování</text>
+		<text>KLIENT: ObjevovĂˇnĂ­</text>
 	</string>
 	<string id="st_client_synchronising">
 		<text>KLIENT: Synchronizace</text>
 	</string>
 	<string id="st_creating_new_game">
-		<text>Vytváření nové hry</text>
+		<text>VytvĂˇĹ™enĂ­ novĂ© hry</text>
 	</string>
 	<string id="ui_mm_always_active">
-		<text>Nepozastavovat při Alt+Tab</text>
+		<text>Nepozastavovat pĹ™i Alt+Tab</text>
 	</string>
 	<string id="ui_mm_detail_radius">
-		<text>Poloměr detailu trávy</text>
+		<text>PolomÄ›r detailu trĂˇvy</text>
 	</string>
 	<string id="ui_mm_ui_style">
-		<text>Styl rozhraní</text>
+		<text>Styl rozhranĂ­</text>
 	</string>
 	<string id="ui_style_default">
 		<text>Call of Pripyat</text>
 	</string>
 	<string id="ui_mm_simplified_item_pickup">
-		<text>Zjednodušené sbírání předmětů</text>
+		<text>ZjednoduĹˇenĂ© sbĂ­rĂˇnĂ­ pĹ™edmÄ›tĹŻ</text>
 	</string>
 	<string id="ui_mm_multi_item_pickup">
-		<text>Hromadné sbírání předmětů</text>
+		<text>HromadnĂ© sbĂ­rĂˇnĂ­ pĹ™edmÄ›tĹŻ</text>
 	</string>
 	<string id="ui_mm_loadingstages">
-		<text>Zobrazit fáze načítání</text>
+		<text>Zobrazit fĂˇze naÄŤĂ­tĂˇnĂ­</text>
 	</string>
 	<string id="renderer_rgl">
-		<text>Pokročilé dynamické osvětlení (OpenGL)</text>
+		<text>PokroÄŤilĂ© dynamickĂ© osvÄ›tlenĂ­ (OpenGL)</text>
 	</string>
 	<string id="ui_mm_window_mode">
-		<text>Režim okna</text>
+		<text>ReĹľim okna</text>
 	</string>
 	<string id="st_opt_windowed">
 		<text>Okno</text>
 	</string>
 	<string id="st_opt_windowed_borderless">
-		<text>Okno bez okrajů</text>
+		<text>Okno bez okrajĹŻ</text>
 	</string>
 	<string id="st_opt_fullscreen">
-		<text>Celá obrazovka</text>
+		<text>CelĂˇ obrazovka</text>
 	</string>
 	<string id="st_opt_fullscreen_borderless">
-		<text>Celá obrazovka (rychlé Alt+Tab)</text>
+		<text>CelĂˇ obrazovka (rychlĂ© Alt+Tab)</text>
 	</string>
 	<string id="ui_mm_r2_smap_size">
-		<text>Kvalita stínů</text>
+		<text>Kvalita stĂ­nĹŻ</text>
 	</string>
 	<string id="ui_mm_r3_dynamic_wet_surfaces_near">
-		<text>Blízké mokré povrchy</text>
+		<text>BlĂ­zkĂ© mokrĂ© povrchy</text>
 	</string>
 	<string id="ui_mm_r3_dynamic_wet_surfaces_far">
-		<text>Vzdálené mokré povrchy</text>
+		<text>VzdĂˇlenĂ© mokrĂ© povrchy</text>
 	</string>
 	<string id="ui_mm_r3_dynamic_wet_surfaces_sm_res">
-		<text>Kvalita mokrých povrchů</text>
+		<text>Kvalita mokrĂ˝ch povrchĹŻ</text>
 	</string>
 	<string id="ui_mm_fov">
-		<text>Úhel pohledu</text>
+		<text>Ăšhel pohledu</text>
 	</string>
 	<string id="ui_mm_hud_fov">
-		<text>Úhel pohledu HUD</text>
+		<text>Ăšhel pohledu HUD</text>
 	</string>
 	<string id="ui_mm_localization">
 		<text>Jazyk</text>
 	</string>
 	<string id="ui_mm_gamepad_setup">
-		<text>Nastavení gamepadu</text>
+		<text>NastavenĂ­ gamepadu</text>
 	</string>
 	<string id="ui_mm_fps_limit">
-		<text>Limit FPS ve hře</text>
+		<text>Limit FPS ve hĹ™e</text>
 	</string>
 	<string id="ui_mm_fps_limit_in_menu">
 		<text>Limit FPS v menu</text>
 	</string>
 	<string id="ui_mm_shader_preset">
-		<text>Grafický režim</text>
+		<text>GrafickĂ˝ reĹľim</text>
 	</string>
 	<string id="ui_mm_shader_preset_vanilla">
-		<text>původní</text>
+		<text>pĹŻvodnĂ­</text>
 	</string>
 	<string id="ui_mm_shader_preset_enhanced_default">
-		<text>vylepšený (výchozí)</text>
+		<text>vylepĹˇenĂ˝ (vĂ˝chozĂ­)</text>
 	</string>
 	<string id="ui_mm_shader_preset_enhanced_high">
-		<text>vylepšený (vysoký)</text>
+		<text>vylepĹˇenĂ˝ (vysokĂ˝)</text>
 	</string>
 	<string id="ui_mm_color_grading_preset">
-		<text>Barevná korekce</text>
+		<text>BarevnĂˇ korekce</text>
 	</string>
 	<string id="ui_mm_color_grading_default">
-		<text>výchozí</text>
+		<text>vĂ˝chozĂ­</text>
 	</string>
 	<string id="ui_mm_color_grading_cold">
-		<text>chladná</text>
+		<text>chladnĂˇ</text>
 	</string>
 	<string id="ui_mm_color_grading_filmic_01">
-		<text>Filmová 1</text>
+		<text>FilmovĂˇ 1</text>
 	</string>
 	<string id="ui_mm_color_grading_filmic_02">
-		<text>Filmová 2</text>
+		<text>FilmovĂˇ 2</text>
 	</string>
 	<string id="ui_mm_color_grading_filmic_03">
-		<text>Filmová 3</text>
+		<text>FilmovĂˇ 3</text>
 	</string>
 	<string id="ui_mm_color_grading_hollywood">
 		<text>Hollywood</text>
 	</string>
 	<string id="ui_mm_color_grading_vanilla">
-		<text>Původní</text>
+		<text>PĹŻvodnĂ­</text>
 	</string>
 	<string id="ui_mm_color_grading_vibrant">
 		<text>Vibrant</text>
 	</string>
 	<string id="ui_mm_color_grading_warm">
-		<text>Teplá</text>
+		<text>TeplĂˇ</text>
 	</string>
 	<string id="cze">
-    	<text>Čeština (Czech)</text>
+    	<text>ÄŚeĹˇtina (Czech)</text>
 	</string>
 	<string id="eng">
-		<text>Angličtina (English)</text>
+		<text>AngliÄŤtina (English)</text>
 	</string>
 	<string id="fra">
-		<text>Francouzština (French)</text>
+		<text>FrancouzĹˇtina (French)</text>
 	</string>
 	<string id="ger">
-		<text>Němčina (German)</text>
+		<text>NÄ›mÄŤina (German)</text>
 	</string>
 	<string id="ita">
-		<text>Italština (Italian)</text>
+		<text>ItalĹˇtina (Italian)</text>
 	</string>
 	<string id="pol">
-		<text>Polština (Polish)</text>
+		<text>PolĹˇtina (Polish)</text>
 	</string>
 	<string id="rus">
-		<text>Ruština (Russian)</text>
+		<text>RuĹˇtina (Russian)</text>
 	</string>
 	<string id="spa">
-		<text>Španělština (Spanish)</text>
+		<text>Ĺ panÄ›lĹˇtina (Spanish)</text>
 	</string>
 	<string id="ukr">
-		<text>Ukrajinština (Ukrainian)</text>
+		<text>UkrajinĹˇtina (Ukrainian)</text>
 	</string>
 	<string id="jpn">
-		<text>Japonština (Japan)</text>
+		<text>JaponĹˇtina (Japan)</text>
+	</string>
+	<string id="ui_mm_quit2windows">
+		<text>UkonÄŤit do macOS</text>
 	</string>
 </string_table>

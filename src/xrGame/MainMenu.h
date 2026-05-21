@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Updater_Manifest.h"
+
 class CUIWindow;
 class CUIDialogWnd;
 class CUICursor;
@@ -94,6 +96,9 @@ public:
         SessionTerminate,
         LoadingError,
         DownloadMPMap,
+        NewPatch,             // yes/no: a fork update is available, install?
+        PatchDownloadError,   // ok:     fork update download failed
+        PatchDownloadSuccess, // yes/no: download done, restart now?
         ErrMax,
         ErrNoError = ErrMax,
     };
@@ -114,6 +119,18 @@ protected:
     shared_str m_downloaded_mp_map_url;
     shared_str m_player_name;
     shared_str m_cdkey;
+
+    // Updater state (issue #39). Held between the manifest GET and the asset
+    // download; m_pendingDownloadPath is set when the download is queued so
+    // CancelDownload can clean it up.
+    UpdateManifest m_pendingManifest;
+    string_path m_pendingDownloadPath{};
+
+    void OnManifestReceived(bool ok, const char* body, u32 length);
+    void OnUpdateDownloadProgress(u64 received, u64 total);
+    void OnUpdateDownloadCompleted(bool ok);
+    void OnPatchAcceptYes(CUIWindow*, void*);
+    void OnPatchRestartYes(CUIWindow*, void*);
 
     xr_vector<CUIMessageBoxEx*> m_pMB_ErrDlgs;
     bool ReloadUI();
@@ -175,6 +192,12 @@ public:
 
     void OnPatchCheck(bool success);
 
+    // In-game updater entry points (issue #39). TriggerUpdateCheck is the user-
+    // visible kickoff; the rest are private callbacks bound through FastDelegate
+    // to ghttp's async machinery, fired during ghttpThink() from the per-frame
+    // GameSpy update tick.
+    void TriggerUpdateCheck();
+
     void Show_DownloadMPMap(LPCSTR text, LPCSTR url);
     void OnDownloadMPMap_CopyURL(CUIWindow*, void*);
     void OnDownloadMPMap(CUIWindow*, void*);
@@ -202,7 +225,7 @@ public:
     CEventNotifierCallback::CID m_script_reset_event_cid;
 
 private:
-    DECLARE_SCRIPT_REGISTER_FUNCTION(CDialogHolder);
+    DECLARE_SCRIPT_REGISTER_FUNCTION(CDialogHolder, CUIDialogWnd, CUIWindow);
 };
 
 extern CMainMenu* MainMenu();

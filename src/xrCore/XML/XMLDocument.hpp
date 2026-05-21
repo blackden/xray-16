@@ -34,6 +34,14 @@ public:
     // Set XML directly. Doesn't support #include directive
     bool Set(pcstr text, bool fatal = true);
 
+protected:
+    // Wraps Set() with a cp1251/cp1250/cp1252 -> UTF-8 transcoding shim
+    // for vanilla XML resources that pre-date the UTF-8 migration. Bodies
+    // that are already valid UTF-8 are passed through unchanged.
+    bool SetWithEncodingShim(pcstr body, size_t body_size, bool fatal);
+
+public:
+
     bool IsErrored() const;
     pcstr GetErrorDesc() const;
 

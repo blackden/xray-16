@@ -15,7 +15,18 @@ set(RELVER 5)
 set(ABIVER 5.1)
 set(NODOTABIVER 51)
 
-set(CMAKE_OSX_SYSROOT "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk")
+if (APPLE)
+    # Discover the SDK via xcrun so we work with Command Line Tools too,
+    # not just a full Xcode.app install.
+    execute_process(
+        COMMAND xcrun --sdk macosx --show-sdk-path
+        OUTPUT_VARIABLE _xr_luajit_macos_sdk
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+        RESULT_VARIABLE _xr_luajit_xcrun_result)
+    if (_xr_luajit_xcrun_result EQUAL 0 AND IS_DIRECTORY "${_xr_luajit_macos_sdk}")
+        set(CMAKE_OSX_SYSROOT "${_xr_luajit_macos_sdk}")
+    endif()
+endif()
 set(LUAJIT_DIR ${CMAKE_SOURCE_DIR}/Externals/LuaJIT/src CACHE PATH "Location of luajit sources")
 
 option(BUILD_SHARED_LIBS "Build as shared library" ON)
@@ -46,10 +57,11 @@ elseif (APPLE)
 else()
     option(LUA_USE_POSIX "Use POSIX functionality." ON)
 
-    # OpenBSD has dl as a part of libc
-    # NetBSD includes dl functions automatically
-    if (NOT CMAKE_SYSTEM_NAME STREQUAL "OpenBSD" AND NOT CMAKE_SYSTEM_NAME STREQUAL "NetBSD")
-        # This option only links dl and doesn't change anything other from that.
+    if (CMAKE_SYSTEM_NAME STREQUAL "Haiku")
+        option(LUA_USE_DLOPEN "Use dynamic linker to load modules." OFF)
+    elseif (NOT CMAKE_SYSTEM_NAME STREQUAL "OpenBSD" AND NOT CMAKE_SYSTEM_NAME STREQUAL "NetBSD")
+        # OpenBSD has dl as a part of libc
+        # NetBSD includes dl functions automatically
         option(LUA_USE_DLOPEN "Use dynamic linker to load modules." ON)
     endif()
 endif()

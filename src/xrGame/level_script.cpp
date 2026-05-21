@@ -37,9 +37,10 @@
 #include "xrServer_Objects_ALife_Monsters.h"
 #include "HUDManager.h"
 #include "raypick.h"
+#include "ui/UIMainIngameWnd.h"
+#include "UIZoneMap.h"
 #include "xrCDB/xr_collide_defs.h"
 #include "xrNetServer/NET_Messages.h"
-#include "xrEngine/Rain.h"
 
 LPCSTR command_line() { return Core.Params; }
 bool IsDynamicMusic() { return !!psActorFlags.test(AF_DYNAMIC_MUSIC); }
@@ -95,7 +96,7 @@ CScriptGameObject* get_object_by_id(u16 id)
     return pGameObject->lua_game_object();
 }
 
-LPCSTR get_weather() { return *g_pGamePersistent->Environment().GetWeather(); }
+LPCSTR get_weather() { return g_pGamePersistent->Environment().GetWeather().c_str(); }
 void set_weather(pcstr const weather_name, const bool forced)
 {
     if (!Device.editor_mode())
@@ -190,33 +191,6 @@ float low_cover_in_direction(u32 level_vertex_id, const Fvector& direction)
 }
 
 float rain_factor() { return (g_pGamePersistent->Environment().CurrentEnv.rain_density); }
-float rain_wetness() { return (g_pGamePersistent->Environment().wetness_factor); }
-float rain_hemi()
-{
-    CEffect_Rain* rain = g_pGamePersistent->pEnvironment->eff_Rain;
-
-    if (rain)
-    {
-        return rain->GetRainHemi();
-    }
-    else
-    {
-        IGameObject* E = g_pGameLevel->CurrentViewEntity();
-        if (E && E->renderable_ROS())
-        {
-            float* hemi_cube = E->renderable_ROS()->get_luminocity_hemi_cube();
-            float hemi_val = _max(hemi_cube[0], hemi_cube[1]);
-            hemi_val = _max(hemi_val, hemi_cube[2]);
-            hemi_val = _max(hemi_val, hemi_cube[3]);
-            hemi_val = _max(hemi_val, hemi_cube[5]);
-
-            return hemi_val;
-        }
-
-        return 0.f;
-    }
-}
-
 u32 vertex_in_direction(u32 level_vertex_id, Fvector direction, float max_distance)
 {
     direction.normalize_safe();
@@ -599,7 +573,7 @@ void stop_tutorial()
         g_tutorial->Stop();
 }
 
-LPCSTR translate_string(LPCSTR str) { return *StringTable().translate(str); }
+LPCSTR translate_string(LPCSTR str) { return StringTable().translate(str).c_str(); }
 bool has_active_tutotial() { return (g_tutorial != NULL); }
 
 // Alundaio: namespace level exports extension
@@ -758,11 +732,45 @@ void CLevel::script_register(lua_State* luaState)
 
     module(luaState, "level")
     [
+        // X-Ray Extensions:
+        def("get_target_obj", &g_get_target_obj),
+        def("get_target_dist", &g_get_target_dist),
+        def("get_target_element", &g_get_target_element), // Can get bone cursor is targeting
+        def("get_actor_body_state", +[]() -> u32
+        {
+            if (!g_actor)
+                return 0;
+            return g_actor->GetBodyState();
+        }),
+        def("get_actor_body_state_wishful", +[]() -> u32
+        {
+            if (!g_actor)
+                return 0;
+            return g_actor->GetWishfulBodyState();
+        }),
+        def("get_fov", +[]
+        {
+            return g_fov;
+        }),
+        def("set_fov", +[](float fov)
+        {
+            g_fov = fov;
+        }),
+        def("show_minimap", +[]
+        {
+            CurrentGameUI()->UIMainIngameWnd->ShowZoneMap(true);
+        }),
+        def("hide_minimap", +[]
+        {
+            CurrentGameUI()->UIMainIngameWnd->ShowZoneMap(false);
+        }),
+        def("minimap_shown", +[]
+        {
+            return CurrentGameUI()->UIMainIngameWnd->IsZoneMapShown();
+        }),
+
         //Alundaio: Extend level namespace exports
         def("send", &g_send) , //allow the ability to send netpacket to level
-        def("get_target_obj", &g_get_target_obj), //intentionally named to what is in xray extensions
-        def("get_target_dist", &g_get_target_dist),
-        def("get_target_element", &g_get_target_element), //Can get bone cursor is targeting
         def("spawn_item", &spawn_section),
         def("get_active_cam", &get_active_cam),
         def("set_active_cam", &set_active_cam),
@@ -807,8 +815,6 @@ void CLevel::script_register(lua_State* luaState)
         def("low_cover_in_direction", low_cover_in_direction),
         def("vertex_in_direction", vertex_in_direction),
         def("rain_factor", rain_factor),
-        def("rain_wetness", rain_wetness),
-        def("rain_hemi", rain_hemi),
         def("patrol_path_exists", patrol_path_exists),
         def("vertex_position", vertex_position),
         def("name", +[]() { return Level().name().c_str(); }),

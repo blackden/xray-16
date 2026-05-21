@@ -1,5 +1,15 @@
-<?xml version="1.0" encoding="windows-1251" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <string_table>
+	<string id="ui_st_xrupdater_new_patch_text">
+		<text>An update is available. Download now?</text>
+	</string>
+	<string id="ui_st_xrupdater_patch_download_error_text">
+		<text>Update download failed. See log for details.</text>
+	</string>
+	<string id="ui_st_xrupdater_patch_download_success_text">
+		<text>Update downloaded. Apply on next launch?</text>
+	</string>
+
 	<string id="st_unload_magazine_after_pickup">
 		<text>Autounload weapon after pickup</text>
 	</string>
@@ -96,52 +106,10 @@
 	<string id="ui_mm_fps_limit_in_menu">
 		<text>Menu FPS limit</text>
 	</string>
-	<string id="ui_mm_shader_preset">
-		<text>Graphics mode</text>
-	</string>
-	<string id="ui_mm_shader_preset_vanilla">
-		<text>vanilla</text>
-	</string>
-	<string id="ui_mm_shader_preset_enhanced_default">
-		<text>enhanced (Default)</text>
-	</string>
-	<string id="ui_mm_shader_preset_enhanced_high">
-		<text>enhanced (High)</text>
-	</string>
-	<string id="ui_mm_color_grading_preset">
-		<text>Colour grading</text>
-	</string>
-	<string id="ui_mm_color_grading_default">
-		<text>default</text>
-	</string>
-	<string id="ui_mm_color_grading_cold">
-		<text>cold</text>
-	</string>
-	<string id="ui_mm_color_grading_filmic_01">
-		<text>Filmic 1</text>
-	</string>
-	<string id="ui_mm_color_grading_filmic_02">
-		<text>Filmic 2</text>
-	</string>
-	<string id="ui_mm_color_grading_filmic_03">
-		<text>Filmic 3</text>
-	</string>
-	<string id="ui_mm_color_grading_hollywood">
-		<text>Hollywood</text>
-	</string>
-	<string id="ui_mm_color_grading_vanilla">
-		<text>Vanilla</text>
-	</string>
-	<string id="ui_mm_color_grading_vibrant">
-		<text>Vibrant</text>
-	</string>
-	<string id="ui_mm_color_grading_warm">
-		<text>warm</text>
-	</string>
-	<string id="cze">
-    	<text>Czech</text>
-	</string>
-	<string id="eng">
+  <string id="cze">
+    <text>Czech</text>
+  </string>
+  <string id="eng">
 		<text>English</text>
 	</string>
 	<string id="fra">
@@ -167,5 +135,8 @@
 	</string>
 	<string id="ukr">
 		<text>Ukrainian</text>
+	</string>
+	<string id="ui_mm_quit2windows">
+		<text>Quit to macOS</text>
 	</string>
 </string_table>

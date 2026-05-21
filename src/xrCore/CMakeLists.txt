@@ -132,8 +132,6 @@ target_sources_grouped(
     TARGET xrCore
     NAME "Debug core"
     FILES
-    #Debug/MiniDump.cpp
-    #Debug/MiniDump.h
     xrDebug.cpp
     xrDebug.h
     xrDebug_macros.h
@@ -149,6 +147,14 @@ target_sources_grouped(
 #    Debug/DXGetErrorString.inl
 #    Debug/DXTrace.inl
 #)
+
+target_sources_grouped(
+    TARGET xrCore
+    NAME "Debug core\\StackTrace"
+    FILES
+    Debug/StackTrace.cpp
+    Debug/StackTrace.h
+)
 
 target_sources_grouped(
     TARGET xrCore
@@ -446,6 +452,26 @@ target_include_directories(xrCore
     "${CMAKE_SOURCE_DIR}/Externals/mimalloc/include"
 )
 
+# When XRAY_ENABLE_TRACY is ON the engine references tracy::Profiler symbols
+# via the headers under Externals/tracy/public; the MSBuild project compiles
+# Externals/tracy/public/TracyClient.cpp alongside xrCore (xrCore.vcxproj:49),
+# but the CMake path historically only added the include directory above and
+# omitted the .cpp -- so linking failed on tracy:: symbols. Compile the client
+# here when Tracy is enabled to keep the two build systems in sync.
+if(XRAY_ENABLE_TRACY)
+    target_sources(xrCore PRIVATE
+        "${CMAKE_SOURCE_DIR}/Externals/tracy/public/TracyClient.cpp"
+    )
+    # Tracy's amalgamated client includes vendored libbacktrace headers that
+    # clash with our PCH / unity batches; build it in isolation.
+    set_source_files_properties(
+        "${CMAKE_SOURCE_DIR}/Externals/tracy/public/TracyClient.cpp"
+        PROPERTIES
+            SKIP_UNITY_BUILD_INCLUSION ON
+            SKIP_PRECOMPILE_HEADERS ON
+    )
+endif()
+
 target_link_libraries(xrCore
     PUBLIC
     pthread
@@ -459,12 +485,20 @@ target_link_libraries(xrCore
     LZO::LZO
 )
 
-if (NOT CMAKE_SYSTEM_NAME STREQUAL "OpenBSD" AND NOT CMAKE_SYSTEM_NAME STREQUAL "NetBSD" AND NOT WIN32)
+if (NOT CMAKE_SYSTEM_NAME STREQUAL "OpenBSD" AND NOT CMAKE_SYSTEM_NAME STREQUAL "NetBSD" AND NOT WIN32 AND NOT HAIKU)
     target_link_libraries(xrCore
         PRIVATE
         dl
     )
 endif()
+
+if (APPLE)
+    # libiconv ships with macOS but lives outside libSystem. xr_utf8_to_cp1251
+    # uses iconv to bridge POSIX-native UTF-8 strings into the engine's cp1251
+    # font tables (save notification, etc).
+    target_link_libraries(xrCore PRIVATE iconv)
+endif()
+
 
 target_compile_definitions(xrCore
     PRIVATE
@@ -476,8 +510,9 @@ target_compile_definitions(xrCore
     GITHUB_RUN_ID=\"$ENV{GITHUB_RUN_ID}\"
     GITHUB_RUN_NUMBER=\"$ENV{GITHUB_RUN_NUMBER}\"
     GITHUB_REPOSITORY=\"$ENV{GITHUB_REPOSITORY}\"
-    GIT_INFO_CURRENT_COMMIT=\"${XRAY_GIT_SHA1}\"
+    GIT_INFO_CURRENT_COMMIT=\"${XRAY_GIT_SHA}\"
     GIT_INFO_CURRENT_BRANCH=\"${XRAY_GIT_BRANCH}\"
+    XRAY_FORK_VERSION=\"${XRAY_FORK_VERSION}\"
     OPENSSL_NO_DEPRECATED
 )
 

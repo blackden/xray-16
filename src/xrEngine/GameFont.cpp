@@ -3,6 +3,7 @@
 
 #include "GameFont.h"
 #include "xr_level_controller.h"
+#include "xrCore/xrCore.h" // xr_cp1251_to_unicode table
 #include "xrCore/Text/StringConversion.hpp"
 #include "Render.h"
 #include "StringTable/StringTable.h"
@@ -165,8 +166,46 @@ void CGameFont::Initialize(pcstr cShader, pcstr cTextureName)
 
     CInifile::Destroy(ini);
 
+    // Build the codepoint -> atlas-slot map for single-byte fonts. The
+    // multi-byte case uses TCMap directly indexed by BMP wide-char, so
+    // no map is needed there. We populate from the cp1251 reference
+    // table because every shipped CoP font atlas was authored against
+    // cp1251 byte order.
+    m_codepointToSlot.clear();
+    if (!IsMultibyte())
+    {
+        m_codepointToSlot.reserve(256);
+        for (u32 i = 0; i < 256; ++i)
+        {
+            const u16 cp = xr_cp1251_to_unicode[i];
+            if (cp == 0xFFFD)
+                continue; // unassigned (0x98) — leave unmapped
+            m_codepointToSlot[cp] = static_cast<u16>(i);
+        }
+    }
+
     // Shading
     pFontRender->Initialize(cShader, cTexture);
+}
+
+// Flipped to true in Phase 1.8: every renderer call site (SizeOf_,
+// GetCutLengthPos, SplitByWidth, smart_strlen, dxFontRender::OnRender,
+// CUILines::ParseText) is now codepoint-aware. The legacy mbhMulti2Wide /
+// byte-indexed paths stay in the tree as a one-flag-flip fallback.
+bool CGameFont::s_utf8_mode = true;
+
+u16 CGameFont::SlotForCodepoint(u32 cp) const
+{
+    if (IsMultibyte())
+    {
+        // Multi-byte fonts: TCMap is keyed directly by BMP codepoint.
+        // Non-BMP codepoints fall back to '?'.
+        return (cp < 0x10000) ? static_cast<u16>(cp) : static_cast<u16>('?');
+    }
+    auto it = m_codepointToSlot.find(cp);
+    if (it != m_codepointToSlot.end())
+        return it->second;
+    return static_cast<u16>('?'); // visible fallback for missing glyphs
 }
 
 CGameFont::~CGameFont()
@@ -194,7 +233,25 @@ void CGameFont::OutSet(float x, float y)
 }
 
 void CGameFont::OutSetI(float x, float y) { OutSet(DI2PX(x), DI2PY(y)); }
-u32 CGameFont::smart_strlen(pcstr S) { return (IsMultibyte() ? mbhMulti2Wide(NULL, NULL, 0, S) : xr_strlen(S)); }
+u32 CGameFont::smart_strlen(pcstr S)
+{
+    if (s_utf8_mode)
+    {
+        // Count codepoints, not bytes. dxFontRender uses this to size its
+        // vertex batches; a UTF-8 string with N codepoints needs N glyph
+        // quads, not strlen(S) (which over-counts multi-byte sequences).
+        u32 n = 0;
+        const char* p = S;
+        xr_codepoint cp = 0;
+        while (*p)
+        {
+            xr_decode_utf8(p, cp);
+            ++n;
+        }
+        return n;
+    }
+    return IsMultibyte() ? mbhMulti2Wide(NULL, NULL, 0, S) : xr_strlen(S);
+}
 
 std::pair<u32, u32> CGameFont::get_actions_text_length(pcstr s)
 {
@@ -231,6 +288,25 @@ u16 CGameFont::GetCutLengthPos(float fTargetWidth, pcstr pszText)
 {
     VERIFY(pszText);
 
+    if (s_utf8_mode)
+    {
+        const char* p = pszText;
+        float fCurWidth = 0.0f;
+        xr_codepoint cp = 0;
+        while (*p)
+        {
+            const char* before = p;
+            xr_decode_utf8(p, cp);
+            float fDelta = GetCharTC(SlotForCodepoint(cp)).z - 2;
+            if (IsNeedSpaceCharacter(cp))
+                fDelta += fXStep;
+            if ((fCurWidth + fDelta) > fTargetWidth)
+                return static_cast<u16>(before - pszText);
+            fCurWidth += fDelta;
+        }
+        return static_cast<u16>(p - pszText);
+    }
+
     xr_wide_char wsStr[MAX_MB_CHARS], wsPos[MAX_MB_CHARS];
     float fCurWidth = 0.0f, fDelta = 0.0f;
 
@@ -256,6 +332,46 @@ u16 CGameFont::GetCutLengthPos(float fTargetWidth, pcstr pszText)
 u16 CGameFont::SplitByWidth(u16* puBuffer, u16 uBufferSize, float fTargetWidth, pcstr pszText)
 {
     VERIFY(puBuffer && uBufferSize && pszText);
+
+    if (s_utf8_mode)
+    {
+        // UTF-8 codepoint-aware word-wrap. Tracks byte offset of the previous
+        // codepoint boundary so the returned split positions land between
+        // glyphs, never inside a continuation byte.
+        const char* p = pszText;
+        float fCurWidth = 0.0f;
+        u16 nLines = 0;
+        xr_codepoint cp = 0;
+        xr_codepoint prev_cp = 0;
+        bool first = true;
+        while (*p)
+        {
+            const char* before = p;
+            xr_decode_utf8(p, cp);
+            float fDelta = GetCharTC(SlotForCodepoint(cp)).z - 2;
+            if (IsNeedSpaceCharacter(cp))
+                fDelta += fXStep;
+
+            const bool isOverlength = (fCurWidth + fDelta) > fTargetWidth;
+            const bool canStart = !IsBadStartCharacter(cp);
+            const bool notLast = (*p != 0);
+            const bool prevOk = !first && !IsBadEndCharacter(prev_cp);
+
+            if (isOverlength && canStart && notLast && prevOk)
+            {
+                fCurWidth = fDelta;
+                VERIFY(nLines < uBufferSize);
+                puBuffer[nLines++] = static_cast<u16>(before - pszText);
+            }
+            else
+            {
+                fCurWidth += fDelta;
+            }
+            prev_cp = cp;
+            first = false;
+        }
+        return nLines;
+    }
 
     xr_wide_char wsStr[MAX_MB_CHARS], wsPos[MAX_MB_CHARS];
     float fCurWidth = 0.0f, fDelta = 0.0f;
@@ -351,10 +467,50 @@ float CGameFont::SizeOf_(const char cChar)
     return (GetCharTC((u16)(u8)(((IsMultibyte() && cChar == ' ')) ? 0 : cChar)).z * vInterval.x);
 }
 
+float CGameFont::SizeOfCp(xr_codepoint cp) const
+{
+    // Single-codepoint width for UTF-8 word-wrap callers. Mirrors
+    // SizeOf_(const char) but driven by SlotForCodepoint so cyrillic /
+    // CJK glyphs are measured correctly instead of accumulating per
+    // continuation byte.
+    return (GetCharTC(SlotForCodepoint(cp)).z * vInterval.x);
+}
+
 float CGameFont::SizeOf_(pcstr s)
 {
     if (!(s && s[0]))
         return 0;
+
+    if (s_utf8_mode)
+    {
+        // Codepoint-aware width. Handles GAME_ACTION_MARK keybinding macros
+        // by expanding the binding string in place; bindings are ASCII so
+        // their codepoint and byte width coincide.
+        const char* p = s;
+        float X = 0.0f;
+        xr_codepoint cp = 0;
+        while (*p)
+        {
+            if (*p == GAME_ACTION_MARK)
+            {
+                ++p;
+                static_assert(kLASTACTION < type_max<u8>, "Modify the code to have more than 255 actions.");
+                const EGameActions actionId = static_cast<EGameActions>(static_cast<u8>(*p));
+                ++p;
+                pcstr binding = GetActionBinding(actionId);
+                while (*binding)
+                {
+                    xr_codepoint bcp = 0;
+                    xr_decode_utf8(binding, bcp);
+                    X += GetCharTC(SlotForCodepoint(bcp)).z;
+                }
+                continue;
+            }
+            xr_decode_utf8(p, cp);
+            X += GetCharTC(SlotForCodepoint(cp)).z;
+        }
+        return (X * vInterval.x);
+    }
 
     if (IsMultibyte())
     {

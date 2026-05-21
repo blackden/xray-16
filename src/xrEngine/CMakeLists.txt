@@ -13,6 +13,14 @@ target_sources_grouped(
 
 target_sources_grouped(
     TARGET xrEngine
+    NAME "editor\\RendererPlayground"
+    FILES
+    RendererPlayground.cpp
+    RendererPlayground.h
+)
+
+target_sources_grouped(
+    TARGET xrEngine
     NAME "Engine"
     FILES
     Properties.h
@@ -204,7 +212,6 @@ target_sources_grouped(
     IGame_ObjectPool.h
     IGame_Persistent.cpp
     IGame_Persistent.h
-    IGame_Persistent_Effects.cpp
     pure_relcase.cpp
     pure_relcase.h
     xr_object.h
@@ -407,6 +414,30 @@ target_sources(xrEngine
     features.txt
     TODO.txt
 )
+
+if(APPLE)
+    target_sources_grouped(
+        TARGET xrEngine
+        NAME "Platform\\macOS"
+        FILES
+        macos_cocoa_shim.mm
+        RendererPlayground_HotReload.mm
+    )
+    set_source_files_properties(
+        macos_cocoa_shim.mm
+        RendererPlayground_HotReload.mm
+        PROPERTIES
+        SKIP_PRECOMPILE_HEADERS ON
+        SKIP_UNITY_BUILD_INCLUSION ON
+        COMPILE_FLAGS "-fobjc-arc"
+    )
+    target_link_libraries(xrEngine
+        PRIVATE
+        "-framework AppKit"
+        "-framework Foundation"
+        "-framework CoreServices"
+    )
+endif()
 
 target_include_directories(xrEngine
     PRIVATE

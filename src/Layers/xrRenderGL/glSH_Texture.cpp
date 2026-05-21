@@ -78,6 +78,12 @@ void CTexture::apply_theora(CBackend& cmd_list, u32 dwStage)
     CHK_GL(glActiveTexture(GL_TEXTURE0 + dwStage));
     CHK_GL(glBindTexture(desc, pSurface));
 
+    // See comment in xrRender/SH_Texture.cpp::apply_theora — rewind when the
+    // texture comes back from a gap so the decoder doesn't continue mid-stream.
+    if (m_theora_last_apply_frame != 0 && Device.dwFrame - m_theora_last_apply_frame > 10)
+        pTheora->Rewind(Device.dwTimeContinual);
+    m_theora_last_apply_frame = Device.dwFrame;
+
     if (pTheora->Update(m_play_time != 0xFFFFFFFF ? m_play_time : Device.dwTimeContinual))
     {
         u32* pBits;

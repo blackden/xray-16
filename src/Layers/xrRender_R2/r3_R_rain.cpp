@@ -4,6 +4,7 @@
 
 #include "xrEngine/IGame_Persistent.h"
 #include "xrEngine/IRenderable.h"
+#include "xrEngine/Rain.h"
 #include "Layers/xrRender/FBasicVisual.h"
 
 #if defined(USE_DX11)
@@ -50,10 +51,24 @@ static int facetable[6][4] =
 
 void render_rain::init()
 {
-    if (ps_ssfx_gloss_method == 0)
-        rain_factor = g_pGamePersistent->Environment().CurrentEnv.rain_density;
-    else
-        rain_factor = g_pGamePersistent->Environment().wetness_factor;
+    rain_factor = g_pGamePersistent->Environment().CurrentEnv.rain_density;
+
+    // Indoor suppression: multiply the rain factor by smoothstep over
+    // the sky-visibility hemi_factor smoothed in CEffect_Rain. This
+    // gates the wet-surface shadow contribution to zero under a roof.
+    // XXX [ragnar] RAIN_SHADOW_GATE: this is still a camera-centric
+    // gate (post-rain-v3 the streak emission moved to per-spawn-point
+    // gating in CEffect_Rain::Born). Shadow rain factor here drives a
+    // per-pixel shadow cascade contribution, so screen-space gating
+    // by camera position is acceptable — but revisit if user reports
+    // wet shadows leaking under cover near open doorways.
+    if (auto* eff = g_pGamePersistent->Environment().eff_Rain)
+    {
+        float hemi = eff->get_hemi_factor();
+        float t = (hemi - 0.2f) / 0.4f;
+        clamp(t, 0.f, 1.f);
+        rain_factor *= t * t * (3.f - 2.f * t); // smoothstep over [0.2, 0.6]
+    }
 
     o.active  = ps_r2_ls_flags.test(R3FLAG_DYN_WET_SURF);
     o.active &= rain_factor >= EPS_L;
@@ -88,10 +103,7 @@ void render_rain::calculate()
     // calculate view-frustum bounds in world space
     Fmatrix ex_project, ex_full, ex_full_inverse;
     {
-        float fRainFar = 250.f;
-        if (ps_ssfx_gloss_method == 0)
-            fRainFar = ps_r3_dyn_wet_surf_far;
-
+        const float fRainFar = ps_r3_dyn_wet_surf_far;
         ex_project.build_projection(deg2rad(Device.fFOV /* * Device.fASPECT*/), Device.fASPECT, VIEWPORT_NEAR, fRainFar);
         ex_full.mul(ex_project, Device.mView);
 #if defined(USE_DX11)
@@ -337,6 +349,12 @@ void render_rain::flush()
         RImplementation.release_context(context_id);
     }
 
+    if (!ps_r2_ls_flags.test(R3FLAG_DYN_WET_SURF))
+        return;
+
+    if (rain_factor < EPS_L)
+        return;
+
     auto& cmd_list_imm = RImplementation.get_imm_context().cmd_list;
 
 #if defined(USE_DX11)
@@ -351,18 +369,15 @@ void render_rain::flush()
     cmd_list_imm.set_xform_project(Device.mProject);
 
     // Accumulate
-    if (rain_factor >= EPS_L)
-    {
-        PIX_EVENT_CTX(cmd_list_imm, RainApply);
+    PIX_EVENT_CTX(cmd_list_imm, RainApply);
 
-        cmd_list_imm.set_pass_targets(
-            RImplementation.Target->rt_Color, /*rt_Normal*/
-            nullptr,
-            nullptr,
-            RImplementation.Target->rt_MSAADepth
-        );
-        RImplementation.Target->draw_rain(cmd_list_imm, RainLight);
-        RainLight.frame_render = Device.dwFrame;
-    }
+    cmd_list_imm.set_pass_targets(
+        RImplementation.Target->rt_Color, /*rt_Normal*/
+        nullptr,
+        nullptr,
+        RImplementation.Target->rt_MSAADepth
+    );
+    RImplementation.Target->draw_rain(cmd_list_imm, RainLight);
+    RainLight.frame_render = Device.dwFrame;
 }
 } // namespace xray::render::RENDER_NAMESPACE

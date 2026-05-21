@@ -4,6 +4,7 @@
 !.appveyor*
 !.editorconfig
 !.vscode
+!.env.example
 
 # exclude binaries and temporary files
 [Bb]in/
@@ -22,3 +23,16 @@
 
 # exclude doxygen output
 doc/doxygen/html/*
+
+# per-run macOS session artifacts created by `make run`
+notes/session-*/
+
+# packaged .app bundle output from `make package`
+/dist/
+build-profile/
+build-tests/
+notes/tracy/
+
+# Unpacked vanilla CoP archives from `make unpack-cop` (xrUnpack output).
+# Reference tree for modding workflow; not source we ship.
+_workspace/

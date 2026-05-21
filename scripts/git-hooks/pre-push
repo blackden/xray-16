@@ -1,0 +1,143 @@
+#!/usr/bin/env bash
+# OpenXRay macOS: pre-push sanity checks. Aborts the push if any
+# obvious style / encoding / build problem is detected, so accidental
+# errors don't reach the remote.
+#
+# Activation:
+#   make install-hooks    # symlinks this into .git/hooks/pre-push
+#
+# Skip (for emergency push):
+#   OPENXRAY_SKIP_PREPUSH=1 git push ...
+#
+# What it checks:
+#   1. Encoding / trailing-whitespace / final-newline (matches what
+#      .github/workflows/stylecheck.yml would flag).
+#   2. Incremental build still compiles (cmake --build build).
+#      Skipped on docs-only ranges.
+#   3. No obvious "do not push" markers in commits (WIP, DO NOT PUSH,
+#      DEBUG ONLY).
+#
+# Reads stdin per git protocol but only uses argv (remote, url).
+
+set -u
+
+if [ "${OPENXRAY_SKIP_PREPUSH:-0}" = "1" ]; then
+    echo "[pre-push hook] OPENXRAY_SKIP_PREPUSH=1, skipping all checks"
+    exit 0
+fi
+
+remote="${1:-origin}"
+echo "[pre-push hook] running sanity checks before pushing to ${remote}"
+
+# Discover the range we're pushing. Stdin lines: <local_ref> <local_sha> <remote_ref> <remote_sha>.
+# If a remote_sha is all zeros, the branch is new; diff against the merge-base with the target.
+range_files=""
+range_commits=""
+while read -r local_ref local_sha remote_ref remote_sha; do
+    [ -z "$local_ref" ] && continue
+    if [ "$remote_sha" = "0000000000000000000000000000000000000000" ]; then
+        # New branch — compare to merge-base with macos/blackden/master.
+        base=$(git merge-base "$local_sha" macos/blackden/master 2>/dev/null || echo "")
+        if [ -n "$base" ]; then
+            range_files=$(git diff --name-only "$base" "$local_sha")
+            range_commits=$(git rev-list "$base..$local_sha")
+        else
+            # No reasonable base — only check the tip commit.
+            range_files=$(git diff-tree --no-commit-id --name-only -r "$local_sha")
+            range_commits="$local_sha"
+        fi
+    else
+        range_files=$(git diff --name-only "$remote_sha" "$local_sha")
+        range_commits=$(git rev-list "$remote_sha..$local_sha")
+    fi
+done
+
+# Nothing to push? (deletion etc.)
+if [ -z "$range_files" ] && [ -z "$range_commits" ]; then
+    echo "[pre-push hook] no diff to verify, allowing push"
+    exit 0
+fi
+
+fail=0
+
+# ============================================================
+# Check 1: commit message blockers
+# ============================================================
+if [ -n "$range_commits" ]; then
+    for sha in $range_commits; do
+        # Check only the subject line — the body legitimately discusses
+        # these markers (e.g., this hook's own commit describing the
+        # patterns it catches).
+        subj=$(git log --format='%s' -n 1 "$sha")
+        if echo "$subj" | grep -qiE '^WIP\b|^\[wip\]|^DO NOT PUSH\b|^DO_NOT_PUSH\b|^DEBUG ONLY\b'; then
+            echo "[pre-push hook] FAIL: commit $sha subject has a 'do not push' marker:"
+            echo "    $subj"
+            fail=1
+        fi
+    done
+fi
+
+# ============================================================
+# Check 2: trailing whitespace + final newline (for source-like files)
+# ============================================================
+if [ -n "$range_files" ]; then
+    # Exclude submodules, externals, gamedata, build outputs.
+    relevant=$(echo "$range_files" | grep -vE '^(Externals/|sdk/|res/|_workspace/|build/|bin/|dist/|src/utils/mp_gpprof_server/libraries/)' \
+                                   | grep -E '\.(cpp|h|hpp|hxx|c|cc|cxx|cs|sh|py|md|yml|yaml|txt|cmake|json|xml|ltx)$' \
+                                   || true)
+    for f in $relevant; do
+        [ ! -f "$f" ] && continue
+        # Trailing whitespace
+        if grep -nE '[[:space:]]+$' "$f" >/dev/null 2>&1; then
+            echo "[pre-push hook] FAIL: trailing whitespace in $f"
+            grep -nE '[[:space:]]+$' "$f" | head -3 | sed 's/^/    /'
+            fail=1
+        fi
+        # Final newline
+        if [ -n "$(tail -c1 "$f")" ]; then
+            echo "[pre-push hook] FAIL: $f does not end with newline"
+            fail=1
+        fi
+    done
+fi
+
+# ============================================================
+# Check 3: incremental build (skip for docs-only)
+# ============================================================
+code_changed=0
+if [ -n "$range_files" ]; then
+    if echo "$range_files" | grep -qE '\.(cpp|h|hpp|hxx|c|cc|cxx|inl|mm|m)$'; then
+        code_changed=1
+    fi
+fi
+
+if [ "$code_changed" -eq 1 ]; then
+    if [ -d build ]; then
+        echo "[pre-push hook] code changes detected — running incremental build"
+        if ! cmake --build build -- -j4 >/tmp/openxray-prepush-build.log 2>&1; then
+            echo "[pre-push hook] FAIL: incremental build broken"
+            tail -30 /tmp/openxray-prepush-build.log | sed 's/^/    /'
+            fail=1
+        else
+            echo "[pre-push hook] build OK"
+        fi
+    else
+        echo "[pre-push hook] WARNING: no build/ dir — skipping build check"
+        echo "[pre-push hook]   run \`cmake -B build\` once so future pushes can verify"
+    fi
+else
+    echo "[pre-push hook] no code changes — skipping build check"
+fi
+
+# ============================================================
+# Verdict
+# ============================================================
+if [ "$fail" -ne 0 ]; then
+    echo
+    echo "[pre-push hook] aborting push due to failures above."
+    echo "[pre-push hook] to override (emergency): OPENXRAY_SKIP_PREPUSH=1 git push ..."
+    exit 1
+fi
+
+echo "[pre-push hook] all checks passed"
+exit 0

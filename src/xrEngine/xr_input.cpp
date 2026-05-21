@@ -32,6 +32,15 @@ public:
             if (Device.b_is_Ready)
                 Device.editor().SwitchToNextState();
             return;
+
+        case kRENDER_PLAYGROUND:
+            // DummyReceiver is the always-captured fallback. ide's own
+            // IR_OnKeyboardPress only fires when ide is the active input
+            // receiver (console open or full editor mode), so without this
+            // case the playground hotkey only works when the console is up.
+            if (Device.b_is_Ready)
+                Device.editor().TogglePlayground();
+            return;
         }
     }
 } dummyController;
@@ -519,14 +528,19 @@ void CInput::ControllerUpdate()
 
 bool KbdKeyToButtonName(const int dik, xr_string& result)
 {
-    static std::locale locale("");
-
     if (dik >= 0)
     {
-        cpcstr name = SDL_GetKeyName(SDL_GetKeyFromScancode((SDL_Scancode)dik));
+        // SDL_GetScancodeName gives the physical-key label, always in
+        // English ("E", "Space", "Left Ctrl"), independent of the active
+        // keyboard layout. That's what the binding UI wants:
+        // "press [E] to open door" should stay Latin even when the player
+        // is typing save names in Russian -- text input keeps using
+        // SDL_TEXTINPUT which respects the layout, so this only affects
+        // the binding labels.
+        cpcstr name = SDL_GetScancodeName((SDL_Scancode)dik);
         if (name && name[0])
         {
-            result = StringFromUTF8(name, locale);
+            result = name;
             return true;
         }
     }

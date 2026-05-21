@@ -45,10 +45,21 @@ public:
             }
 #endif
             hf = _fdopen(handle, "wb");
+#if defined(XR_PLATFORM_APPLE)
+            // macOS APFS refuses cp1251 filenames with EILSEQ. _sopen ->
+            // open() on Apple, so SH_DENYWR is a no-op and the retry can
+            // safely use fopen() to recover the FILE*.
+            if (hf == nullptr && errno == EILSEQ)
+                hf = retry_fopen_after_cp1251(conv_fn);
+#endif
         }
         else
         {
             hf = fopen(conv_fn, "wb");
+#if defined(XR_PLATFORM_APPLE)
+            if (hf == nullptr && errno == EILSEQ)
+                hf = retry_fopen_after_cp1251(conv_fn);
+#endif
             if (hf == 0)
             {
                 string1024 error;
@@ -58,6 +69,28 @@ public:
         }
         xr_free(conv_fn);
     }
+
+#if defined(XR_PLATFORM_APPLE)
+    // APFS rejects filenames that are not valid UTF-8 with errno=EILSEQ.
+    // The engine historically authored cp1251 paths (Lua save names,
+    // script-generated log filenames). Transcode the path in place and
+    // retry once. fName is also updated so downstream consumers see the
+    // path the file actually landed on.
+    FILE* retry_fopen_after_cp1251(pstr conv_fn)
+    {
+        char retry_path[1024];
+        xr_strcpy(retry_path, sizeof(retry_path), conv_fn);
+        xr_cp1251_to_utf8(retry_path, sizeof(retry_path));
+        FILE* f = fopen(retry_path, "wb");
+        if (f)
+        {
+            Msg("* FS: cp1251 -> UTF-8 retry succeeded: '%s' -> '%s'",
+                conv_fn, retry_path);
+            fName = retry_path;
+        }
+        return f;
+    }
+#endif
 
     ~CFileWriter() override
     {
@@ -147,7 +180,7 @@ class CVirtualFileReader final : public IReader
 private:
 #if defined(XR_PLATFORM_WINDOWS)
     void *hSrcFile, *hSrcMap;
-#elif defined(XR_PLATFORM_LINUX) || defined(XR_PLATFORM_BSD) || defined(XR_PLATFORM_APPLE)
+#elif defined(XR_PLATFORM_POSIX)
     int hSrcFile;
 #else
 #   error Select or add implementation for your platform

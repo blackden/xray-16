@@ -4,6 +4,13 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 include(PreProjectInit)
 
 calculate_xray_build_id(XRAY_BUILD_ID)
+
+# Fork-local version string consumed by the in-game updater. Override at
+# release time, e.g. -DXRAY_FORK_VERSION="1.6.fork.2026.05.21". Default leaves
+# the binary tagged as a developer build.
+set(XRAY_FORK_VERSION "1.6.fork.dev" CACHE STRING
+    "Fork version string used by the in-game updater (manifest comparison)")
+
 project(OpenXRay
     DESCRIPTION "OpenXRay is an improved version of the X-Ray Engine, \
                 the game engine used in the world-famous S.T.A.L.K.E.R. game series by GSC Game World."

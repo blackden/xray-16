@@ -20,15 +20,21 @@
 void os_clipboard::copy_to_clipboard(pcstr buf, bool alreadyUTF8 /*= false*/)
 {
     int result;
-    if (alreadyUTF8)
+    // Post-Phase 1 the engine works in UTF-8 internally; valid UTF-8 input
+    // gets passed straight to SDL. Only fall back to the lossy narrow->wide
+    // bridge for the rare legacy callers that still ship cp1251 byte
+    // strings -- and even then, the in-place transcode preserves cyrillic
+    // instead of dropping it like the previous C-locale path did.
+    if (alreadyUTF8 || xr_is_valid_utf8(buf))
     {
         result = SDL_SetClipboardText(buf);
     }
     else
     {
-        static std::locale locale("");
-        xr_string string = StringToUTF8(buf, locale);
-        result = SDL_SetClipboardText(string.c_str());
+        char tmp[1024];
+        xr_strcpy(tmp, sizeof(tmp), buf);
+        xr_cp1251_to_utf8(tmp, sizeof(tmp));
+        result = SDL_SetClipboardText(tmp);
     }
     if (result < 0)
     {
@@ -53,20 +59,23 @@ void os_clipboard::paste_from_clipboard(pstr buffer, size_t buffer_size)
         return;
     }
 
-    static std::locale locale("");
-    const xr_string string = StringFromUTF8(clipData, locale);
+    // SDL guarantees UTF-8 from the system clipboard; copy bytes verbatim
+    // and let the codepoint-aware renderer handle them. The previous
+    // narrow-locale conversion turned cyrillic clipboard content into '?'.
+    strncpy_s(buffer, buffer_size, clipData, buffer_size - 1);
     SDL_free(clipData);
 
-    strncpy_s(buffer, buffer_size, string.c_str(), buffer_size - 1);
-
+    // Sanitize control bytes (tab/newline) so a multi-line clipboard paste
+    // doesn't break the single-line edit. We sweep on the raw byte stream;
+    // for UTF-8 continuation bytes (>= 0x80) we skip the check, since the
+    // ctype check is only meaningful for ASCII.
     const size_t length = xr_strlen(buffer);
     for (size_t i = 0; i < length; ++i)
     {
-        const char c = buffer[i];
-        if ((std::isprint(c, locale) == 0 && c != char(-1)) || c == '\t' || c == '\n') // "я" = -1
-        {
+        const unsigned char c = static_cast<unsigned char>(buffer[i]);
+        if (c >= 0x80) continue; // UTF-8 multibyte — leave alone
+        if (c == '\t' || c == '\n' || (c < 0x20 && c != 0))
             buffer[i] = ' ';
-        }
     }
 }
 
@@ -93,18 +102,15 @@ void os_clipboard::update_clipboard(pcstr string)
         return;
     }
 
-    static std::locale locale("");
-    const xr_string stringInUTF8 = StringToUTF8(string, locale);
-
+    // Both sides are UTF-8: SDL clipboard and the input string (now that
+    // the engine works in UTF-8). Concatenate raw bytes.
     const size_t clipLength = xr_strlen(clipData);
-    const size_t stringLength = stringInUTF8.size();
-
+    const size_t stringLength = xr_strlen(string);
     const size_t bufferSize = (clipLength + stringLength + 1) * sizeof(char);
 
     pstr buffer = (pstr)xr_alloca(bufferSize);
-
-    xr_strcpy(buffer, bufferSize, clipData); // copy the clipboard
-    xr_strcat(buffer, bufferSize, stringInUTF8.c_str()); // copy the new string
+    xr_strcpy(buffer, bufferSize, clipData);
+    xr_strcat(buffer, bufferSize, string);
 
     SDL_free(clipData);
 

@@ -52,10 +52,21 @@ CEffect_Rain::~CEffect_Rain()
     p_destroy();
 }
 
-// Born
-void CEffect_Rain::Born(Item& dest, float radius, float speed)
+// Born — pick a spawn point for one rain streak. Returns false when the
+// chosen point is under static cover (a roof, an awning, a balcony),
+// so the caller can drop this would-be particle instead of spawning a
+// streak that would fall through ceiling geometry. Per-spawn-point
+// gating supersedes the v2 camera-centric m_hemi_factor approach:
+// camera-centric wrongly silenced ALL spawns when the camera was under
+// cover, even those over open sky (rain visible through an open door,
+// rain just past an awning edge). See Rain.cpp:OnFrame for the cheap
+// camera-centric probe that's still used to modulate the wet-shader
+// uniform and the ambient sound volume.
+bool CEffect_Rain::Born(Item& dest, float radius)
 {
     ZoneScoped;
+
+    ++m_dbg_born_attempts;
 
     Fvector axis;
     axis.set(0, -1, 0);
@@ -74,10 +85,34 @@ void CEffect_Rain::Born(Item& dest, float radius, float speed)
     dest.D.random_dir(axis, deg2rad(drop_angle));
     dest.P.set(x + view.x - dest.D.x * source_offset, source_offset + view.y, z + view.z - dest.D.z * source_offset);
     // dest.P.set (x+view.x,height+view.y,z+view.z);
-    dest.fSpeed = ::Random.randF(drop_speed_min, drop_speed_max) * speed;
+    dest.fSpeed = ::Random.randF(drop_speed_min, drop_speed_max);
+
+#ifndef _EDITOR
+    // Per-spawn-point indoor gate: shoot a short ray straight up from
+    // the chosen spawn point. If static geometry blocks the sky above
+    // this point, drop the spawn. The 5m range is enough to catch
+    // ceilings, awnings and overhangs without false-positives from
+    // tall outdoor occluders far above.
+    if (g_pGameLevel)
+    {
+        IGameObject* E = g_pGameLevel->CurrentViewEntity();
+        Fvector up{0.f, 1.f, 0.f};
+        float r = 5.f;
+        collide::ray_cache cache;
+        bool blocked = g_pGameLevel->ObjectSpace.RayTest(dest.P, up, r, collide::rqtStatic, &cache, E);
+        m_dbg_last_spawn = dest.P;
+        m_dbg_last_rejected = blocked;
+        if (blocked)
+        {
+            ++m_dbg_born_rejected;
+            return false;
+        }
+    }
+#endif
 
     float height = max_distance;
     RenewItem(dest, height, RayPick(dest.P, dest.D, height, collide::rqtBoth));
+    return true;
 }
 
 bool CEffect_Rain::RayPick(const Fvector& s, const Fvector& d, float& range, collide::rq_target tgt)
@@ -118,6 +153,9 @@ void CEffect_Rain::OnFrame()
 {
     ZoneScoped;
 
+    m_dbg_born_attempts = 0;
+    m_dbg_born_rejected = 0;
+
 #ifndef _EDITOR
     if (!g_pGameLevel)
         return;
@@ -128,24 +166,43 @@ void CEffect_Rain::OnFrame()
 
     // Parse states
     float factor = g_pGamePersistent->Environment().CurrentEnv.rain_density;
-    static float hemi_factor = 0.f;
 #ifndef _EDITOR
-    IGameObject* E = g_pGameLevel->CurrentViewEntity();
-    if (E && E->renderable_ROS())
+    // Sky-visibility probe: fire 5 raycasts upward from the camera and
+    // average their fraction. Previously this read renderable_ROS()->
+    // get_luminocity_hemi_cube(), but that array is polluted by dynamic
+    // point-light contributions (see LightTrack.cpp:260-262), so under
+    // lit interiors (Yanov station) hemi_cube faces stayed high enough
+    // that the indoor-rain gate never kicked in. A direct ObjectSpace
+    // raytest against rqtStatic is unambiguous and ~5 rays/frame is
+    // negligible next to the 2500-streak emission load.
+    if (g_pGameLevel && g_pGameLevel->CurrentViewEntity())
     {
-        // hemi_factor = 1.f-2.0f*(0.3f-_min(_min(1.f,E->renderable_ROS()->get_luminocity_hemi()),0.3f));
-        float* hemi_cube = E->renderable_ROS()->get_luminocity_hemi_cube();
-        float hemi_val = _max(hemi_cube[0], hemi_cube[1]);
-        hemi_val = _max(hemi_val, hemi_cube[2]);
-        hemi_val = _max(hemi_val, hemi_cube[3]);
-        hemi_val = _max(hemi_val, hemi_cube[5]);
+        IGameObject* E = g_pGameLevel->CurrentViewEntity();
+        const Fvector& cam = Device.vCameraPosition;
+        const float range = 80.f;
 
-        // float f = 0.9f*hemi_factor + 0.1f*hemi_val;
-        float f = hemi_val;
+        static const Fvector dirs[5] = {
+            { 0.f,           1.f,           0.f          },
+            { 0.2588f,       0.9659f,       0.f          }, // 15° east
+            {-0.2588f,       0.9659f,       0.f          }, // 15° west
+            { 0.f,           0.9659f,       0.2588f      }, // 15° north
+            { 0.f,           0.9659f,      -0.2588f      }  // 15° south
+        };
+
+        u32 open = 0;
+        for (u32 i = 0; i < 5; ++i)
+        {
+            float r = range;
+            collide::ray_cache cache;
+            // RayTest returns true when occluded by static geometry.
+            bool blocked = g_pGameLevel->ObjectSpace.RayTest(cam, dirs[i], r, collide::rqtStatic, &cache, E);
+            if (!blocked) ++open;
+        }
+
+        float target = float(open) / 5.f;
         float t = Device.fTimeDelta;
         clamp(t, 0.001f, 1.0f);
-        hemi_factor = hemi_factor * (1.0f - t) + f * t;
-        rain_hemi = hemi_val;
+        m_hemi_factor = m_hemi_factor * (1.0f - t) + target * t;
     }
 #endif
 
@@ -175,7 +232,12 @@ void CEffect_Rain::OnFrame()
         // Fvector sndP;
         // sndP.mad (Device.vCameraPosition,Fvector().set(0,1,0),source_offset);
         // snd_Ambient.set_position(sndP);
-        snd_Ambient.set_volume(_max(0.1f, factor) * hemi_factor);
+        // Volume floor at 30% even when fully covered: m_hemi_factor is
+        // near-binary post-v2 (raycast probe), so the unmodulated
+        // multiplier silenced rain audio entirely under any awning even
+        // when the player was technically outdoors. Rain should remain
+        // audible while raining; dimmed under cover is fine.
+        snd_Ambient.set_volume(_max(0.1f, factor) * _max(0.3f, m_hemi_factor));
     }
 }
 

@@ -157,6 +157,20 @@ void CLevel::IR_OnKeyboardPress(int key)
         return;
     }
 
+    if (_curr == kRENDER_PLAYGROUND)
+    {
+        if (g_dev_tools)
+            Device.editor().TogglePlayground();
+        return;
+    }
+
+    if (_curr == kALIFE_INSPECTOR)
+    {
+        if (g_dev_tools)
+            Device.editor().ToggleNamedTool("ALife Inspector");
+        return;
+    }
+
     if (g_bDisableAllInput)
         return;
 

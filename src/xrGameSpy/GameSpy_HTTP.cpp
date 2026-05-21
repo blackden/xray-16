@@ -33,25 +33,38 @@ string128 GHTTPResultStr[] = {
     "GHTTPRequestCancelled" // 18: User requested cancel and/or graceful close.
 };
 
-class DownloadContext
+// Contexts are heap-allocated and freed inside the completion handler. Callers
+// pass FastDelegates by reference but those reference engine-owned state that
+// must outlive the request — typically members of a long-lived object.
+class FileDownloadContext
 {
 public:
     using CompletionCallback = CGameSpy_HTTP::CompletionCallback;
     using ProgressCallback = CGameSpy_HTTP::ProgressCallback;
 
-    CompletionCallback& Completed;
-    ProgressCallback& Progress;
+    CompletionCallback Completed;
+    ProgressCallback Progress;
 
-    DownloadContext(CompletionCallback& completed, ProgressCallback& progress)
+    FileDownloadContext(CompletionCallback& completed, ProgressCallback& progress)
         : Completed(completed), Progress(progress)
     {
     }
 };
 
+class StringFetchContext
+{
+public:
+    using StringCompletionCallback = CGameSpy_HTTP::StringCompletionCallback;
+
+    StringCompletionCallback Completed;
+
+    explicit StringFetchContext(StringCompletionCallback& completed) : Completed(completed) {}
+};
+
 void __cdecl ProgressHandler(GHTTPRequest request, GHTTPState state, const char* buffer, GHTTPByteCount bufferLen,
     GHTTPByteCount received, GHTTPByteCount total, void* param)
 {
-    auto ctx = static_cast<DownloadContext*>(param);
+    auto ctx = static_cast<FileDownloadContext*>(param);
     if (state == GHTTPReceivingFile && total)
         ctx->Progress(received, total);
 }
@@ -59,7 +72,7 @@ void __cdecl ProgressHandler(GHTTPRequest request, GHTTPState state, const char*
 GHTTPBool __cdecl CompletedHandler(
     GHTTPRequest request, GHTTPResult result, char* buffer, GHTTPByteCount bufferLen, void* param)
 {
-    auto ctx = static_cast<DownloadContext*>(param);
+    auto ctx = static_cast<FileDownloadContext*>(param);
     switch (result)
     {
     case GHTTPSuccess: ctx->Completed(true); break;
@@ -68,23 +81,52 @@ GHTTPBool __cdecl CompletedHandler(
         ctx->Completed(false);
         break;
     }
+    delete ctx;
+    return GHTTPTrue;
+}
 
-    //	CGameSpy_HTTP* pGSHTTP = (CGameSpy_HTTP*) param;
-    //	if (pGSHTTP) pGSHTTP->StopDownload();
+GHTTPBool __cdecl StringCompletedHandler(
+    GHTTPRequest request, GHTTPResult result, char* buffer, GHTTPByteCount bufferLen, void* param)
+{
+    auto ctx = static_cast<StringFetchContext*>(param);
+    switch (result)
+    {
+    case GHTTPSuccess: ctx->Completed(true, buffer, static_cast<u32>(bufferLen)); break;
+    default:
+        Msg("! FetchString Result - %s", GHTTPResultStr[result]);
+        ctx->Completed(false, nullptr, 0);
+        break;
+    }
+    delete ctx;
     return GHTTPTrue;
 }
 
 void CGameSpy_HTTP::DownloadFile(LPCSTR URL, LPCSTR FileName, CompletionCallback& completed, ProgressCallback& progress)
 {
-    DownloadContext ctx(completed, progress);
-    //	GHTTPRequest res = xrGS_ghttpSaveA(URL, FileName, GHTTPFalse, CompletedCallBack, this);
+    auto ctx = xr_new<FileDownloadContext>(completed, progress);
     Msg("URL:  %s", URL);
     Msg("File: %s", FileName);
     m_LastRequest =
-        ghttpSaveExA(URL, FileName, "", NULL, GHTTPFalse, GHTTPFalse, ProgressHandler, CompletedHandler, &ctx);
+        ghttpSaveExA(URL, FileName, "", NULL, GHTTPFalse, GHTTPFalse, ProgressHandler, CompletedHandler, ctx);
     Msg("Code: %d", m_LastRequest);
     if (m_LastRequest < 0)
+    {
         completed(false);
+        xr_delete(ctx);
+    }
+}
+
+void CGameSpy_HTTP::FetchString(LPCSTR URL, StringCompletionCallback& completed)
+{
+    auto ctx = xr_new<StringFetchContext>(completed);
+    Msg("HTTP GET: %s", URL);
+    m_LastRequest = ghttpGetA(URL, GHTTPFalse, StringCompletedHandler, ctx);
+    Msg("Code: %d", m_LastRequest);
+    if (m_LastRequest < 0)
+    {
+        completed(false, nullptr, 0);
+        xr_delete(ctx);
+    }
 }
 
 void CGameSpy_HTTP::StopDownload()
