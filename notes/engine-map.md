@@ -234,9 +234,94 @@ load. They must not set the flag.
   `~IGame_Level → level_Unload → Lights.Unload` didn't run.
 - Grep for `==> teardown[snd]: ~CSoundRender_Scene SKIP emitter cleanup
   (g_bShuttingDown=1)` — confirms fast-quit path engaged.
-- Apple Activity Monitor → Sample Process on the wedged xr_3da gives a
-  C stack trace that disambiguates the wedge point quickly (event-pump
-  inside disconnect vs. static destruction vs. `Engine.Destroy()` tail).
+- `make sample-hang` (Debug toolkit, below) on the wedged xr_3da gives
+  a C stack trace that disambiguates the wedge point quickly
+  (event-pump inside disconnect vs. static destruction vs.
+  `Engine.Destroy()` tail).
+
+**Anti-pattern (do NOT do this):** guard `SpatialBase::spatial_unregister`
+by `g_bShuttingDown`. Tried in the #49 false-start: the guard skipped
+the actual removal from the octree, leaving dangling pointers; later
+`q_box` queries from physics destruction during disconnect walked the
+broken tree into infinite recursion. If you ever consider this — you
+are masking destruction order, not fixing it. Find the right time to
+unregister while the spatial DB is still alive (e.g. via
+`level_Unload`), don't no-op the unregister itself.
+
+## Debug toolkit (use these, don't reinvent)
+
+One-stop reference for instrumentation and diagnostic tools.
+
+- **`make sample-hang`** — sample the currently-hung xr_3da, output to
+  `~/Downloads/sample-TIMESTAMP.txt`. Calls `scripts/mac/sample-hang.sh`.
+  Run with `sudo make sample-hang` if the plain command fails (SIP
+  strict / hardened-runtime). Use when Cmd+Q wedges, when the engine
+  hangs mid-level, or any time you want a C stack of all threads.
+- **`src/Common/PostLogMark.hpp`** — `POSTLOG_MARK("tag")` writes
+  `==> postlog@<ms>: <tag>\n` to stderr with a monotonic timestamp.
+  Works even AFTER `CloseLog()` (Core._destroy), unlike `Msg`. Use for:
+  - C++ static destructors (run after `main` returned, log closed).
+  - Post-cascade shutdown phase (Engine.Destroy → SDL_Quit → atexit).
+  - Any place where stderr is the only viable channel.
+  No xrCore dependencies, safe to include from `.mm` files.
+  Don't use when Msg/Log are working — Msg has timestamps + level
+  filtering + remote-debug visibility.
+- **Dual log paths (don't confuse them):**
+  - Engine log: `~/.openxray-data/logs/openxray_ragnar.log` —
+    driven by `Msg`/`Log`. Closes at `Core._destroy()`.
+  - Launcher stdout+stderr capture: `~/Library/Logs/OpenXRay/openxray.log`
+    — driven by `>> ... 2>&1` redirect in
+    `dist/OpenXRay.app/Contents/MacOS/OpenXRay` (the launcher shell).
+    Keeps capturing AFTER the engine log closes — POSTLOG_MARK,
+    atexit, static-destructor stderr output lands here.
+  Grep both when investigating shutdown / post-cascade behaviour.
+- **Build config inspection:**
+  `grep -E "XRAY|TRACY|USE_OGL|USE_ASAN" build/CMakeCache.txt`.
+  Quick check what's compiled in. We currently ship with
+  `XRAY_ENABLE_TRACY:BOOL=OFF` (verified 2026-05-21).
+- **Existing diagnostic markers in the codebase:**
+  - `entry_point.cpp:140` — `==> main returning with code %d` (just
+    before main returns).
+  - `entry_point.cpp:91` (Apple-only) — `==> ATEXIT fired` (post-main,
+    pre-static-destructors).
+  - `Light_DB.cpp ~CLight_DB` — fires `! ~CLight_DB at process exit
+    with live lights ...` only if light vectors survived into static
+    destruction (regression canary for #49-class wedges).
+  - `Device_destroy.cpp` — `Destroying Render...` / `Render destroyed.`
+    bracket the visible engine teardown.
+
+## Module dependency tree
+
+Validated from `target_link_libraries` (2026-05-21). Use this when
+deciding where to put a new global / typedef / utility — put it in
+the **lowest** module where it is needed, to keep the diamond shape
+manageable.
+
+```
+xrMiscMath                                  (foundation)
+xrCore       ← xrMiscMath (priv), SDL2 + pthread (pub)
+xrAPI        ← xrCore base (mostly interface-only)
+xrCDB        ← xrCore + xrMiscMath + xrAPI + xrOPCODE
+xrMaterialSystem ← xrMiscMath (pub) + xrAPI + xrCore
+xrSound      ← xrCore + xrMiscMath + xrAPI + xrCDB
+              + xrMaterialSystem + OpenAL + Ogg + Vorbis
+xrScriptEngine ← (Lua VM, used by xrEngine and xrGame)
+xrNetServer  ← (multiplayer net, used by xrEngine and xrGame)
+xrEngine     ← xrMiscMath (pub) + xrAPI + xrCDB + xrMaterialSystem
+              + xrCore + xrSound + xrScriptEngine + xrNetServer
+              + xrImGui + OpenAL + Ogg + Theora + SDL2
+xrAICore     ← xrCore + xrEngine + xrMiscMath + xrAPI + xrScriptEngine
+xrGame       ← xrEngine + everything above
+```
+
+Practical examples:
+- `g_bShuttingDown` lives in `xrCore` because both `xrSound`
+  (`~CSoundRender_Scene` fast-path) and `xrEngine` (set points) need
+  it. Lowest common ancestor.
+- `POSTLOG_MARK` lives in `Common/` (header-only, no module) because
+  it is meant to be included from anywhere including `.mm` files and
+  static destructors of low-level objects — even from xrCore itself
+  during its own teardown.
 
 ## Input / keybinds
 
