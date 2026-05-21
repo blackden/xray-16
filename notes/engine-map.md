@@ -122,8 +122,31 @@
 
 ## FS / paths / launch
 
-- Apple appdata override (`-overlaypath`): `src/xrCore/LocatorAPI.cpp:1041-1055`
+- Apple appdata override (`-overlaypath`): `src/xrCore/LocatorAPI.cpp:1041-1090`
   — parses `sscanf("%[^ ] ", …)`, so the path must not contain spaces.
+  Re-roots `$logs$` and `$app_data_root$`, then **walks `m_paths` and
+  re-roots any FS_Path whose `m_Root` was derived from the old
+  `$app_data_root$`** (children like `$game_saves$`, `$screenshots$`,
+  `$downloads$`). Without that walk children silently stay under
+  `$fs_root$/_appdata_/`.
+- `FS_Path` structure: `src/xrCore/LocatorAPI_defs.h:14-40`. Stores
+  `m_Root` + `m_Add` + resolved `m_Path` as strings; **no parent
+  back-reference**. Resolved at fsgame.ltx parse time (see
+  `LocatorAPI.cpp:1005-1018` for parent-alias lookup pattern), then
+  static — re-rooting the parent does **not** auto-update children.
+- `FS_Path::_set_root`: `src/xrCore/LocatorAPI_defs.cpp:83-104`.
+  Updates `m_Root`, then recomputes `m_Path = m_Root + m_Add` with
+  trailing `_DELIMITER`. Calls `restore_path_separators` internally,
+  so input may be POSIX form. Does **not** touch `m_files` or any
+  other FS_Path object — that's `rescan_path`'s job.
+- `CLocatorAPI::m_paths`: `xr_map<pcstr, FS_Path*, pred_str>` (see
+  `LocatorAPI.h:147`). Safe to iterate while calling `_set_root` /
+  `rescan_path` — neither inserts/erases in the map.
+- `CLocatorAPI::rescan_path`: `src/xrCore/LocatorAPI.cpp:1942-1976`.
+  Removes m_files entries under prefix, then `Recurse(full_path)` to
+  re-scan disk. Tolerates non-existent directories (the comment at
+  line 1944 documents the historical "early-return on lower_bound ==
+  end()" bug that left programmatically-added paths unindexed).
 - POSIX path separator normalisation: same file, `rescan_path` and
   `_set_root` helpers (use them — they're the entry points where the
   separator audit lives).
