@@ -27,6 +27,11 @@ public:
     //	Destroy
     virtual void OnDeviceDestroy(bool bKeepTextures) override;
     virtual void Destroy() override;
+    // Drop engine-side ref containers (Shaders/Visuals/...) BEFORE
+    // xr_delete(Resources) so the cascade lands on still-alive m_textures.
+    // Overridden by CRender; base no-op keeps non-R2 backends building.
+    // See gitea #52.
+    virtual void DrainEngineRefs() {}
     virtual void Reset(SDL_Window* hWnd, u32& dwWidth, u32& dwHeight, float& fWidth_2, float& fHeight_2) override;
 
     //	Init
