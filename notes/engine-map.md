@@ -248,6 +248,102 @@ are masking destruction order, not fixing it. Find the right time to
 unregister while the spatial DB is still alive (e.g. via
 `level_Unload`), don't no-op the unregister itself.
 
+## Static destruction cascade hazards (gitea #52, post-#49)
+
+After #49 closed the in-`main()` deadlock, a second-order hang surfaced
+during C++ static destruction (after `main()` returns). Sample stack is
+deterministic across Cmd+Q AND Cmd+W:
+
+```
+exit → __cxa_finalize_ranges
+  → CRender::~CRender  (RImplementation global at r2.cpp:20)
+    → ~vector<resptr<Shader>>  (CRender::Shaders, r2.h:311)
+      → cascade per element: ~Shader → ~ShaderElement → ~SPass
+        → ~STextureList → ~pair<uint, resptr<CTexture>> → ~CTexture
+          → CResourceManager::_DeleteTexture(this)
+            → std::map::find → __tree::__root  ← 2-sec spin
+```
+
+**Root cause:** `D3DXRenderBase::Destroy()` (`D3DXRenderBase.cpp:76-80`)
+does `xr_delete(Resources); HW.DestroyDevice();` — but does NOT clear
+engine-side ref containers (`CRender::Shaders`, `Visuals`, `Lights`)
+first. After `Destroy()` returns and static destruction starts, those
+containers cascade through `_DeleteTexture` → `m_textures.find` on
+torn-down state. macOS `std::map::find` on freed memory spins on
+`__tree::__root` instead of crashing.
+
+**Member declaration order in CResourceManager matters:**
+`ResourceManager.h:52` declares `map_Texture m_textures`. Line 100
+declares `CScriptEngine ScriptEngine`. C++ reverses for destruction:
+**ScriptEngine destructs FIRST**. So `~CScriptEngine` → `lua_close` →
+Lua userdata refs drop → cascade lands on still-alive `m_textures`.
+Reordering breaks this. Do not reorder.
+
+**Quit-path unification confirmed** (diagnostic 2026-05-22):
+- Cmd+Q via Cocoa shim → `OpenXRay_RequestGracefulQuit` (`Engine.cpp:127`)
+- Cmd+W via SDL_WINDOWEVENT_CLOSE (`device.cpp:380-392`)
+- Console `quit` via `CCC_Quit::Execute` (`xr_ioc_cmd.cpp:62-77`)
+- Apple menu Quit → Cocoa shim same as Cmd+Q
+
+All three set `g_bShuttingDown = true; Defer(KERNEL:disconnect); Defer(KERNEL:quit)`.
+They are structurally equivalent — race lives *after* this teardown
+unifies, in static destruction phase, not in path divergence. **Single
+helper `Engine::RequestGracefulShutdown()` is the obvious DRY win**
+(planned commit 4 of #52).
+
+**Two distinct shutdown flags — don't confuse:**
+- `g_bShuttingDown` (`xrCore.h:144-151`) — fast-exit hint, set at Cmd+Q
+  time before eDisconnect. Used by sound to skip per-emitter destruction.
+- `g_bStaticDestruction` (`xrCore.h:152`, added 2026-05-22) — strict
+  post-main marker, set in atexit lambda in `entry_point.cpp`. Used as
+  guard in `SpatialBase::spatial_unregister` (`ISpatial.cpp:82`) and
+  `reclaim<T>` template (`ResourceManager.h:273`). For static-destruction
+  safety, use the latter; the former is for fast-quit pruning.
+
+**Vector vs map-based `_Delete*`:**
+- Vector-based (`reclaim<T>`-routed): `_DeleteElement`, `_DeletePass`,
+  `_DeleteTextureList`, `_DeleteConstantList`, `_DeleteMatrixList`,
+  `_DeleteState`, `_DeleteDecl`, `_DeleteConstantTable`, `DeleteGeom`.
+  Guarded today by `reclaim<T>` early-return on `g_bStaticDestruction`.
+- Map-based (direct `std::map::find`): `_DeleteTexture`, `_DeleteRT`,
+  `_DeleteMatrix`, `_DeleteConstant`, `_DeletePP` (GL), `DestroyShader<T>`
+  (VS/PS/GS/HS/DS/CS via template). NOT guarded today — gitea #52
+  adds layer-3 defense-in-depth guards.
+
+**Primary fix design (gitea #52, in-progress):**
+1. Layer 1 — `D3DXRenderBase::Destroy()` calls new virtual hook
+   `DrainEngineRefs()` BEFORE `xr_delete(Resources)`. Override in
+   `CRender` clears `Shaders`, `Visuals`, `SWIs`, `VB/IB`, `nDC/xDC`.
+   Cascade lands on still-alive `m_textures` → find+erase succeed.
+2. Layer 2 — `~CResourceManager` member declaration order (ScriptEngine
+   first, m_textures last) ensures Lua cascade lands on alive map.
+3. Layer 3 — `g_bStaticDestruction` guards in 6 map-based `_Delete*` +
+   existing `reclaim<T>` and `spatial_unregister` guards as defense-in-depth.
+
+**What `DrainEngineRefs` MUST NOT do:** call `Lights.Unload()`. By the
+time `D3DXRenderBase::Destroy()` runs, `~CApplication` has already done
+`destroy_persistent(g_pGamePersistent)` at `x_ray.cpp:340` →
+`ISpatial_DB` is dead → `Lights.Unload()` → `~CLight` →
+`spatial_unregister` → dead pthread mutex → hang. The existing
+spatial_unregister guard handles persistent lights at static destruction;
+just don't re-trigger the deadlock from Destroy().
+
+**What `DrainEngineRefs` MUST NOT call:** `PSLibrary.OnDestroy()` — already
+invoked in `CRender::destroy()` at `r2.cpp:543` (which runs from
+`OnDeviceDestroy` BEFORE `Destroy`). Double-call is wasted.
+
+**Persistent (non-level) refs that survive level_Unload:**
+- Lua userdata holding `ref_shader`/`ref_texture` (released only at
+  `lua_close` inside `~CScriptEngine`)
+- HUD / fonts / console UI shaders (no explicit teardown)
+- CRenderTarget's 81 shaders + 8 geometries + 16+ RT pool entries
+  (released at `xr_delete(Target)` in `CRender::destroy()`)
+- CLight_DB's 44 v_static + 363 v_hemi lights (per POSTLOG canary —
+  survive level_Unload, hit spatial_unregister guard at static destruction)
+
+These are why Cmd+Q from main menu (no level loaded, `level_Unload`
+never runs) still has populated containers at static destruction time.
+
 ## Debug toolkit (use these, don't reinvent)
 
 One-stop reference for instrumentation and diagnostic tools.
