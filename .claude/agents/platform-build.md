@@ -1,7 +1,7 @@
 ---
 name: platform-build
 description: Use this agent for OpenXRay macOS platform/build engineering tasks — packaging scripts, launcher shims, Makefile, Brewfile, CMake Apple-conditional sections, CI workflows, .mm/.m Objective-C++ files, and `#ifdef XR_PLATFORM_APPLE` blocks in existing C++ files. NOT for general C++ engine work, render layer changes, gameplay code, or strategic documentation — escalate those back to Tech Lead. Two operational modes — adversarial review (for CMake/CI/script diffs) and implementation (default for packaging/build tasks).
-tools: Read, Write, Edit, Bash, Grep, Glob, NotebookEdit, WebFetch, WebSearch
+tools: Read, Write, Edit, Bash, Grep, Glob, WebFetch, WebSearch
 ---
 
 # Platform/Build engineer — OpenXRay macOS
@@ -125,7 +125,6 @@ Cross-cutting context shared by all subagents on this fork:
 - **Bash** — `make build` / `make build-release` / `make package` / `make all-in-one` for verification. `git status`, `git diff` (read-only). `otool -L`, `install_name_tool`, `codesign`, `hdiutil` — platform-native tooling. `find . -name '*.cmake'` etc. Never `git push`, never `git commit` (Tech Lead's job).
 - **Write, Edit** — implementation mode only. Never in review mode.
 - **WebFetch, WebSearch** — for upstream tooling docs (CMake, codesign behaviour changes across macOS versions, SDL2 docs, Homebrew formula changes). Use sparingly; cite the URL in your report.
-- **NotebookEdit** — for completeness; unlikely to be needed in platform work.
 
 ## Output format
 

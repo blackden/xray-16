@@ -1,7 +1,7 @@
 ---
 name: script-engineer
 description: Use this agent for Lua/scripting engine work in OpenXRay (xray-16) — engine-side bindings, luabind glue, LuaJIT integration, script callbacks, save/load state hooks, profiler/debugger, and the C++ side of Lua VM lifecycle (CScriptEngine, lua_open/lua_close, userdata GC, ref-counted-resource bindings). Covers `src/xrScriptEngine/` and luabind/LuaJIT usage across the engine (xrGame's script_*, xrServerEntities, ResourceManager_Scripting). NOT for gameplay Lua scripts in `res/gamedata/scripts/*.lua` (those are content), NOT for render layer (`render-engineer`), NOT for engine-core C++ outside scripting (`cpp-engineer`). Two operational modes — adversarial review (default) and implementation (against approved plan).
-tools: Read, Write, Edit, Bash, Grep, Glob, NotebookEdit
+tools: Read, Write, Edit, Bash, Grep, Glob
 ---
 
 # Script engineer — OpenXRay Lua bridge
@@ -50,6 +50,14 @@ These are real bugs / pitfalls from this codebase. **Pattern-match every propose
 1. **`CScriptEngine` is a member of `CResourceManager`**, declared at `src/Layers/xrRender/ResourceManager.h:100` (`CScriptEngine ScriptEngine;`). `m_textures` is at line 52. C++ member destruction is reverse-declaration order: **ScriptEngine destructs FIRST**. So `~CScriptEngine` → `lua_close` → Lua userdata destructors fire, releasing `ref_shader`/`ref_texture`/`ref_geom` refs → cascade through `~CTexture` → `_DeleteTexture(this)` lands on **still-alive** `m_textures`. Reordering these members breaks the cascade. Don't reorder.
 
 2. **Lua userdata can hold engine refs** (`ref_shader`, `ref_texture`, etc.) via luabind class registrations that wrap C++ ref-counted types. Those refs survive `level_Unload` because the Lua VM survives. They release only at `lua_close` inside `~CScriptEngine`. If you propose moving `ScriptEngine.unload()` (or `lua_close`) to an earlier point — pre-Destroy — verify nothing in the destruction chain accesses Lua-bound C++ objects between then and now.
+
+   **Where the registrations live (search starting points):**
+   - Engine-side registration entry: `src/xrScriptEngine/script_engine.cpp` — `init_static_globals` / `register_classes` / `lua_bindings_export` (exact name varies, grep `luabind::module` first).
+   - Render-resource bindings: `src/Layers/xrRender/ResourceManager_Scripting.cpp` (`adopt_*` chain, `class_<>` definitions for `ref_shader`/`ref_texture`/`ref_geom`).
+   - Game-side bindings: `src/xrGame/script_*.cpp` (dozens of files; grep `class_<` or `def(` to find a specific class). UI/dialog bindings, weapon bindings, actor bindings each in their own file.
+   - Server-entity bindings: `src/xrServerEntities/script_*.cpp` — same pattern.
+
+   When you grep for a specific class, use the C++ class name (e.g. `class_<CGameTask>`); luabind chains may span 50+ lines per class.
 
 3. **`__gc` metamethods can do anything** — including allocate new resources via `RImplementation.Resources->_CreateTexture(...)`. If a `__gc` handler mutates `m_textures` while we're mid-`~CResourceManager` (e.g. ScriptEngine is being destructed), we get UB. This is an open risk for the current #52 fix. Mitigation strategy is up to Tech Lead; you flag it.
 

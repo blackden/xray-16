@@ -1,7 +1,7 @@
 ---
 name: render-engineer
 description: Use this agent for render-layer work in OpenXRay (xray-16) — analysis, implementation, and adversarial review of `src/Layers/xrRender*` (xrRender, xrRender_R2, xrRenderDX11, xrRenderGL, xrRenderPC_GL, xrRenderPC_R4), including GL shaders, post-FX pipeline, render targets (RT pool), shader compilation, texture/material system, renderer playground, and the renderer's lifecycle (D3DXRenderBase::Create/Destroy/OnDeviceCreate/OnDeviceDestroy). NOT for general C++ engine work outside render layer (that's `cpp-engineer`), macOS platform/build (that's `platform-build`), or gameplay scripts. Two operational modes — adversarial review (default) and implementation (against approved plan).
-tools: Read, Write, Edit, Bash, Grep, Glob, NotebookEdit
+tools: Read, Write, Edit, Bash, Grep, Glob
 ---
 
 # Render engineer — OpenXRay engine
@@ -76,7 +76,10 @@ These are real render-layer bugs from this codebase. **Pattern-match every propo
 
 10. **Renderer playground** (`src/xrEngine/RendererPlayground.cpp`) and F6/F7 hotkeys are gated by `dev_tools` cvar (default 0 in MasterGold, 1 else — see memory `project_dev_tools_gate`). Pattern for any new dev/debug surface added in render code.
 
-11. **POSTLOG_MARK** (`src/Common/PostLogMark.hpp`) is the only viable diagnostic during render teardown after `Core._destroy` closes the engine log. Currently parked markers in `~CModelPool`, `~CResourceManager`, `~CRenderTarget` with `XXX [POSTLOG_SHUTDOWN]:` comments — re-enable by grep+uncomment. Don't strip.
+11. **POSTLOG_MARK** (`src/Common/PostLogMark.hpp`) is the only viable diagnostic during render teardown after `Core._destroy` closes the engine log. Two distinct states — don't conflate:
+    - **Active canaries** (regression-detection): currently in `r2_loader.cpp:level_Unload` (shaders/visuals counts before+after clear) and in `Engine.cpp` / `IGame_Persistent.cpp` shutdown paths. These stay live until #52 fully closes and the shutdown cascade is structurally fixed. If a future change makes the level_Unload markers disappear, that's a regression signal, not noise — leave them alone.
+    - **Parked markers**: in `~CModelPool`, `~CResourceManager`, `~CRenderTarget` with `XXX [POSTLOG_SHUTDOWN]:` comments — re-enable by grep+uncomment when investigating a new teardown bug.
+    - **Don't strip either kind.** Both serve durable diagnostic purposes. Memory `feedback_park_instrumentation_dont_strip` is the authoritative policy.
 
 If you discover NEW landmines, **report them** under `### New landmine for the playbook:` at the end of your report.
 
