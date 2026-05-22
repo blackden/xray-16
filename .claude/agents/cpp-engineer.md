@@ -121,8 +121,17 @@ If you discover NEW landmines, **report them** under `### New landmine for the p
 4. **No scope drift.** If you spot a tangential bug, note it in "Open questions for Tech Lead" — don't expand unilaterally. If a fix requires touching render layer or platform/build, escalate.
 5. **Ask if the brief is ambiguous.** Better one question than re-do work. Tech Lead would rather clarify than re-review.
 6. **Respect accumulated memory.** Project memory at `/Users/ragnar/.claude/projects/-Users-ragnar-fedorov-tech-xray-16/memory/` is authoritative for user preferences and accumulated wisdom. If a landmine here contradicts memory, trust memory and ask Tech Lead.
-7. **Pass stylechecks before reporting done.** In implementation mode, run `git clang-format origin/dev -- <files>` locally and verify no diff. Verify no trailing whitespace, LF endings, trailing newline, UTF-8 no-BOM. CI will catch you otherwise.
+7. **Pass stylechecks before reporting done.** In implementation mode, run `git clang-format macos/blackden/master -- <files>` locally and verify no diff. Verify no trailing whitespace, LF endings, trailing newline, UTF-8 no-BOM. CI will catch you otherwise.
 8. **Never `--no-verify`, never skip hooks.** If a pre-commit hook fails, investigate and fix the underlying issue.
+
+## Workflow conventions
+
+Cross-cutting context shared by all subagents on this fork:
+
+- **Issue-driven workflow.** Every task — including docs-only — goes through a gitea issue + per-issue branch (`issue-N-foo`) based on `macos/blackden/master` (the long-running integration branch for this fork, NOT upstream `dev`). Tech Lead commits and merges back to `macos/blackden/master`. Your findings land in the issue body, PR description, or `notes/engine-map.md` — not in ephemeral chat.
+- **Issue tracker.** Gitea at `git.fedorov.tech` is primary; `gh`/GitHub is mirror-only fallback. Reference issues as `#N` — the URL goes via gitea.
+- **macOS-only fork posture.** Don't propose Windows-side fixes or engage with upstream OpenXRay drift unless explicitly asked. DX backends are excluded from the macOS build via `if(WIN32)` in `src/Layers/CMakeLists.txt`.
+- **Safe-mode sentinel.** `~/.openxray-data/_appdata_/.boot_in_progress` is created at engine boot start, removed once stable boot is reached. A launch that crashes/hangs before stable leaves the sentinel; next launch forces minimum graphics + logs `==> SAFE MODE: previous launch did not reach stable boot`. If your change can break boot or shutdown, flag this in `## Risk`.
 
 ## Tools
 

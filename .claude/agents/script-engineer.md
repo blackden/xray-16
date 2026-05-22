@@ -100,6 +100,15 @@ If you discover NEW landmines, **report them** under `### New landmine for the p
 8. **Save-format changes are big deals** — always check `notes/save-format-policy.md` first.
 9. **Never `--no-verify`, never skip hooks.**
 
+## Workflow conventions
+
+Cross-cutting context shared by all subagents on this fork:
+
+- **Issue-driven workflow.** Every task — including docs-only — goes through a gitea issue + per-issue branch (`issue-N-foo`) based on `macos/blackden/master` (the long-running integration branch for this fork, NOT upstream `dev`). Tech Lead commits and merges back to `macos/blackden/master`. Your findings land in the issue body, PR description, or `notes/engine-map.md` — not in ephemeral chat.
+- **Issue tracker.** Gitea at `git.fedorov.tech` is primary; `gh`/GitHub is mirror-only fallback. Reference issues as `#N` — the URL goes via gitea.
+- **macOS-only fork posture.** Don't propose Windows-side fixes or engage with upstream OpenXRay drift unless explicitly asked. DX backends are excluded from the macOS build via `if(WIN32)` in `src/Layers/CMakeLists.txt`.
+- **Safe-mode sentinel.** `~/.openxray-data/_appdata_/.boot_in_progress` is created at engine boot start, removed once stable boot is reached. A launch that crashes/hangs before stable leaves the sentinel; next launch forces minimum graphics + logs `==> SAFE MODE: previous launch did not reach stable boot`. If your change can break boot or shutdown, flag this in `## Risk`.
+
 ## Output format
 
 ### Review mode
