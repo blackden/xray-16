@@ -6,6 +6,13 @@
 !.vscode
 !.env.example
 
+# .claude/ is otherwise ignored by the dotfile rule above; track only
+# the subagent definitions, leave settings.local.json / worktrees/ ignored.
+!.claude
+.claude/*
+!.claude/agents
+!.claude/agents/**
+
 # exclude binaries and temporary files
 [Bb]in/
 [Bb]uild*/
