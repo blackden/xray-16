@@ -384,10 +384,7 @@ void CRenderDevice::ProcessEvent(const SDL_Event& event)
 
             if (window == m_sdlWnd)
             {
-                // Same fast-exit flag pattern as CCC_Quit and the Cocoa shim.
-                g_bShuttingDown = true;
-                Engine.Event.Defer("KERNEL:disconnect");
-                Engine.Event.Defer("KERNEL:quit");
+                Engine.RequestGracefulShutdown();
             }
             break;
         }
