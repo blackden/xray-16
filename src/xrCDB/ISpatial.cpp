@@ -96,8 +96,19 @@ void SpatialBase::spatial_unregister()
         // NOT to be confused with g_bShuttingDown — that flag is set at
         // Cmd+Q time (before eDisconnect) and using it here breaks q_box
         // queries from physics during disconnect (octree left with
-        // dangling entries → infinite recursion in box_walker). See
-        // gitea #52 for the full investigation.
+        // dangling entries → infinite recursion in box_walker).
+        //
+        // Layering: this is the Layer 3 defense-in-depth backstop. The
+        // primary fix is CRender::DrainEngineRefs() (r2.cpp:549), called
+        // from D3DXRenderBase::Destroy() BEFORE xr_delete(Resources) — it
+        // drops engine-side Shaders/Visuals/SWIs/VB/IB/DC refs while the
+        // resource manager's maps are still alive, so the bulk of the
+        // ~Shader → ~CTexture → _DeleteTexture cascade lands on live
+        // containers and never reaches static destruction. Lights are
+        // intentionally NOT drained there (Lights.Unload() would re-enter
+        // the dead-mutex deadlock since CGamePersistent is already gone
+        // by D3DXRenderBase::Destroy time) — they survive to this guard.
+        // See gitea #52 for the full investigation.
         spatial.node_ptr = NULL;
         return;
     }

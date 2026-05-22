@@ -124,6 +124,17 @@ bool CResourceManager::_LinkPP(SPass& pass)
 
 void CResourceManager::_DeletePP(const SPP* pp)
 {
+    if (g_bStaticDestruction)
+    {
+        // Defense-in-depth backstop for the DrainEngineRefs primary fix.
+        // If a stray late ref (Lua __gc, third-party callback, future
+        // container added without drain) cascades into _DeletePP during
+        // C++ static destruction, m_pp is already torn down and
+        // std::map::find spins forever in __tree::__root on macOS. Skip;
+        // OS reclaims the bookkeeping at process exit. See gitea #52.
+        return;
+    }
+
     if (0 == (pp->dwFlags & xr_resource_flagged::RF_REGISTERED))
         return;
 
