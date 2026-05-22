@@ -273,6 +273,26 @@ private:
     template <typename T>
     bool reclaim(xr_vector<T*>& vec, const T* ptr)
     {
+        if (g_bStaticDestruction)
+        {
+            // CResourceManager itself is xr_delete'd in D3DXRenderBase::Destroy
+            // (line 78) BEFORE C++ static destructors run. When CRender's
+            // static-destruction unwind destroys ref_shader / ref_geom /
+            // ref_texture members, each ref::_dec calls back through Delete*
+            // → reclaim(...) on a dead `this`. Walking `vec` then reads freed
+            // memory (the vector backing is gone) and on Yanov-scale scenes
+            // spins forever in vector<T*>::begin / cend. Skip — OS reclaims
+            // the bookkeeping at process exit anyway. Returning true matches
+            // the success path: every caller is `if (reclaim(...)) return;
+            // else Msg("! ERROR: Failed to find ...")` (see ResourceManager.cpp
+            // _DeleteElement/Delete + ResourceManager_Resources.cpp
+            // _DeleteState/_DeletePass/_DeleteDecl/_DeleteConstantTable/
+            // DeleteGeom/_DeleteTextureList/_DeleteMatrixList/_DeleteConstantList).
+            // Same pattern as SpatialBase::spatial_unregister guard in
+            // src/xrCDB/ISpatial.cpp. See gitea #52.
+            return true;
+        }
+
         auto it = vec.begin();
         const auto end = vec.cend();
 
