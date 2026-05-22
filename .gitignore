@@ -10,6 +10,11 @@
 [Bb]in/
 [Bb]uild*/
 
+# clangd LSP — compile_commands.json symlink at repo root,
+# .cache/ index dir. Both live alongside build-lsp/.
+compile_commands.json
+.cache/
+
 # User-specific files
 *.user
 *.user.props
