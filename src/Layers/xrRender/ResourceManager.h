@@ -275,21 +275,28 @@ private:
     {
         if (g_bStaticDestruction)
         {
-            // CResourceManager itself is xr_delete'd in D3DXRenderBase::Destroy
-            // (line 78) BEFORE C++ static destructors run. When CRender's
-            // static-destruction unwind destroys ref_shader / ref_geom /
-            // ref_texture members, each ref::_dec calls back through Delete*
-            // → reclaim(...) on a dead `this`. Walking `vec` then reads freed
-            // memory (the vector backing is gone) and on Yanov-scale scenes
-            // spins forever in vector<T*>::begin / cend. Skip — OS reclaims
-            // the bookkeeping at process exit anyway. Returning true matches
+            // Defense-in-depth backstop for the DrainEngineRefs primary
+            // fix (CRender::DrainEngineRefs in r2.cpp, invoked from
+            // D3DXRenderBase::Destroy before xr_delete(Resources)). The
+            // common path drains engine-side ref_shader / ref_geom /
+            // ref_texture containers while CResourceManager is still
+            // alive, so this guard normally never fires. It exists for
+            // edge cases — Lua __gc landing after the drain, third-party
+            // callback, future engine-side container added without an
+            // explicit drain call. In those cases CResourceManager has
+            // already been xr_delete'd in D3DXRenderBase::Destroy: walking
+            // `vec` would read freed memory and on Yanov-scale scenes spin
+            // forever in vector<T*>::begin / cend. Skip — OS reclaims the
+            // bookkeeping at process exit anyway. Returning true matches
             // the success path: every caller is `if (reclaim(...)) return;
-            // else Msg("! ERROR: Failed to find ...")` (see ResourceManager.cpp
-            // _DeleteElement/Delete + ResourceManager_Resources.cpp
-            // _DeleteState/_DeletePass/_DeleteDecl/_DeleteConstantTable/
-            // DeleteGeom/_DeleteTextureList/_DeleteMatrixList/_DeleteConstantList).
-            // Same pattern as SpatialBase::spatial_unregister guard in
-            // src/xrCDB/ISpatial.cpp. See gitea #52.
+            // else Msg("! ERROR: Failed to find ...")` (see
+            // ResourceManager.cpp _DeleteElement/Delete +
+            // ResourceManager_Resources.cpp _DeleteState/_DeletePass/
+            // _DeleteDecl/_DeleteConstantTable/DeleteGeom/_DeleteTextureList/
+            // _DeleteMatrixList/_DeleteConstantList). Sibling defense-in-depth
+            // guards: SpatialBase::spatial_unregister (src/xrCDB/ISpatial.cpp)
+            // and the map-based _DeleteTexture/_DeleteRT/_DeleteMatrix/
+            // _DeleteConstant/_DeletePP/DestroyShader<T>. See gitea #52.
             return true;
         }
 

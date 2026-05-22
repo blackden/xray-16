@@ -163,6 +163,15 @@ extern XRCORE_API bool g_bShuttingDown;
 // post-main, past all engine code that queries the spatial tree, so
 // no-op'ing the unregister here is structurally safe.
 //
+// Layering: this flag gates the Layer 3 defense-in-depth backstop. The
+// primary fix for the static-destruction cascade is
+// CRender::DrainEngineRefs() (Layers/xrRender_R2/r2.cpp), invoked from
+// D3DXRenderBase::Destroy() — it drains engine-side ref containers
+// (Shaders, Visuals, SWIs, VB/IB/DC) BEFORE xr_delete(Resources), so the
+// resource manager's maps see the cascade while still alive. This flag
+// catches what DrainEngineRefs intentionally leaves behind (Lights, plus
+// any future container that can't safely be drained pre-Destroy).
+//
 // See gitea #52.
 extern XRCORE_API bool g_bStaticDestruction;
 
