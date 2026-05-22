@@ -1,5 +1,7 @@
 #include "stdafx.h"
 
+#include "Common/PostLogMark.hpp"
+
 #include "xrCore/PostProcess/PPInfo.hpp"
 
 #include "xrEngine/IGame_Persistent.h"
@@ -542,6 +544,50 @@ void CRender::destroy()
     xr_delete(Target);
     PSLibrary.OnDestroy();
     Device.seqFrame.Remove(this);
+}
+
+void CRender::DrainEngineRefs()
+{
+    // Drop engine-side ref containers BEFORE xr_delete(Resources). Cascade
+    // (~Shader → ~ShaderElement → ~SPass → ~STextureList → ~CTexture →
+    // _DeleteTexture) lands on still-alive m_textures map → find+erase
+    // succeed → map stays consistent. After Destroy() returns,
+    // CRender::Shaders is empty; ~CRender during static destruction has
+    // no work and never cascades into a dead map. See gitea #52.
+    POSTLOG_MARK_FMT("DrainEngineRefs: enter shaders=%zu visuals=%zu",
+        Shaders.size(), Visuals.size());
+
+    Shaders.clear();
+    for (dxRender_Visual* visual : Visuals)
+    {
+        if (visual)
+        {
+            visual->Release();
+            xr_delete(visual);
+        }
+    }
+    Visuals.clear();
+    SWIs.clear();
+    nVB.clear();
+    xVB.clear();
+    nIB.clear();
+    xIB.clear();
+    nDC.clear();
+    xDC.clear();
+
+    POSTLOG_MARK("DrainEngineRefs: exit");
+    // NOTE: Lights NOT touched here. By the time D3DXRenderBase::Destroy()
+    // runs, ~CApplication has already destroyed CGamePersistent (which
+    // owned ISpatial_DB) at x_ray.cpp:340 — Device.Destroy() is line 355,
+    // AFTER. Calling Lights.Unload() now would re-trigger the dead-
+    // pthread-mutex deadlock we're trying to fix. Lights are handled by
+    // the existing spatial_unregister guard (defense-in-depth,
+    // ISpatial.cpp:82) — at static destruction time ~CLight_DB skips
+    // unregister; OS reclaims.
+    //
+    // NOTE: PSLibrary.OnDestroy() NOT called here. It's already invoked
+    // in CRender::destroy() at r2.cpp:543, which runs via OnDeviceDestroy
+    // BEFORE Destroy(). Double-call would be wasted at best.
 }
 
 void CRender::reset_begin()
