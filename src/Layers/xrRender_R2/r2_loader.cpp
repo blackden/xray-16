@@ -1,5 +1,6 @@
 #include "stdafx.h"
 
+#include "Common/PostLogMark.hpp"
 #include "Layers/xrRender/ResourceManager.h"
 #include "Layers/xrRender/FBasicVisual.h"
 #include "xrCore/FMesh.hpp"
@@ -119,6 +120,12 @@ void CRender::level_Unload()
     // Cheap (one log line on disconnect). See gitea #49.
     Msg("level_Unload: g_pGameLevel=%p b_loaded=%d sun=%p",
         (void*)g_pGameLevel, (int)b_loaded, (void*)Lights.sun._get());
+    // XXX [POSTLOG_TEARDOWN_GAP]: diagnostic for gitea #52. POSTLOG over Msg
+    // so the marker survives even if the engine log is mid-close (e.g. when
+    // level_Unload races teardown). Pair with the Shaders count at function
+    // tail to confirm whether the cascade was actually drained on disconnect.
+    POSTLOG_MARK_FMT("level_Unload: enter g_pGameLevel=%p b_loaded=%d shaders=%zu visuals=%zu",
+        (void*)g_pGameLevel, (int)b_loaded, Shaders.size(), Visuals.size());
 
     if (!g_pGameLevel)
         return;
@@ -193,6 +200,11 @@ void CRender::level_Unload()
 
     //*** Shaders
     Shaders.clear();
+    // XXX [POSTLOG_TEARDOWN_GAP]: see entry marker. Confirms Shaders.clear()
+    // actually drained the vector (count is 0) — distinguishes cause (c) from
+    // (d). If we hang in static destruction with this line in the log,
+    // something re-populated Shaders AFTER level_Unload returned.
+    POSTLOG_MARK_FMT("level_Unload: shaders cleared (n=%zu)", Shaders.size());
     b_loaded = FALSE;
     if (ps_r__clear_models_on_unload)
     {

@@ -35,3 +35,14 @@ inline void postlog_mark(const char* tag)
 }
 
 #define POSTLOG_MARK(tag) postlog_mark(tag)
+
+// Format variant — for cases where the marker payload needs runtime values
+// (pointer, count, flag). Format into a stack buffer first, then dispatch
+// to postlog_mark so the prefix + timestamp logic stays in one place.
+#define POSTLOG_MARK_FMT(fmt, ...)                                                                                     \
+    do                                                                                                                 \
+    {                                                                                                                  \
+        char _postlog_buf[192];                                                                                        \
+        std::snprintf(_postlog_buf, sizeof _postlog_buf, fmt, __VA_ARGS__);                                            \
+        postlog_mark(_postlog_buf);                                                                                    \
+    } while (0)

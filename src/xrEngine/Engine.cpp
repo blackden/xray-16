@@ -5,6 +5,7 @@
 #include "stdafx.h"
 #include "Engine.h"
 
+#include "Common/PostLogMark.hpp"
 #include "XR_IOConsole.h"
 #include "xr_ioc_cmd.h"
 
@@ -128,6 +129,10 @@ extern "C" void OpenXRay_RequestGracefulQuit()
 {
     // Same fast-exit flag pattern as CCC_Quit and the SDL window-close handler.
     g_bShuttingDown = true;
+    // XXX [POSTLOG_TEARDOWN_GAP]: diagnostic for gitea #52. Confirms the Cocoa
+    // shim reaches the engine and defers both events. If this fires but
+    // ==> eDisconnect dispatch does not, the issue is queue/dispatch timing.
+    POSTLOG_MARK("OpenXRay_RequestGracefulQuit: Defer(disconnect, quit) issued");
     Engine.Event.Defer("KERNEL:disconnect");
     Engine.Event.Defer("KERNEL:quit");
 }
