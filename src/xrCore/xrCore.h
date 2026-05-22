@@ -149,6 +149,23 @@ extern XRCORE_API xrCore Core;
 // disconnect time on macOS — ~2.5 sec on a CoP level). Never reset to false.
 extern XRCORE_API bool g_bShuttingDown;
 
+// One-shot flag, set true by the atexit lambda in entry_point.cpp AFTER
+// main() returns but BEFORE C++ static destructors run. Read by
+// SpatialBase::spatial_unregister to no-op the unregister during static
+// destruction: ISpatial_DB lives inside CGamePersistent which is destroyed
+// in ~CApplication BEFORE main returns, so by atexit time its mutex is
+// dead and locking it hangs forever on macOS pthread.
+//
+// Distinct from g_bShuttingDown above. That flag is set at Cmd+Q time
+// (before eDisconnect) — using IT to guard spatial_unregister was tried
+// and broke physics q_box during disconnect (octree left with dangling
+// entries → infinite recursion in box_walker). This flag is strictly
+// post-main, past all engine code that queries the spatial tree, so
+// no-op'ing the unregister here is structurally safe.
+//
+// See gitea #52.
+extern XRCORE_API bool g_bStaticDestruction;
+
 // Convert a UTF-8 string in-place to cp1251. Used to bridge POSIX UTF-8
 // strings (filesystem, getpwuid) into the engine's cp1251 font tables for
 // display. On Windows this is a no-op since OS APIs already return cp1251 in

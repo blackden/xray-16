@@ -88,7 +88,16 @@ int main(int argc, char *argv[])
     // so we can tell "exit() was called from somewhere" apart from "killed by
     // a signal (atexit doesn't run)".
     setvbuf(stdout, nullptr, _IONBF, 0);
-    atexit([]() { fprintf(stderr, "==> ATEXIT fired\n"); fflush(stderr); });
+    atexit([]() {
+        fprintf(stderr, "==> ATEXIT fired\n");
+        fflush(stderr);
+        // Flip into the static-destruction phase. SpatialBase::spatial_unregister
+        // checks this flag and skips touching ISpatial_DB once main has
+        // returned — the spatial DB lives inside CGamePersistent which was
+        // destroyed in ~CApplication, so any further lock would hang
+        // forever on a dead pthread mutex. See gitea #52.
+        g_bStaticDestruction = true;
+    });
 #endif
 
     try
