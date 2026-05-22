@@ -120,6 +120,13 @@ void CEngine::OnFrame()
     Event.OnFrame();
 }
 
+void CEngine::RequestGracefulShutdown()
+{
+    g_bShuttingDown = true;
+    Event.Defer("KERNEL:disconnect");
+    Event.Defer("KERNEL:quit");
+}
+
 #if defined(XR_PLATFORM_APPLE)
 // C-linkage glue for the macOS Cocoa shim (macos_cocoa_shim.mm). That file
 // cannot include Engine.h because xrCore headers conflict with Foundation
@@ -127,13 +134,10 @@ void CEngine::OnFrame()
 // CMakeLists.txt). Same defer sequence as CCC_Quit::Execute in xr_ioc_cmd.cpp.
 extern "C" void OpenXRay_RequestGracefulQuit()
 {
-    // Same fast-exit flag pattern as CCC_Quit and the SDL window-close handler.
-    g_bShuttingDown = true;
     // XXX [POSTLOG_TEARDOWN_GAP]: diagnostic for gitea #52. Confirms the Cocoa
     // shim reaches the engine and defers both events. If this fires but
     // ==> eDisconnect dispatch does not, the issue is queue/dispatch timing.
     POSTLOG_MARK("OpenXRay_RequestGracefulQuit: Defer(disconnect, quit) issued");
-    Engine.Event.Defer("KERNEL:disconnect");
-    Engine.Event.Defer("KERNEL:quit");
+    Engine.RequestGracefulShutdown();
 }
 #endif
