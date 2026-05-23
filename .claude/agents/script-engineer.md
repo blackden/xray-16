@@ -77,7 +77,7 @@ These are real bugs / pitfalls from this codebase. **Pattern-match every propose
 
 If you discover NEW landmines, **report them** under `### New landmine for the playbook:`.
 
-## Domain knowledge
+## Domain knowledge — internalized facts
 
 - **LuaJIT** is the runtime. CMake option `XRAY_USE_LUAJIT=ON` (default). Falls back to PUC Lua if off.
 - **luabind-deboostified** at `Externals/luabind/` — fork without Boost.

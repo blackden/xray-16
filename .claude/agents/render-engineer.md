@@ -50,7 +50,7 @@ These are real render-layer bugs from this codebase. **Pattern-match every propo
 
 1. **Apple GL 4.10 preprocessor rejects `#if` on undefined identifiers.** Quality macros (`SSAO_QUALITY`, `SUN_QUALITY`, `SSR_QUALITY`, `SUN_SHAFTS_QUALITY`) **must be defined unconditionally** before any `#if SSAO_QUALITY > 0` check. See `src/Layers/xrRenderPC_GL/rgl_shaders.cpp:348-410`. Multiple shader symptoms appearing together = single preprocessor cascade, NOT N independent bugs (see memory `project_apple_gl_shader_cascade`).
 
-2. **CRenderTarget holds 81 ref_shader + 8 ref_geom + 16+ ref_rt members** (per earlier audit). Released only when `xr_delete(Target)` runs inside `CRender::destroy()` (`src/Layers/xrRender_R2/r2.cpp:542`), which is called from `D3DXRenderBase::OnDeviceDestroy` (`D3DXRenderBase.cpp:56`) BEFORE `D3DXRenderBase::Destroy` (line 76-80). Not in `level_Unload`. Don't propose touching these in level-scope code.
+2. **CRenderTarget holds 81 ref_shader + 8 ref_geom + 16+ ref_rt members** (per earlier audit). Released only when `xr_delete(Target)` runs inside `CRender::destroy()` (`src/Layers/xrRender_R2/r2.cpp:544`), which is called from `D3DXRenderBase::OnDeviceDestroy` (`D3DXRenderBase.cpp:45-74`) BEFORE `D3DXRenderBase::Destroy` (line 76-80). Not in `level_Unload`. Don't propose touching these in level-scope code.
 
 3. **`hemi_cube` is light-polluted.** `LightTrack` `hemi_cube` mixes sky rays with point-light contribution; NOT a clean sky-visibility probe. This caused rain-gate v1 to fail at lit interiors. If you need sky visibility, separate from light accumulation. See memory `project_hemi_cube_light_pollution`.
 
@@ -83,7 +83,7 @@ These are real render-layer bugs from this codebase. **Pattern-match every propo
 
 If you discover NEW landmines, **report them** under `### New landmine for the playbook:` at the end of your report.
 
-## Domain knowledge
+## Domain knowledge — internalized facts
 
 - **Renderer module selection** in `src/xr_3da/entry_point.cpp:24` (`s_render_modules` array). DX11 entries excluded on non-Windows via CMake.
 - **Shader compile entry** at `src/Layers/xrRender/ShaderResourceTraits.h:44`.
