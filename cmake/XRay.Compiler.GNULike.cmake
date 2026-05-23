@@ -83,6 +83,16 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "Clang" AND NOT XRAY_USE_DEFAULT_CXX_LIB)
 endif()
 
 add_compile_options(-Wno-attributes)
+
+# Hardening: stack canaries on functions with arrays / addressed locals /
+# alloca. macOS clang's per-function heuristic is unreliable — the gitea
+# #59 parse_level_name overflow was caught only because the heuristic
+# happened to pick that function; an overflow in a heuristic-skipped
+# function would silently corrupt the stack instead of aborting cleanly.
+# -strong adds canaries to all at-risk functions while keeping overhead
+# ~1-2% on covered functions, negligible globally.
+add_compile_options(-fstack-protector-strong)
+
 if (APPLE)
     add_compile_options(-Wl,-undefined,error)
 else()
