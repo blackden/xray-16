@@ -200,6 +200,15 @@ XRCORE_API void xr_legacy_to_utf8(char* buf, size_t buf_size, pcstr codepage);
 // source length; cp1251 -> UTF-8 caps at 3x so this is safe.
 XRCORE_API bool xr_legacy_to_utf8_alloc(pcstr src, size_t src_len, pcstr codepage, xr_string& out);
 
+// Main-thread heartbeat for the watchdog thread (gitea #61, sub-part B).
+// Incremented each ProcessFrame; the watchdog polls this and _exits the
+// process if it stops advancing for `dev_watchdog_seconds`. Atomic because
+// it crosses thread boundaries; relaxed ordering is sufficient — the
+// watchdog only checks "did it change since last poll", not ordering vs
+// any other memory. Defined in xrCore.cpp.
+#include <atomic>
+extern XRCORE_API std::atomic<u64> g_mainHeartbeat;
+
 // Diagnostic flag, exposed as the `r__trace_encoding` console var. When
 // non-zero, every XML / INI file the Phase 2 read shim has to transcode
 // from cp1251/cp1250 logs one Msg() line with its name -- useful when
