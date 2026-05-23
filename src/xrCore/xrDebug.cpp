@@ -35,6 +35,13 @@
 #           define PTRACE_DETACH PT_DETACH
 #       endif
 #   endif
+#   include <unistd.h>
+#   include <execinfo.h>
+#   include <sys/time.h>
+#   include <time.h>
+#   include <atomic>
+#   include <thread>
+#   include "xrCore/Threading/ThreadUtil.h"
 #endif
 
 constexpr SDL_MessageBoxButtonData buttons[] =
@@ -651,17 +658,132 @@ void xr_terminate()
 }
 #endif // USE_BUG_TRAP
 
-static void handler_base(const char* reason)
+#if defined(XR_PLATFORM_LINUX) || defined(XR_PLATFORM_APPLE) || defined(XR_PLATFORM_BSD)
+namespace
 {
-#if defined(XR_PLATFORM_APPLE)
-    // Phase 1 diagnostic: write an async-signal-safe marker to stderr so we
-    // can confirm whether any handled signal actually fires on macOS before
-    // attempting xrDebug::Fail (which is NOT async-signal-safe).
-    static const char marker[] = "==> handler_base entered\n";
-    write(STDERR_FILENO, marker, sizeof(marker) - 1);
+// Re-entry guard for OnFatalSignal. A second fatal signal (e.g. a second
+// SIGSEGV inside the backtrace path) must not loop back through us; it
+// _exits straight away. exchange-return value: previous signal stored, 0
+// means we are the first caller.
+std::atomic<int> sigInProgress{0};
+
+// Convert a small non-negative integer into a decimal string written into
+// `buf` (size `cap`). Returns number of bytes written (without NUL). Used
+// instead of snprintf — snprintf is not strictly async-signal-safe per
+// POSIX even though it works in practice on macOS.
+size_t async_safe_itoa(int value, char* buf, size_t cap) noexcept
+{
+    if (cap == 0)
+        return 0;
+    if (value < 0)
+        value = -value;
+    // Reverse-fill into a small stack buffer then copy.
+    char tmp[16];
+    size_t len = 0;
+    do
+    {
+        tmp[len++] = static_cast<char>('0' + (value % 10));
+        value /= 10;
+    } while (value > 0 && len < sizeof(tmp));
+    const size_t out = (len < cap) ? len : cap;
+    for (size_t i = 0; i < out; ++i)
+        buf[i] = tmp[len - 1 - i];
+    return out;
+}
+} // namespace
 #endif
-    bool ignoreAlways = false;
-    xrDebug::Fail(ignoreAlways, DEBUG_INFO, nullptr, reason, nullptr, nullptr);
+
+void xrDebug::OnFatalSignal(int sig, const char* reason)
+{
+#if defined(XR_PLATFORM_LINUX) || defined(XR_PLATFORM_APPLE) || defined(XR_PLATFORM_BSD)
+    // Re-entry: if we're already handling a signal, just bail out hard.
+    if (sigInProgress.exchange(sig) != 0)
+        _exit(128 + sig);
+
+    // Arm a 5-second tripwire. If OnFatalSignal itself deadlocks (the
+    // backtrace path can take an internal lock on some platforms) the
+    // SIGALRM handler installed in OnThreadSpawn will _exit. ITIMER_REAL
+    // fires on wall-clock, not CPU time — survives a wedged thread.
+    itimerval tv{};
+    tv.it_value.tv_sec = 5;
+    setitimer(ITIMER_REAL, &tv, nullptr);
+
+    // Stderr canary. Use fixed strings + manual itoa; no snprintf, no
+    // FlushLog, no Cocoa, no xrCore logging — xrCore's log file may be
+    // closed by now and any mutex inside Msg/Log is unsafe in a signal.
+    static const char prefix[] = "==> FATAL SIGNAL: ";
+    ::write(STDERR_FILENO, prefix, sizeof(prefix) - 1);
+    char numBuf[16];
+    const size_t numLen = async_safe_itoa(sig, numBuf, sizeof(numBuf));
+    ::write(STDERR_FILENO, numBuf, numLen);
+    if (reason && reason[0])
+    {
+        ::write(STDERR_FILENO, " (", 2);
+        // strlen is async-signal-safe on POSIX (it's pure compute).
+        size_t reasonLen = 0;
+        while (reason[reasonLen])
+            ++reasonLen;
+        ::write(STDERR_FILENO, reason, reasonLen);
+        ::write(STDERR_FILENO, ")", 1);
+    }
+    ::write(STDERR_FILENO, "\n", 1);
+
+    // Async-safe backtrace per Apple <execinfo.h>: both backtrace() and
+    // backtrace_symbols_fd() are documented as signal-safe.
+    void* addrs[64];
+    const int n = backtrace(addrs, 64);
+    backtrace_symbols_fd(addrs, n, STDERR_FILENO);
+
+    // Skip atexit / static destructors entirely. The crash invariant is
+    // unknown; running normal teardown would re-acquire mutexes we likely
+    // already own. OS reaps memory, threads, FDs.
+    _exit(128 + sig);
+#else
+    (void)reason;
+    _exit(128 + sig);
+#endif
+}
+
+static void handler_base(int sig, const char* reason)
+{
+    xrDebug::OnFatalSignal(sig, reason);
+}
+
+void xrDebug::StartWatchdog(u32 timeoutSec)
+{
+#if defined(XR_PLATFORM_LINUX) || defined(XR_PLATFORM_APPLE) || defined(XR_PLATFORM_BSD)
+    if (timeoutSec == 0)
+        return;
+
+    std::thread([timeoutSec] {
+        Threading::SetCurrentThreadName("watchdog");
+        timespec ts{};
+        clock_gettime(CLOCK_MONOTONIC, &ts);
+        u64 lastSeen = g_mainHeartbeat.load(std::memory_order_relaxed);
+        u64 lastSeenAtNs = u64(ts.tv_sec) * 1000000000ull + u64(ts.tv_nsec);
+        while (true)
+        {
+            ::sleep(5);
+            const u64 current = g_mainHeartbeat.load(std::memory_order_relaxed);
+            clock_gettime(CLOCK_MONOTONIC, &ts);
+            const u64 nowNs = u64(ts.tv_sec) * 1000000000ull + u64(ts.tv_nsec);
+            if (current != lastSeen)
+            {
+                lastSeen = current;
+                lastSeenAtNs = nowNs;
+                continue;
+            }
+            if ((nowNs - lastSeenAtNs) > u64(timeoutSec) * 1000000000ull)
+            {
+                static const char msg[] = "==> WATCHDOG: main thread stalled, exiting\n";
+                ::write(STDERR_FILENO, msg, sizeof(msg) - 1);
+                _exit(128 + SIGKILL);
+            }
+        }
+    }).detach();
+#else
+    (void)timeoutSec;
+#endif
 }
 
 #if defined(XR_PLATFORM_WINDOWS)
@@ -696,21 +818,41 @@ void xrDebug::OnThreadSpawn()
 {
 #ifndef __SANITIZE_ADDRESS__
     std::signal(SIGINT,  nullptr);
-    std::signal(SIGILL,  +[](int signal) { handler_base("illegal instruction"); });
-    std::signal(SIGFPE,  +[](int signal) { handler_base("floating point error"); });
+    std::signal(SIGILL,  +[](int sig) { handler_base(sig, "illegal instruction"); });
+    std::signal(SIGFPE,  +[](int sig) { handler_base(sig, "floating point error"); });
 #   ifdef DEBUG
-    std::signal(SIGSEGV, +[](int signal) { handler_base("segmentation fault"); });
+    std::signal(SIGSEGV, +[](int sig) { handler_base(sig, "segmentation fault"); });
 #   endif
-    std::signal(SIGABRT, +[](int signal) { handler_base("application is aborting"); });
-    std::signal(SIGTERM, +[](int signal) { handler_base("termination with exit code 3"); });
+    std::signal(SIGABRT, +[](int sig) { handler_base(sig, "application is aborting"); });
+
+    // SIGTERM is polite-quit (Force Quit, `kill <pid>`, launchd). It does
+    // NOT go through OnFatalSignal — no backtrace, no tripwire, no fancy
+    // diagnostics. Just respect the request: write a canary and _exit.
+    // Pre-#61 we routed SIGTERM through handler_base → xrDebug::Fail,
+    // which acquired failLock and called Cocoa NSAlert. If the main
+    // thread already held failLock (e.g. mid-assert) the SIGTERM handler
+    // re-entered and deadlocked → unkillable process.
+    std::signal(SIGTERM, +[](int sig) {
+        static const char msg[] = "==> SIGTERM received, exiting\n";
+        ::write(STDERR_FILENO, msg, sizeof(msg) - 1);
+        _exit(128 + sig);
+    });
+
+    // SIGALRM is the tripwire backstop for OnFatalSignal's setitimer(5s).
+    // If we got here, OnFatalSignal itself wedged — last resort _exit.
+    std::signal(SIGALRM, +[](int sig) {
+        static const char msg[] = "==> SIGALRM tripwire, exiting\n";
+        ::write(STDERR_FILENO, msg, sizeof(msg) - 1);
+        _exit(128 + sig);
+    });
 
 #   if defined(XR_PLATFORM_WINDOWS)
-    std::signal(SIGABRT_COMPAT, +[](int signal) { handler_base("application is aborting"); });
+    std::signal(SIGABRT_COMPAT, +[](int sig) { handler_base(sig, "application is aborting"); });
     _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
     _set_invalid_parameter_handler(&invalid_parameter_handler);
     _set_new_mode(1);
     _set_new_handler(&out_of_memory_handler);
-    _set_purecall_handler(+[] { handler_base("pure virtual function call"); });
+    _set_purecall_handler(+[] { handler_base(SIGABRT, "pure virtual function call"); });
 #   endif
 
 #   ifdef USE_BUG_TRAP
@@ -730,6 +872,9 @@ void xrDebug::OnThreadExit()
     std::signal(SIGSEGV, nullptr);
     std::signal(SIGABRT, nullptr);
     std::signal(SIGTERM, nullptr);
+#   if defined(XR_PLATFORM_LINUX) || defined(XR_PLATFORM_APPLE) || defined(XR_PLATFORM_BSD)
+    std::signal(SIGALRM, nullptr);
+#   endif
     std::set_terminate(nullptr);
 
 #   if defined(XR_PLATFORM_WINDOWS)
@@ -740,6 +885,27 @@ void xrDebug::OnThreadExit()
     _set_new_handler(nullptr);
     _set_purecall_handler(nullptr);
 #   endif
+#endif
+}
+
+void xrDebug::ReinstallSignalHandlersPostSDL()
+{
+#if defined(XR_PLATFORM_LINUX) || defined(XR_PLATFORM_APPLE) || defined(XR_PLATFORM_BSD)
+    // SDL_Init overwrites these. Re-install our canary handlers.
+    std::signal(SIGTERM, +[](int sig) {
+        static const char msg[] = "==> SIGTERM received, exiting\n";
+        ::write(STDERR_FILENO, msg, sizeof(msg) - 1);
+        _exit(128 + sig);
+    });
+    std::signal(SIGALRM, +[](int sig) {
+        static const char msg[] = "==> SIGALRM tripwire, exiting\n";
+        ::write(STDERR_FILENO, msg, sizeof(msg) - 1);
+        _exit(128 + sig);
+    });
+    // Also re-install SIGABRT (in case SDL parachute touched it). SIGILL/
+    // SIGFPE/SIGSEGV left as SDL set them — SDL's parachute may convert
+    // them into SDL_QUIT which is sometimes useful; revisit if needed.
+    std::signal(SIGABRT, +[](int sig) { handler_base(sig, "application is aborting"); });
 #endif
 }
 

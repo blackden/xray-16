@@ -32,6 +32,7 @@ extern compression::ppmd::stream* trained_model;
 XRCORE_API xrCore Core;
 XRCORE_API bool g_bShuttingDown = false;
 XRCORE_API bool g_bStaticDestruction = false;
+XRCORE_API std::atomic<u64> g_mainHeartbeat{0};
 
 XRCORE_API int g_r__trace_encoding = 0;
 XRCORE_API int g_r__legacy_encoding = 1;

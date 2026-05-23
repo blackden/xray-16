@@ -727,6 +727,19 @@ ENGINE_API int g_dev_tools = 0;
 ENGINE_API int g_dev_tools = 1;
 #endif
 
+// dev_watchdog_seconds cvar — main-thread stall detector (gitea #61).
+// Watchdog thread polls g_mainHeartbeat; if it doesn't advance for N
+// seconds the process _exits(128+SIGKILL). Default 30 in MasterGold so
+// shipped builds always self-recover from hangs; default 0 elsewhere so
+// debugger breakpoint sessions aren't killed for idle. CApplication::Run
+// reads this at startup; runtime changes do not take effect (watchdog
+// loop captures the value once at spawn).
+#ifdef MASTER_GOLD
+ENGINE_API int g_dev_watchdog_seconds = 30;
+#else
+ENGINE_API int g_dev_watchdog_seconds = 0;
+#endif
+
 extern int ps_fps_limit;
 extern int ps_fps_limit_in_menu;
 
@@ -742,6 +755,10 @@ void CCC_Register()
 
     // Developer-only hotkeys gate (F11 playground, F12 ALife inspector).
     CMD4(CCC_Integer, "dev_tools", &g_dev_tools, 0, 1);
+
+    // Main-thread watchdog timeout (see g_dev_watchdog_seconds note above).
+    // Sampled by CApplication::Run at startup, runtime changes don't apply.
+    CMD4(CCC_Integer, "dev_watchdog_seconds", &g_dev_watchdog_seconds, 0, 300);
 
 #ifdef DEBUG
     CMD3(CCC_Mask, "mt_particles", &psDeviceFlags, mtParticles);

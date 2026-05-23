@@ -262,6 +262,12 @@ void CRenderDevice::ProcessFrame()
 {
     ZoneScoped;
 
+    // Heartbeat tick for the watchdog thread (gitea #61). Increment, don't
+    // store a wall-clock — the watchdog only checks "did the counter
+    // change since last poll", so any monotonically-increasing sequence
+    // works. Relaxed atomic is sufficient: no ordering vs other memory.
+    g_mainHeartbeat.fetch_add(1, std::memory_order_relaxed);
+
     if (!BeforeFrame())
         return;
 
