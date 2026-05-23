@@ -179,6 +179,15 @@ cat > "${MACOS_DIR}/${PRODUCT_NAME}" <<EOF
 # Pass --debug as the first argument to run under lldb (requires Xcode Command
 # Line Tools). Backtraces land in openxray-debug.log next to the regular log.
 set -u
+
+# Apple Tahoe (macOS 26.3) workaround: CoreAnalytics atexit handler can
+# deadlock inside malloc_type_calloc on terminate, producing a TX-state
+# zombie process (Dock icon gone, window dead, kernel-stuck). Disabling
+# the OS_ACTIVITY subsystem and the nano malloc zone keeps the buggy
+# handler from registering on this process. See gitea #69 / #63.
+export OS_ACTIVITY_MODE=disable
+export MallocNanoZone=0
+
 SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
 LOG_DIR="\${HOME}/Library/Logs/OpenXRay"
 mkdir -p "\${LOG_DIR}"
