@@ -1,0 +1,919 @@
+{
+  "tool": "clang-tidy",
+  "tool_version": "20.1.8 (Homebrew llvm@20)",
+  "invocation": "run-clang-tidy -j 8 -p <sanitized cdb (PCH stripped)> -checks='-*,bugprone-*,cert-*,clang-analyzer-*' -extra-arg=-isysroot $SDK '^.../src/'",
+  "date_utc": "2026-05-23",
+  "scope": "src/ only; Externals/ excluded; PCH arguments stripped from compile DB to avoid Apple-clang\u2194llvm@20 PCH-incompatibility cascade.",
+  "run_state": "PARTIAL \u2014 full sweep ran ~25 min then SIGTERM (exit 144) from harness/timeout before all 1618 TUs finished. Captured findings up to point of termination. No clang-diagnostic-error in this output, so the PCH/SDK fix held; remaining gap is breadth, not signal quality.",
+  "totals": {
+    "findings": 110,
+    "unique_files_with_findings": 24
+  },
+  "by_check": {
+    "bugprone-narrowing-conversions": 32,
+    "bugprone-easily-swappable-parameters": 31,
+    "bugprone-switch-missing-default-case": 12,
+    "bugprone-macro-parentheses": 7,
+    "clang-analyzer-deadcode.DeadStores": 6,
+    "clang-analyzer-optin.core.EnumCastOutOfRange": 5,
+    "clang-analyzer-optin.cplusplus.VirtualCall": 4,
+    "bugprone-branch-clone": 4,
+    "bugprone-implicit-widening-of-multiplication-result": 3,
+    "clang-analyzer-core.NullDereference": 2,
+    "cert-err34-c": 1,
+    "clang-analyzer-core.UndefinedBinaryOperatorResult": 1,
+    "bugprone-assignment-in-if-condition": 1,
+    "clang-analyzer-core.uninitialized.Branch": 1
+  },
+  "by_module": {
+    "xrGame": 80,
+    "xrCore": 13,
+    "Layers": 5,
+    "xrEngine": 5,
+    "xrUICore": 4,
+    "xrPhysics": 2,
+    "xrCDB": 1
+  },
+  "findings": [
+    {
+      "file": "src/xrCore/_sphere.cpp",
+      "line": 184,
+      "col": 43,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'size_type' (aka 'unsigned long') to signed type 'int' is implementation-defined"
+    },
+    {
+      "file": "src/xrUICore/Windows/UIFrameLineWnd.cpp",
+      "line": 17,
+      "col": 37,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of 'InitTextureEx' of similar type ('pcstr') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrGame/game_base.cpp",
+      "line": 8,
+      "col": 25,
+      "level": "warning",
+      "check": "bugprone-implicit-widening-of-multiplication-result",
+      "message": "performing an implicit widening conversion to type 'u64' (aka 'unsigned long long') of a multiplication performed in type 'int'"
+    },
+    {
+      "file": "src/xrGame/game_base.cpp",
+      "line": 10,
+      "col": 26,
+      "level": "warning",
+      "check": "bugprone-implicit-widening-of-multiplication-result",
+      "message": "performing an implicit widening conversion to type 'u64' (aka 'unsigned long long') of a multiplication performed in type 'int'"
+    },
+    {
+      "file": "src/xrGame/game_base.cpp",
+      "line": 31,
+      "col": 5,
+      "level": "warning",
+      "check": "clang-analyzer-optin.cplusplus.VirtualCall",
+      "message": "Call to virtual method 'game_PlayerState::clear' during construction bypasses virtual dispatch"
+    },
+    {
+      "file": "src/xrGame/game_base.cpp",
+      "line": 35,
+      "col": 9,
+      "level": "warning",
+      "check": "clang-analyzer-optin.cplusplus.VirtualCall",
+      "message": "Call to virtual method 'game_PlayerState::net_Import' during construction bypasses virtual dispatch"
+    },
+    {
+      "file": "src/xrUICore/Static/UIStatic.cpp",
+      "line": 152,
+      "col": 19,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'u32' (aka 'unsigned int') to 'float'"
+    },
+    {
+      "file": "src/xrUICore/Static/UIStatic.cpp",
+      "line": 161,
+      "col": 51,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'u32' (aka 'unsigned int') to 'float'"
+    },
+    {
+      "file": "src/xrUICore/Static/UIStatic.cpp",
+      "line": 205,
+      "col": 76,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'u32' (aka 'unsigned int') to 'float'"
+    },
+    {
+      "file": "src/xrGame/script_game_object_script3.cpp",
+      "line": 168,
+      "col": 13,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of '__invoke' of similar type ('pcstr') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrGame/script_game_object_script3.cpp",
+      "line": 168,
+      "col": 65,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of '__invoke' of similar type ('int') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrGame/script_game_object_script3.cpp",
+      "line": 242,
+      "col": 37,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of '__invoke' of similar type ('CScriptGameObject *') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrGame/ui/UIMpTradeWnd_misc.cpp",
+      "line": 174,
+      "col": 12,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'u32' (aka 'unsigned int') to signed type 'int' is implementation-defined"
+    },
+    {
+      "file": "src/xrGame/ui/UIMpTradeWnd_misc.cpp",
+      "line": 385,
+      "col": 55,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of 'GetWeaponNameByIndex' of similar type ('u8') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrGame/ui/UIMpTradeWnd_misc.cpp",
+      "line": 393,
+      "col": 73,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of 'GetWeaponIndexByName' of similar type ('u8 &') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrGame/ui/UIMpTradeWnd_misc.cpp",
+      "line": 483,
+      "col": 33,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of 'AddonToSlot' of similar type ('int') are easily swapped by mistake"
+    },
+    {
+      "file": "src/Layers/xrRender/WallmarksEngine.cpp",
+      "line": 408,
+      "col": 57,
+      "level": "warning",
+      "check": "bugprone-implicit-widening-of-multiplication-result",
+      "message": "performing an implicit widening conversion to type 'size_type' (aka 'unsigned long') of a multiplication performed in type 'int'"
+    },
+    {
+      "file": "src/Layers/xrRender/blenders/blender_bloom_build.cpp",
+      "line": 44,
+      "col": 5,
+      "level": "warning",
+      "check": "bugprone-switch-missing-default-case",
+      "message": "switching on non-enum value without default case may not cover all cases"
+    },
+    {
+      "file": "src/Layers/xrRender/blenders/blender_bloom_build.cpp",
+      "line": 124,
+      "col": 5,
+      "level": "warning",
+      "check": "bugprone-switch-missing-default-case",
+      "message": "switching on non-enum value without default case may not cover all cases"
+    },
+    {
+      "file": "src/Layers/xrRender/blenders/blender_bloom_build.cpp",
+      "line": 203,
+      "col": 5,
+      "level": "warning",
+      "check": "bugprone-switch-missing-default-case",
+      "message": "switching on non-enum value without default case may not cover all cases"
+    },
+    {
+      "file": "src/xrGame/Level_Bullet_Manager.cpp",
+      "line": 35,
+      "col": 18,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of 'SBullet' of similar type ('const Fvector &') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrGame/Level_Bullet_Manager.cpp",
+      "line": 35,
+      "col": 69,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "5 adjacent parameters of 'SBullet' of convertible types are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrGame/Level_Bullet_Manager.cpp",
+      "line": 156,
+      "col": 68,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'size_type' (aka 'unsigned long') to signed type 's32' (aka 'int') is implementation-defined"
+    },
+    {
+      "file": "src/xrGame/Level_Bullet_Manager.cpp",
+      "line": 171,
+      "col": 57,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'size_type' (aka 'unsigned long') to signed type 's32' (aka 'int') is implementation-defined"
+    },
+    {
+      "file": "src/xrGame/Level_Bullet_Manager.cpp",
+      "line": 226,
+      "col": 44,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'u32' (aka 'unsigned int') to 'float'"
+    },
+    {
+      "file": "src/xrGame/Level_Bullet_Manager.cpp",
+      "line": 283,
+      "col": 36,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "3 adjacent parameters of 'trajectory_position' of similar type ('const Fvector &') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrGame/Level_Bullet_Manager.cpp",
+      "line": 771,
+      "col": 52,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of 'SqrDistancePointToSegment' of similar type ('const Fvector &') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrGame/Level_Bullet_Manager.cpp",
+      "line": 779,
+      "col": 9,
+      "level": "warning",
+      "check": "clang-analyzer-deadcode.DeadStores",
+      "message": "Value stored to 'fT' is never read"
+    },
+    {
+      "file": "src/xrGame/Level_Bullet_Manager.cpp",
+      "line": 786,
+      "col": 13,
+      "level": "warning",
+      "check": "clang-analyzer-deadcode.DeadStores",
+      "message": "Value stored to 'fT' is never read"
+    },
+    {
+      "file": "src/Layers/xrRender/R_Backend_xform.cpp",
+      "line": 22,
+      "col": 24,
+      "level": "warning",
+      "check": "clang-analyzer-optin.core.EnumCastOutOfRange",
+      "message": "The value '256' provided to the cast expression is not in the valid range of values for '_D3DTRANSFORMSTATETYPE'"
+    },
+    {
+      "file": "src/xrGame/PHCollisionDamageReceiver.cpp",
+      "line": 28,
+      "col": 37,
+      "level": "warning",
+      "check": "cert-err34-c",
+      "message": "'atof' used to convert a string to a floating-point value, but function will not report conversion errors; consider using 'strtod' instead"
+    },
+    {
+      "file": "src/xrGame/PHCollisionDamageReceiver.cpp",
+      "line": 38,
+      "col": 47,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "3 adjacent parameters of 'CollisionHit' of convertible types are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrGame/moving_objects_dynamic.cpp",
+      "line": 193,
+      "col": 35,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of 'exchange_all' of similar type ('moving_object *') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrGame/moving_objects_dynamic.cpp",
+      "line": 384,
+      "col": 57,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'u32' (aka 'unsigned int') to 'float'"
+    },
+    {
+      "file": "src/xrGame/moving_objects_dynamic.cpp",
+      "line": 390,
+      "col": 63,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'u32' (aka 'unsigned int') to 'float'"
+    },
+    {
+      "file": "src/xrGame/moving_objects_dynamic.cpp",
+      "line": 390,
+      "col": 83,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'u32' (aka 'unsigned int') to 'float'"
+    },
+    {
+      "file": "src/xrCore/xrMemory.cpp",
+      "line": 74,
+      "col": 45,
+      "level": "warning",
+      "check": "bugprone-macro-parentheses",
+      "message": "macro argument should be enclosed in parentheses"
+    },
+    {
+      "file": "src/xrCore/xrMemory.cpp",
+      "line": 75,
+      "col": 64,
+      "level": "warning",
+      "check": "bugprone-macro-parentheses",
+      "message": "macro argument should be enclosed in parentheses"
+    },
+    {
+      "file": "src/xrCore/xrMemory.cpp",
+      "line": 76,
+      "col": 53,
+      "level": "warning",
+      "check": "bugprone-macro-parentheses",
+      "message": "macro argument should be enclosed in parentheses"
+    },
+    {
+      "file": "src/xrCore/xrMemory.cpp",
+      "line": 77,
+      "col": 72,
+      "level": "warning",
+      "check": "bugprone-macro-parentheses",
+      "message": "macro argument should be enclosed in parentheses"
+    },
+    {
+      "file": "src/xrCore/xrMemory.cpp",
+      "line": 78,
+      "col": 50,
+      "level": "warning",
+      "check": "bugprone-macro-parentheses",
+      "message": "macro argument should be enclosed in parentheses"
+    },
+    {
+      "file": "src/xrCore/xrMemory.cpp",
+      "line": 81,
+      "col": 57,
+      "level": "warning",
+      "check": "bugprone-macro-parentheses",
+      "message": "macro argument should be enclosed in parentheses"
+    },
+    {
+      "file": "src/xrCore/xrMemory.cpp",
+      "line": 82,
+      "col": 76,
+      "level": "warning",
+      "check": "bugprone-macro-parentheses",
+      "message": "macro argument should be enclosed in parentheses"
+    },
+    {
+      "file": "src/xrCore/xrMemory.cpp",
+      "line": 111,
+      "col": 24,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "3 adjacent parameters of 'vminfo' of similar type ('size_t *') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrCore/xrMemory.cpp",
+      "line": 149,
+      "col": 95,
+      "level": "warning",
+      "check": "clang-analyzer-core.UndefinedBinaryOperatorResult",
+      "message": "The left operand of '/' is a garbage value"
+    },
+    {
+      "file": "src/xrCore/xrMemory.cpp",
+      "line": 207,
+      "col": 27,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of 'mem_alloc' of similar type ('size_t') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrCore/xrMemory.cpp",
+      "line": 221,
+      "col": 27,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of 'mem_alloc' of similar type ('size_t') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrCore/xrMemory.cpp",
+      "line": 249,
+      "col": 40,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of 'mem_realloc' of similar type ('size_t') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrPhysics/tri-colliderknoopc/dTriSphere.cpp",
+      "line": 132,
+      "col": 17,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of 'dSortedTriSphere' of similar type ('dxGeom *') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrPhysics/tri-colliderknoopc/dTriSphere.cpp",
+      "line": 169,
+      "col": 99,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of 'dTriSphere' of similar type ('dxGeom *') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrGame/ai/monsters/state_inline.h",
+      "line": 12,
+      "col": 5,
+      "level": "warning",
+      "check": "clang-analyzer-optin.cplusplus.VirtualCall",
+      "message": "Call to virtual method 'CState::reset' during construction bypasses virtual dispatch"
+    },
+    {
+      "file": "src/xrGame/sound_player.cpp",
+      "line": 58,
+      "col": 71,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "3 adjacent parameters of 'add' of similar type ('u32') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrGame/sound_player.cpp",
+      "line": 152,
+      "col": 13,
+      "level": "warning",
+      "check": "bugprone-branch-clone",
+      "message": "repeated branch body in conditional chain"
+    },
+    {
+      "file": "src/xrGame/sound_player.cpp",
+      "line": 160,
+      "col": 5,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of 'play' of similar type ('u32') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrGame/sound_player.cpp",
+      "line": 160,
+      "col": 44,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of 'play' of similar type ('u32') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrGame/sound_player.cpp",
+      "line": 160,
+      "col": 83,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of 'play' of similar type ('u32') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrGame/ActorInput.cpp",
+      "line": 54,
+      "col": 5,
+      "level": "warning",
+      "check": "bugprone-switch-missing-default-case",
+      "message": "switching on non-enum value without default case may not cover all cases"
+    },
+    {
+      "file": "src/xrGame/ActorInput.cpp",
+      "line": 97,
+      "col": 5,
+      "level": "warning",
+      "check": "bugprone-switch-missing-default-case",
+      "message": "switching on non-enum value without default case may not cover all cases"
+    },
+    {
+      "file": "src/xrGame/ActorInput.cpp",
+      "line": 213,
+      "col": 30,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of 'IR_OnMouseWheel' of similar type ('float') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrGame/ActorInput.cpp",
+      "line": 254,
+      "col": 9,
+      "level": "warning",
+      "check": "bugprone-switch-missing-default-case",
+      "message": "switching on non-enum value without default case may not cover all cases"
+    },
+    {
+      "file": "src/xrGame/ActorInput.cpp",
+      "line": 297,
+      "col": 5,
+      "level": "warning",
+      "check": "bugprone-switch-missing-default-case",
+      "message": "switching on non-enum value without default case may not cover all cases"
+    },
+    {
+      "file": "src/xrGame/ActorInput.cpp",
+      "line": 335,
+      "col": 34,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of 'OnAxisMove' of similar type ('float') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrGame/ActorInput.cpp",
+      "line": 374,
+      "col": 5,
+      "level": "warning",
+      "check": "bugprone-switch-missing-default-case",
+      "message": "switching on non-enum value without default case may not cover all cases"
+    },
+    {
+      "file": "src/xrGame/ActorInput.cpp",
+      "line": 619,
+      "col": 13,
+      "level": "warning",
+      "check": "clang-analyzer-core.NullDereference",
+      "message": "Access to field 'CLS_ID' results in a dereference of a null pointer (loaded from variable 'holderGO')"
+    },
+    {
+      "file": "src/xrGame/ActorInput.cpp",
+      "line": 785,
+      "col": 36,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'u32' (aka 'unsigned int') to signed type 'int' is implementation-defined"
+    },
+    {
+      "file": "src/xrGame/ActorInput.cpp",
+      "line": 821,
+      "col": 36,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'u32' (aka 'unsigned int') to signed type 'int' is implementation-defined"
+    },
+    {
+      "file": "src/xrGame/ActorInput.cpp",
+      "line": 915,
+      "col": 5,
+      "level": "warning",
+      "check": "bugprone-switch-missing-default-case",
+      "message": "switching on non-enum value without default case may not cover all cases"
+    },
+    {
+      "file": "src/xrGame/imotion_position.cpp",
+      "line": 151,
+      "col": 5,
+      "level": "warning",
+      "check": "clang-analyzer-core.NullDereference",
+      "message": "Dereference of null pointer"
+    },
+    {
+      "file": "src/xrGame/imotion_position.cpp",
+      "line": 601,
+      "col": 13,
+      "level": "warning",
+      "check": "clang-analyzer-deadcode.DeadStores",
+      "message": "Value stored to 'depth0' is never read"
+    },
+    {
+      "file": "src/xrEngine/thunderbolt.cpp",
+      "line": 64,
+      "col": 72,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of 'SThunderboltCollection' of similar type ('const CInifile *') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrEngine/thunderbolt.cpp",
+      "line": 67,
+      "col": 26,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'u32' (aka 'unsigned int') to signed type 'int' is implementation-defined"
+    },
+    {
+      "file": "src/xrEngine/thunderbolt.cpp",
+      "line": 303,
+      "col": 31,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'u32' (aka 'unsigned int') to 'float'"
+    },
+    {
+      "file": "src/xrEngine/thunderbolt.cpp",
+      "line": 303,
+      "col": 83,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'u32' (aka 'unsigned int') to 'float'"
+    },
+    {
+      "file": "src/xrEngine/thunderbolt.cpp",
+      "line": 304,
+      "col": 26,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'u32' (aka 'unsigned int') to 'float'"
+    },
+    {
+      "file": "src/xrGame/ai/monsters/state_inline.h",
+      "line": 12,
+      "col": 5,
+      "level": "warning",
+      "check": "clang-analyzer-optin.cplusplus.VirtualCall",
+      "message": "Call to virtual method 'CState::reset' during construction bypasses virtual dispatch"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 106,
+      "col": 5,
+      "level": "warning",
+      "check": "bugprone-switch-missing-default-case",
+      "message": "switching on non-enum value without default case may not cover all cases"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 149,
+      "col": 21,
+      "level": "warning",
+      "check": "bugprone-branch-clone",
+      "message": "repeated branch body in conditional chain"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 496,
+      "col": 23,
+      "level": "warning",
+      "check": "clang-analyzer-deadcode.DeadStores",
+      "message": "Value stored to 'pOwner' during its initialization is never read"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 851,
+      "col": 20,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'u8' (aka 'unsigned char') to signed type 's8' (aka 'signed char') is implementation-defined"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 898,
+      "col": 24,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'u8' (aka 'unsigned char') to signed type 's8' (aka 'signed char') is implementation-defined"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 1018,
+      "col": 34,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'u32' (aka 'unsigned int') to signed type 'int' is implementation-defined"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 1088,
+      "col": 35,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'size_type' (aka 'unsigned long') to signed type 's32' (aka 'int') is implementation-defined"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 1167,
+      "col": 16,
+      "level": "warning",
+      "check": "bugprone-assignment-in-if-condition",
+      "message": "an assignment within an 'if' condition is bug-prone"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 1190,
+      "col": 17,
+      "level": "warning",
+      "check": "bugprone-switch-missing-default-case",
+      "message": "switching on non-enum value without default case may not cover all cases"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 1238,
+      "col": 25,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'u32' (aka 'unsigned int') to signed type 'int' is implementation-defined"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 1263,
+      "col": 28,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'u32' (aka 'unsigned int') to signed type 'int' is implementation-defined"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 1341,
+      "col": 32,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 's32' (aka 'int') to 'float'"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 1402,
+      "col": 67,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of 'OnGiveBonus' of similar type ('game_PlayerState *') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 1445,
+      "col": 21,
+      "level": "warning",
+      "check": "bugprone-switch-missing-default-case",
+      "message": "switching on non-enum value without default case may not cover all cases"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 1635,
+      "col": 55,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of 'OnTouch' of convertible types are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 2086,
+      "col": 56,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of 'OnObjectEnterTeamBase' of similar type ('u16') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 2100,
+      "col": 56,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of 'OnObjectLeaveTeamBase' of similar type ('u16') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 2140,
+      "col": 66,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'TEAM_DATA_LIST::size_type' (aka 'unsigned long') to signed type 'difference_type' (aka 'long') is implementation-defined"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 2457,
+      "col": 78,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'u32' (aka 'unsigned int') to signed type 's32' (aka 'int') is implementation-defined"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 2460,
+      "col": 72,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'u32' (aka 'unsigned int') to signed type 's32' (aka 'int') is implementation-defined"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 2478,
+      "col": 75,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'u32' (aka 'unsigned int') to signed type 's32' (aka 'int') is implementation-defined"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 2479,
+      "col": 82,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'u32' (aka 'unsigned int') to signed type 's32' (aka 'int') is implementation-defined"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 2480,
+      "col": 77,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'u32' (aka 'unsigned int') to signed type 's32' (aka 'int') is implementation-defined"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 2573,
+      "col": 54,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'int' to 'float'"
+    },
+    {
+      "file": "src/xrGame/game_sv_capture_the_artefact.cpp",
+      "line": 2581,
+      "col": 30,
+      "level": "warning",
+      "check": "bugprone-narrowing-conversions",
+      "message": "narrowing conversion from 'int' to 'float'"
+    },
+    {
+      "file": "src/xrGame/movement_manager_game.cpp",
+      "line": 194,
+      "col": 13,
+      "level": "warning",
+      "check": "bugprone-branch-clone",
+      "message": "repeated branch body in conditional chain"
+    },
+    {
+      "file": "src/xrGame/PhysicObject.cpp",
+      "line": 535,
+      "col": 9,
+      "level": "warning",
+      "check": "clang-analyzer-core.uninitialized.Branch",
+      "message": "Branch condition evaluates to a garbage value"
+    },
+    {
+      "file": "src/xrGame/PhysicObject.cpp",
+      "line": 575,
+      "col": 9,
+      "level": "warning",
+      "check": "clang-analyzer-deadcode.DeadStores",
+      "message": "Value stored to 'magnitude' is never read"
+    },
+    {
+      "file": "src/xrGame/PhysicObject.cpp",
+      "line": 638,
+      "col": 5,
+      "level": "warning",
+      "check": "clang-analyzer-deadcode.DeadStores",
+      "message": "Value stored to 'NumItems' is never read"
+    },
+    {
+      "file": "src/xrCDB/ISpatial_q_box.cpp",
+      "line": 75,
+      "col": 50,
+      "level": "warning",
+      "check": "bugprone-easily-swappable-parameters",
+      "message": "2 adjacent parameters of 'q_box' of similar type ('u32') are easily swapped by mistake"
+    },
+    {
+      "file": "src/xrGame/ActorCondition.cpp",
+      "line": 154,
+      "col": 5,
+      "level": "warning",
+      "check": "bugprone-branch-clone",
+      "message": "switch has 2 consecutive identical branches"
+    },
+    {
+      "file": "src/xrGame/ActorCondition.cpp",
+      "line": 184,
+      "col": 66,
+      "level": "warning",
+      "check": "clang-analyzer-optin.core.EnumCastOutOfRange",
+      "message": "The value '52' provided to the cast expression is not in the valid range of values for 'ECamEffectorType'"
+    },
+    {
+      "file": "src/xrGame/ActorCondition.cpp",
+      "line": 230,
+      "col": 62,
+      "level": "warning",
+      "check": "clang-analyzer-optin.core.EnumCastOutOfRange",
+      "message": "The value '52' provided to the cast expression is not in the valid range of values for 'ECamEffectorType'"
+    },
+    {
+      "file": "src/xrGame/ActorCondition.cpp",
+      "line": 249,
+      "col": 65,
+      "level": "warning",
+      "check": "clang-analyzer-optin.core.EnumCastOutOfRange",
+      "message": "The value '56' provided to the cast expression is not in the valid range of values for 'EEffectorPPType'"
+    },
+    {
+      "file": "src/xrGame/ActorCondition.cpp",
+      "line": 895,
+      "col": 58,
+      "level": "warning",
+      "check": "clang-analyzer-optin.core.EnumCastOutOfRange",
+      "message": "The value '60' provided to the cast expression is not in the valid range of values for 'EEffectorPPType'"
+    }
+  ]
+}
