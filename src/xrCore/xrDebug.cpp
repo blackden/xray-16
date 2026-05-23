@@ -888,6 +888,27 @@ void xrDebug::OnThreadExit()
 #endif
 }
 
+void xrDebug::ReinstallSignalHandlersPostSDL()
+{
+#if defined(XR_PLATFORM_LINUX) || defined(XR_PLATFORM_APPLE) || defined(XR_PLATFORM_BSD)
+    // SDL_Init overwrites these. Re-install our canary handlers.
+    std::signal(SIGTERM, +[](int sig) {
+        static const char msg[] = "==> SIGTERM received, exiting\n";
+        ::write(STDERR_FILENO, msg, sizeof(msg) - 1);
+        _exit(128 + sig);
+    });
+    std::signal(SIGALRM, +[](int sig) {
+        static const char msg[] = "==> SIGALRM tripwire, exiting\n";
+        ::write(STDERR_FILENO, msg, sizeof(msg) - 1);
+        _exit(128 + sig);
+    });
+    // Also re-install SIGABRT (in case SDL parachute touched it). SIGILL/
+    // SIGFPE/SIGSEGV left as SDL set them — SDL's parachute may convert
+    // them into SDL_QUIT which is sometimes useful; revisit if needed.
+    std::signal(SIGABRT, +[](int sig) { handler_base(sig, "application is aborting"); });
+#endif
+}
+
 void xrDebug::Initialize(pcstr commandLine)
 {
     ZoneScoped;
