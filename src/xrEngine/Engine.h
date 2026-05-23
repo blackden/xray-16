@@ -36,6 +36,12 @@ public:
     void Initialize(GameModule* game, const std::array<RendererModule*, 2>& modules);
     void Destroy();
 
+    // Single graceful-shutdown gate. Sets g_bShuttingDown and defers
+    // disconnect+quit in the right order. Use from any quit source
+    // (Cmd+Q via Cocoa shim, Cmd+W via SDL_WINDOWEVENT_CLOSE, console
+    // quit, future menu/api quits). See gitea #52.
+    void RequestGracefulShutdown();
+
     void OnEvent(EVENT E, u64 P1, u64 P2) override;
     void OnFrame() override;
 

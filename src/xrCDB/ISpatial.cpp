@@ -82,6 +82,37 @@ void SpatialBase::spatial_register()
 
 void SpatialBase::spatial_unregister()
 {
+    if (g_bStaticDestruction)
+    {
+        // C++ static-destruction phase, set by the atexit lambda after
+        // main() returned. ISpatial_DB lives inside CGamePersistent which
+        // was destroyed in ~CApplication, so its m_lock mutex is now dead
+        // memory; locking it would hang forever on macOS pthread. By this
+        // point no engine code queries the spatial tree anymore — only
+        // static destructors of ref_light holders (CLight_DB::v_static,
+        // xrGame's Torch/HangingLamp/Explosive/etc.) are unwinding. Skip
+        // the unregister; OS reclaims memory at process exit.
+        //
+        // NOT to be confused with g_bShuttingDown — that flag is set at
+        // Cmd+Q time (before eDisconnect) and using it here breaks q_box
+        // queries from physics during disconnect (octree left with
+        // dangling entries → infinite recursion in box_walker).
+        //
+        // Layering: this is the Layer 3 defense-in-depth backstop. The
+        // primary fix is CRender::DrainEngineRefs() (r2.cpp:549), called
+        // from D3DXRenderBase::Destroy() BEFORE xr_delete(Resources) — it
+        // drops engine-side Shaders/Visuals/SWIs/VB/IB/DC refs while the
+        // resource manager's maps are still alive, so the bulk of the
+        // ~Shader → ~CTexture → _DeleteTexture cascade lands on live
+        // containers and never reaches static destruction. Lights are
+        // intentionally NOT drained there (Lights.Unload() would re-enter
+        // the dead-mutex deadlock since CGamePersistent is already gone
+        // by D3DXRenderBase::Destroy time) — they survive to this guard.
+        // See gitea #52 for the full investigation.
+        spatial.node_ptr = NULL;
+        return;
+    }
+
     if (spatial.node_ptr)
     {
         // remove

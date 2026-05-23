@@ -508,6 +508,12 @@ public:
     CRender();
     ~CRender() override;
 
+    // Drain engine-side ref containers (Shaders/Visuals/SWIs/VB/IB/DC) before
+    // CResourceManager is destroyed by D3DXRenderBase::Destroy(). Prevents the
+    // ~CRender static-destruction cascade from landing on a torn-down
+    // m_textures map and hanging in std::map::find. See gitea #52.
+    void DrainEngineRefs() override;
+
     void addShaderOption(pcstr name, pcstr value);
     void clearAllShaderOptions() { m_ShaderOptions.clear(); }
 

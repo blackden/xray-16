@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "Common/PostLogMark.hpp"
 #include "IGame_Level.h"
 
 #include "XR_IOConsole.h"
@@ -65,10 +66,11 @@ public:
     CCC_Quit(pcstr N) : IConsole_Command(N) { bEmptyArgsHandled = true; };
     virtual void Execute(pcstr args)
     {
-        // TerminateProcess(GetCurrentProcess(),0);
+        // XXX [POSTLOG_SHUTDOWN]: POSTLOG_MARK("CCC_Quit::Execute: enter");
         Console->Hide();
-        Engine.Event.Defer("KERNEL:disconnect");
-        Engine.Event.Defer("KERNEL:quit");
+        // XXX [POSTLOG_SHUTDOWN]: POSTLOG_MARK("CCC_Quit::Execute: after Console->Hide");
+        Engine.RequestGracefulShutdown();
+        // XXX [POSTLOG_SHUTDOWN]: POSTLOG_MARK("CCC_Quit::Execute: returning");
     }
 };
 //-----------------------------------------------------------------------

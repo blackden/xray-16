@@ -7,6 +7,7 @@
 //-----------------------------------------------------------------------------
 #include "stdafx.h"
 
+#include "Common/PostLogMark.hpp"
 #include "x_ray.h"
 
 #include "embedded_resources_management.h"
@@ -352,7 +353,9 @@ CApplication::~CApplication()
     Engine.Sound.Destroy();
 
     Device.Destroy();
+    POSTLOG_MARK("~CApplication: Device.Destroy done");
     Engine.Destroy();
+    POSTLOG_MARK("~CApplication: Engine.Destroy done");
 
 #ifdef USE_DISCORD_INTEGRATION
     discord::Core::Destroy(&m_discord_core);
@@ -373,12 +376,15 @@ CApplication::~CApplication()
     }
 
     Core._destroy();
+    POSTLOG_MARK("~CApplication: Core._destroy done (engine log now closed)");
     {
         ZoneScopedN("SDL_Quit");
         SDL_Quit();
     }
+    POSTLOG_MARK("~CApplication: SDL_Quit done");
 
     xrDebug::Finalize();
+    POSTLOG_MARK("~CApplication: xrDebug::Finalize done; ~CApplication exit");
     FrameMarkEnd(FRAME_MARK_APPLICATION_SHUTDOWN);
 }
 

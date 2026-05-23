@@ -11,6 +11,20 @@ CSoundRender_Scene::~CSoundRender_Scene()
 {
     ZoneScoped;
 
+    if (g_bShuttingDown)
+    {
+        // Process is about to exit; OS will reclaim memory and kill streaming
+        // threads. Per-emitter destruction (vector<u8> temp_buf[10] dealloc
+        // across hundreds of emitters) dominates disconnect time on macOS at
+        // ~2.5 sec on a CoP level. Skip it — we are not coming back. The
+        // pointer vector is cleared so the dtor doesn't double-touch on any
+        // re-entry, but the underlying CSoundRender_Emitter objects are left
+        // for OS reclaim. See gitea #49.
+        Msg("==> teardown[snd]: ~CSoundRender_Scene SKIP emitter cleanup (g_bShuttingDown=1)");
+        s_emitters.clear();
+        return;
+    }
+
     stop_emitters();
 
     set_geometry_occ(nullptr, {});

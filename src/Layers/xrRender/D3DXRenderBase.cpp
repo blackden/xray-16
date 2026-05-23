@@ -75,6 +75,7 @@ void D3DXRenderBase::OnDeviceDestroy(bool bKeepTextures)
 
 void D3DXRenderBase::Destroy()
 {
+    DrainEngineRefs();
     xr_delete(Resources);
     HW.DestroyDevice();
 }

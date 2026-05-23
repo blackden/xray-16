@@ -120,6 +120,17 @@ CRT* CResourceManager::_CreateRT(LPCSTR Name, u32 w, u32 h, D3DFORMAT f, u32 sam
 
 void CResourceManager::_DeleteRT(const CRT* RT)
 {
+    if (g_bStaticDestruction)
+    {
+        // Defense-in-depth backstop for the DrainEngineRefs primary fix.
+        // If a stray late ref (Lua __gc, third-party callback, future
+        // container added without drain) cascades into _DeleteRT during
+        // C++ static destruction, m_rtargets is already torn down and
+        // std::map::find spins forever in __tree::__root on macOS. Skip;
+        // OS reclaims the bookkeeping at process exit. See gitea #52.
+        return;
+    }
+
     if (0 == (RT->dwFlags & xr_resource_flagged::RF_REGISTERED))
         return;
     pstr N = pstr(RT->cName.c_str());
@@ -261,6 +272,17 @@ void CResourceManager::_DeleteTexture(const CTexture* T)
 {
     // DBG_VerifyTextures();
 
+    if (g_bStaticDestruction)
+    {
+        // Defense-in-depth backstop for the DrainEngineRefs primary fix.
+        // If a stray late ref (Lua __gc, third-party callback, future
+        // container added without drain) cascades into _DeleteTexture
+        // during C++ static destruction, m_textures is already torn down
+        // and std::map::find spins forever in __tree::__root on macOS.
+        // Skip; OS reclaims the bookkeeping at process exit. See gitea #52.
+        return;
+    }
+
     if (0 == (T->dwFlags & xr_resource_flagged::RF_REGISTERED))
         return;
     pstr N = pstr(T->cName.c_str());
@@ -310,6 +332,17 @@ CMatrix* CResourceManager::_CreateMatrix(LPCSTR Name)
 
 void CResourceManager::_DeleteMatrix(const CMatrix* M)
 {
+    if (g_bStaticDestruction)
+    {
+        // Defense-in-depth backstop for the DrainEngineRefs primary fix.
+        // If a stray late ref (Lua __gc, third-party callback, future
+        // container added without drain) cascades into _DeleteMatrix
+        // during C++ static destruction, m_matrices is already torn down
+        // and std::map::find spins forever in __tree::__root on macOS.
+        // Skip; OS reclaims the bookkeeping at process exit. See gitea #52.
+        return;
+    }
+
     if (0 == (M->dwFlags & xr_resource_flagged::RF_REGISTERED))
         return;
     pstr N = pstr(M->cName.c_str());
@@ -349,6 +382,17 @@ CConstant* CResourceManager::_CreateConstant(LPCSTR Name)
 }
 void CResourceManager::_DeleteConstant(const CConstant* C)
 {
+    if (g_bStaticDestruction)
+    {
+        // Defense-in-depth backstop for the DrainEngineRefs primary fix.
+        // If a stray late ref (Lua __gc, third-party callback, future
+        // container added without drain) cascades into _DeleteConstant
+        // during C++ static destruction, m_constants is already torn down
+        // and std::map::find spins forever in __tree::__root on macOS.
+        // Skip; OS reclaims the bookkeeping at process exit. See gitea #52.
+        return;
+    }
+
     if (0 == (C->dwFlags & xr_resource_flagged::RF_REGISTERED))
         return;
     pstr N = pstr(C->cName.c_str());
