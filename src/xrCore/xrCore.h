@@ -140,6 +140,41 @@ private:
 
 extern XRCORE_API xrCore Core;
 
+// One-shot flag, set true by anything initiating process exit (CCC_Quit,
+// SDL_WINDOWEVENT_CLOSE, Cocoa shim's applicationShouldTerminate / NSEvent
+// Cmd+Q monitor). Read by subsystem teardown to enable a fast-exit path that
+// skips heavyweight per-object cleanup — OS reclaims memory and kills threads
+// at process death anyway. Currently used by ~CSoundRender_Scene to skip
+// CSoundRender_Emitter destruction (vector<u8> temp_buf[10] dealloc dominates
+// disconnect time on macOS — ~2.5 sec on a CoP level). Never reset to false.
+extern XRCORE_API bool g_bShuttingDown;
+
+// One-shot flag, set true by the atexit lambda in entry_point.cpp AFTER
+// main() returns but BEFORE C++ static destructors run. Read by
+// SpatialBase::spatial_unregister to no-op the unregister during static
+// destruction: ISpatial_DB lives inside CGamePersistent which is destroyed
+// in ~CApplication BEFORE main returns, so by atexit time its mutex is
+// dead and locking it hangs forever on macOS pthread.
+//
+// Distinct from g_bShuttingDown above. That flag is set at Cmd+Q time
+// (before eDisconnect) — using IT to guard spatial_unregister was tried
+// and broke physics q_box during disconnect (octree left with dangling
+// entries → infinite recursion in box_walker). This flag is strictly
+// post-main, past all engine code that queries the spatial tree, so
+// no-op'ing the unregister here is structurally safe.
+//
+// Layering: this flag gates the Layer 3 defense-in-depth backstop. The
+// primary fix for the static-destruction cascade is
+// CRender::DrainEngineRefs() (Layers/xrRender_R2/r2.cpp), invoked from
+// D3DXRenderBase::Destroy() — it drains engine-side ref containers
+// (Shaders, Visuals, SWIs, VB/IB/DC) BEFORE xr_delete(Resources), so the
+// resource manager's maps see the cascade while still alive. This flag
+// catches what DrainEngineRefs intentionally leaves behind (Lights, plus
+// any future container that can't safely be drained pre-Destroy).
+//
+// See gitea #52.
+extern XRCORE_API bool g_bStaticDestruction;
+
 // Convert a UTF-8 string in-place to cp1251. Used to bridge POSIX UTF-8
 // strings (filesystem, getpwuid) into the engine's cp1251 font tables for
 // display. On Windows this is a no-op since OS APIs already return cp1251 in

@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #pragma hdrstop
 
+#include "Common/PostLogMark.hpp"
 #include "IGame_Persistent.h"
 #include "GameFont.h"
 #include "ILoadingScreen.h"
@@ -283,6 +284,11 @@ void IGame_Persistent::OnEvent(EVENT E, u64 P1, u64 P2)
     }
     else if (E == eDisconnect)
     {
+        // XXX [POSTLOG_TEARDOWN_GAP]: diagnostic for gitea #52. Confirms
+        // eDisconnect dispatch and shows whether g_pGameLevel is null (cause
+        // (b)) — i.e. handler runs but nothing to destroy.
+        POSTLOG_MARK_FMT("eDisconnect dispatch: g_pGameLevel=%p quit_peek=%d",
+            (void*)g_pGameLevel, (int)Engine.Event.Peek("KERNEL:quit"));
         if (pInput != nullptr && true == Engine.Event.Peek("KERNEL:quit"))
             pInput->GrabInput(false);
 

@@ -5,6 +5,7 @@
 #include "stdafx.h"
 #include "Engine.h"
 
+#include "Common/PostLogMark.hpp"
 #include "XR_IOConsole.h"
 #include "xr_ioc_cmd.h"
 
@@ -118,3 +119,33 @@ void CEngine::OnFrame()
 {
     Event.OnFrame();
 }
+
+void CEngine::RequestGracefulShutdown()
+{
+    // Active canary for unified-entry invariant (see #52, commit 7d2920852).
+    // Every graceful quit path passes through here; OpenXRay_RequestGracefulQuit
+    // marker alone catches only Cmd+Q via Cocoa, leaving 4 of 5 quit paths
+    // (SDL CLOSE, console quit, menu Quit, future) unobservable without these.
+    // If a future change re-fragments quit dispatch, the missing marker pair
+    // in logs is the regression signal.
+    POSTLOG_MARK("RequestGracefulShutdown: enter");
+    g_bShuttingDown = true;
+    Event.Defer("KERNEL:disconnect");
+    Event.Defer("KERNEL:quit");
+    POSTLOG_MARK("RequestGracefulShutdown: defers queued");
+}
+
+#if defined(XR_PLATFORM_APPLE)
+// C-linkage glue for the macOS Cocoa shim (macos_cocoa_shim.mm). That file
+// cannot include Engine.h because xrCore headers conflict with Foundation
+// types when compiled as Objective-C++ (see SKIP_PRECOMPILE_HEADERS in
+// CMakeLists.txt). Same defer sequence as CCC_Quit::Execute in xr_ioc_cmd.cpp.
+extern "C" void OpenXRay_RequestGracefulQuit()
+{
+    // XXX [POSTLOG_TEARDOWN_GAP]: diagnostic for gitea #52. Confirms the Cocoa
+    // shim reaches the engine and defers both events. If this fires but
+    // ==> eDisconnect dispatch does not, the issue is queue/dispatch timing.
+    POSTLOG_MARK("OpenXRay_RequestGracefulQuit: Defer(disconnect, quit) issued");
+    Engine.RequestGracefulShutdown();
+}
+#endif

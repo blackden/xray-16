@@ -163,7 +163,7 @@ GLuint CRender::texture_load(LPCSTR fRName, u32& ret_msize, GLenum& ret_desc)
             err = glGetError();
             if (err != GL_NO_ERROR)
             {
-    
+
                 Msg("! OpenGL: 0x%x: Invalid 3D texture: '%s'", err, fn);
             }
         }
@@ -198,7 +198,7 @@ GLuint CRender::texture_load(LPCSTR fRName, u32& ret_msize, GLenum& ret_desc)
                         err = glGetError();
                         if (err != GL_NO_ERROR)
                         {
-                
+
                             Msg("! OpenGL: 0x%x: Invalid 2D compressed subtexture: '%s'", err, fn);
                         }
                     }
@@ -211,7 +211,7 @@ GLuint CRender::texture_load(LPCSTR fRName, u32& ret_msize, GLenum& ret_desc)
                         err = glGetError();
                         if (err != GL_NO_ERROR)
                         {
-                
+
                             Msg("! OpenGL: 0x%x: Invalid 2D subtexture: '%s'", err, fn);
                         }
 
@@ -242,7 +242,7 @@ GLuint CRender::texture_load(LPCSTR fRName, u32& ret_msize, GLenum& ret_desc)
                         err = glGetError();
                         if (err != GL_NO_ERROR)
                         {
-                
+
                             Msg("! OpenGL: 0x%x: Invalid compressed 3D subtexture: '%s'", err, fn);
                         }
                     }
@@ -255,7 +255,7 @@ GLuint CRender::texture_load(LPCSTR fRName, u32& ret_msize, GLenum& ret_desc)
                         err = glGetError();
                         if (err != GL_NO_ERROR)
                         {
-                
+
                             Msg("! OpenGL: 0x%x: Invalid 3D subtexture: '%s'", err, fn);
                         }
                     }

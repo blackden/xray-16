@@ -1,4 +1,5 @@
 #include "stdafx.h"
+#include "Common/PostLogMark.hpp"  // XXX [POSTLOG_SHUTDOWN]: kept active so re-enabling parked markers below is a one-line uncomment
 #include "Layers/xrRender/ResourceManager.h"
 #include "Layers/xrRender/blenders/blender_light_occq.h"
 #include "Layers/xrRender/blenders/blender_light_mask.h"
@@ -708,6 +709,7 @@ CRenderTarget::CRenderTarget()
 
 CRenderTarget::~CRenderTarget()
 {
+    // XXX [POSTLOG_SHUTDOWN]: POSTLOG_MARK("~CRenderTarget enter");
 #if defined(USE_DX11)
     _RELEASE(t_ss_async);
 #elif defined(USE_OGL)
@@ -751,6 +753,7 @@ CRenderTarget::~CRenderTarget()
             xr_delete(b_accum_volumetric_msaa[i]);
         }
     }
+    // XXX [POSTLOG_SHUTDOWN]: POSTLOG_MARK("~CRenderTarget exit");
 }
 
 void CRenderTarget::reset_light_marker(CBackend& cmd_list, bool bResetStencil)

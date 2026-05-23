@@ -88,6 +88,34 @@ done-criteria — «когда останавливаемся».
   - `bf2fcef84` **multi-frame prefetch** (кандидат в апстрим)
   - `a04f5d37f` **CHK_GL softening на Apple** (кандидат в апстрим)
 
+## Live-confirmed (2026-05-21, gitea #49 — Cmd+Q from level resolved)
+
+- **Cmd+Q from inside a level no longer hangs.** Was: 5-10s inconsistent
+  and sometimes infinite. Now: stable ~1s engine work + ~4-5s
+  post-window-close cleanup (cursor already detached). Three layered
+  fixes shipped together on `issue-49-graceful-cmd-q`:
+  1. `91f3e527b` — Cocoa shim simplified to single graceful defer
+     (KERNEL:disconnect + KERNEL:quit). Old two-stage Esc/`_exit(0)`
+     workaround dropped; the PAC trap it papered over was fixed earlier.
+  2. `16cffe997` — `g_bShuttingDown` flag set at three "we are exiting"
+     entry points (CCC_Quit, SDL_WINDOWEVENT_CLOSE, the shim glue).
+     `~CSoundRender_Scene` skips per-emitter destruction when set —
+     was burning ~2.5s deallocating `vector<u8> temp_buf[10]` across
+     hundreds of CSoundRender_Emitter instances. OS reclaims at exit.
+  3. (same commit) Diagnostic canary in `~CLight_DB` if light vectors
+     survive into static destruction — that condition deadlocks
+     `spatial_unregister()` against a destroyed `ISpatial_DB`
+     (CGamePersistent is destroyed BEFORE Device.Destroy in
+     `CApplication::~CApplication`, see x_ray.cpp:338-339 vs :354).
+     Normal disconnect clears lights via `level_Unload` while
+     `ISpatial_DB` is still alive, so the canary fires only on
+     regression.
+- **Follow-up (spinoff):** the ~4-5s post-window-close phase is now the
+  remaining UX cost. Not investigated yet; likely in `Engine.Destroy()`,
+  `~CApplication` tail, or C++ static destructors. Cursor is already
+  free of the window during this time so the visible "engine quit" is
+  ~1s; opens a separate issue.
+
 ## Live-confirmed (2026-05-19, after safe-mode landed)
 
 - **Safe-mode boot recovery works** — sentinel cleared after 120 stable

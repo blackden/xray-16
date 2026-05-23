@@ -384,8 +384,7 @@ void CRenderDevice::ProcessEvent(const SDL_Event& event)
 
             if (window == m_sdlWnd)
             {
-                Engine.Event.Defer("KERNEL:disconnect");
-                Engine.Event.Defer("KERNEL:quit");
+                Engine.RequestGracefulShutdown();
             }
             break;
         }

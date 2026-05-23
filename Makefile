@@ -168,6 +168,9 @@ run-lldb: build ## Launch xr_3da under lldb to capture a backtrace on crash
 		     -k "quit" \
 		     -- ./xr_3da 2>&1 | tee "$$abs_session/lldb.log"
 
+sample-hang: ## Sample a hung xr_3da process to ~/Downloads/sample-TIMESTAMP.txt (use sudo make sample-hang if it fails)
+	@scripts/mac/sample-hang.sh
+
 install-game: ## Install CoP/CS via steamcmd into GAME_DIR (needs STEAM_LOGIN; optional LANGUAGE=russian)
 	@if [ -z "$(STEAM_LOGIN)" ]; then \
 		echo "ERROR: STEAM_LOGIN is empty. Examples:"; \
@@ -410,7 +413,13 @@ all-in-one: build-release ## Bundle .app + game data side-by-side into dist/Open
 		APP_VERSION="$$(git describe --always --dirty 2>/dev/null || echo dev)" \
 		scripts/mac/package_all_in_one.sh
 
+lsp: ## Generate non-unity compile_commands.json in build-lsp/ for clangd
+	cmake -B build-lsp -DCMAKE_BUILD_TYPE=Mixed -DCMAKE_UNITY_BUILD=OFF -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+	ln -sf build-lsp/compile_commands.json compile_commands.json
+	@echo "==> clangd will index build-lsp/compile_commands.json (non-unity)"
+	@echo "    Restart your editor / clangd to pick up changes."
+
 clean: ## Remove the build and binary output directories
-	rm -rf $(BUILD_DIR) build-release bin dist
+	rm -rf $(BUILD_DIR) build-release build-lsp bin dist compile_commands.json .cache
 
 rebuild: clean build ## Wipe build directory and rebuild from scratch

@@ -1,4 +1,5 @@
 #include "pch_script.h"
+#include "Common/PostLogMark.hpp"
 #include "xrEngine/FDemoRecord.h"
 #include "xrEngine/FDemoPlay.h"
 #include "xrEngine/Environment.h"
@@ -126,6 +127,7 @@ CLevel::~CLevel()
     Engine.Event.Handler_Detach(eChangeTrack, this);
     Engine.Event.Handler_Detach(eDemoPlay, this);
     Engine.Event.Handler_Detach(eChangeRP, this);
+    // XXX [POSTLOG_REMOVE_OBJECTS_SLOW]: POSTLOG_MARK("~CLevel: pre-destroy_physics_world");
     if (physics_world())
     {
         destroy_physics_world();
@@ -164,7 +166,9 @@ CLevel::~CLevel()
     xr_delete(m_ph_commander_scripts);
     pObjects4CrPr.clear();
     pActors4CrPr.clear();
+    // XXX [POSTLOG_REMOVE_OBJECTS_SLOW]: POSTLOG_MARK("~CLevel: pre-ai_unload");
     ai().unload();
+    // XXX [POSTLOG_REMOVE_OBJECTS_SLOW]: POSTLOG_MARK("~CLevel: post-ai_unload");
 #ifdef DEBUG
     xr_delete(m_level_debug);
 #endif

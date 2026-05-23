@@ -160,7 +160,31 @@ make run-lldb                # запустить под lldb (бэктрейс 
 make test                    # регрешн-тесты + UTF-8/cp1251 characterization
 make install-game            # скачать игру через steamcmd (см. выше)
 make install-hooks           # подключить auto-ship на каждом коммите
+make lsp                     # сгенерить non-unity compile_commands.json для clangd
 ```
+
+## clangd / LSP
+
+`make lsp` создаёт **отдельный** `build-lsp/` configure (без
+`CMAKE_UNITY_BUILD`) и symlink-ит `compile_commands.json` в корень.
+Отдельный — потому что основной `build/` использует unity-сборку,
+и clangd на ней не индексирует исходные `.cpp` (видит только
+склеенные `unity_N_cxx.cxx`).
+
+Конфиг — `.clangd` в корне (gitignored). Apple clangd 17 (из Xcode
+CLT) работает; upstream clangd 20 не обязателен. Особенности:
+
+- Только индексирует Apple+GL ветку препроцессора (`XR_PLATFORM_APPLE`,
+  `RENDER == R_GL`) — DX/Windows ветки в редакторе будут "выключены".
+  Для нашего workflow это правильно.
+- Format-on-save через clangd даёт LLVM-стиль, не наш (Apple clangd
+  17 не понимает clang-format-20-синтаксис в `src/.clang-format`).
+  Уже отключено в `.vscode/settings.json`; для format в проекте
+  использовать `git clang-format` (clang-format-20 из brew).
+- Пересоздать индекс после серьёзных CMake-изменений:
+  `make lsp` → перезапустить editor / `Clangd: Restart language server`.
+- Snapshot фиксирован на момент `make lsp` — новые `.cpp` файлы
+  clangd не увидит, пока не пере-configure.
 
 ## Modding workflow (через xrUnpack)
 

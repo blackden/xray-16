@@ -715,6 +715,19 @@ T* CResourceManager::CreateShader(cpcstr name, pcstr filename /*= nullptr*/, u32
 template <typename T>
 bool CResourceManager::DestroyShader(const T* sh)
 {
+    if (g_bStaticDestruction)
+    {
+        // Defense-in-depth backstop for the DrainEngineRefs primary fix.
+        // If a stray late ref (Lua __gc, third-party callback, future
+        // container added without drain) cascades into DestroyShader<T>
+        // (VS/PS/GS/HS/DS/CS) during C++ static destruction, the
+        // per-type sh_map is already torn down and std::map::find spins
+        // forever in __tree::__root on macOS. Skip; OS reclaims the
+        // bookkeeping at process exit. Return false to match the
+        // "not destroyed" callsite semantics. See gitea #52.
+        return false;
+    }
+
     if (0 == (sh->dwFlags & xr_resource_flagged::RF_REGISTERED))
         return false;
 

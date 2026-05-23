@@ -1,5 +1,6 @@
 #include "stdafx.h"
 
+#include "Common/PostLogMark.hpp"  // XXX [POSTLOG_SHUTDOWN]: kept active so re-enabling parked markers below is a one-line uncomment
 #include "ModelPool.h"
 
 #include "xrMaterialSystem/GameMtlLib.h"
@@ -222,8 +223,10 @@ CModelPool::CModelPool()
 
 CModelPool::~CModelPool()
 {
+    // XXX [POSTLOG_SHUTDOWN]: POSTLOG_MARK("~CModelPool enter");
     Destroy();
     xr_delete(g_pMotionsContainer);
+    // XXX [POSTLOG_SHUTDOWN]: POSTLOG_MARK("~CModelPool exit");
 }
 
 dxRender_Visual* CModelPool::Instance_Find(LPCSTR N)
