@@ -190,6 +190,113 @@ backfill'ов.
 
 ---
 
+## macOS networking / syscall semantics
+
+> Уроки из #71 (updater main-thread hang) и cpp-engineer / platform-build
+> peer reviews 2026-05-23/24. Записаны чтобы не потратить ещё 8 часов на
+> тот же класс ошибок.
+
+**macOS `sample` tool attributes ticks по program counter, НЕ по wait-state.**
+*Где:* `/usr/bin/sample` (Apple диагностический tool).
+*Симптом:* hot loop, который тысячу раз в секунду вызывает syscall
+(`send`/`recv`) и получает `EAGAIN`, в выводе `sample` выглядит
+**идентично** треду, реально заблокированному в этом syscall — оба
+показывают 100% времени в `libsystem_kernel.__sendto` (или похожем).
+*Как различать:* `ps -o wchan=,pcpu,stat -p <pid>` — `wchan=-` + `pcpu≈100`
+= spin loop; `wchan=<имя>` + `pcpu≈0` = реально заблокирован.
+Альтернатива: `dtrace -n 'syscall::sendto:entry /pid==N/ { @[ustack()]=count(); }'`
+покажет реальный rate вызовов.
+
+**`shutdown(fd, SHUT_WR)` на Darwin НЕ генерирует POLLHUP локально.**
+*Где:* любой код пытающийся cancel'нуть socket activity из другого треда
+через half-shutdown.
+*Симптом:* Linux на shutdown(SHUT_WR) генерирует POLLHUP в локальном
+`select`/`poll` → ждущий тред просыпается. macOS — нет. `select`
+продолжает возвращать тот же `writeFlag` (по состоянию kernel send
+buffer). Если буфер был full перед shutdown, select навсегда вернёт
+writeFlag=0, send никогда не вызовется, EPIPE никогда не surface'ится.
+*Применение:* для cross-thread cancel'а ghttp/любого poll-based
+networking — shutdown не работает. Нужен либо `close(fd)` (race vs
+allocator/recycling), либо cooperative cancel flag, либо `kqueue +
+EVFILT_USER` wake-up на dedicated worker.
+
+**`SO_SNDTIMEO` / `SO_RCVTIMEO` silently игнорируются на non-blocking сокетах.**
+*Где:* `setsockopt` после `fcntl(fd, F_SETFL, O_NONBLOCK)`.
+*Симптом:* setsockopt возвращает 0 (успех), но таймауты не применяются.
+`send`/`recv` ведут себя как non-blocking — EAGAIN мгновенно, no timeout.
+POSIX semantics: SO_*TIMEO — таймаут на блокирующее ожидание; нет
+блокировки → нет таймаута. На Linux то же самое.
+*Применение:* для timeout'а non-blocking socket'а нужен либо userspace
+deadline, либо `TCP_USER_TIMEOUT` — но **macOS TCP_USER_TIMEOUT не
+имплементирует**, только Linux (RFC 5482).
+
+**`TCP_KEEPALIVE` не fires против peer'а который ACKает на kernel
+level но не reads userspace'ом.**
+*Где:* классический test pattern `nc -l <port>` (TCP accept, no read).
+*Симптом:* setsockopt SO_KEEPALIVE + агрессивные TCP_KEEPALIVE/INTVL/CNT
+не дают ECONNRESET через ожидаемые ~5s. Connection остаётся «живой» с
+точки зрения kernel'а навсегда.
+*Почему:* Darwin `tcp_timer.c::TCPT_KEEP` ресетит `t_rcvtime` на любой
+полученный segment — включая zero-window probe ACKs (RFC 1122
+§4.2.2.17). Когда peer userspace не read'ит, recv buffer полнеет → peer
+advertise'ит window=0 → sender уходит в persist state → отправляет
+1-байтовые probes → peer's kernel ACKает probes без userspace
+involvement → keepalive timer никогда не достигает idle threshold.
+*Применение:* keepalive создан для **dead remotes** (нет ACKов), не для
+**stuck userspace** (TCP стек живой, апп замёрз). Для второго класса —
+только cooperative cancel или async-port архитектура.
+
+**`ghttpCancelRequest` НЕ thread-safe; `ghttpCloseRequest` — да (только shutdown).**
+*Где:* `Externals/GameSpy/src/GameSpy/ghttp/ghttpMain.c:1011-1051`.
+*Симптом:* cancel из другого треда → UAF / double-free. ghiFreeConnection
+не имеет синхронизации, рассчитан только на ghttp-owning thread (= main).
+*Workaround:* `ghttpCloseRequest` делает только `shutdown(fd, SHUT_WR)`
++ single result-enum store — POSIX-safe cross-thread. Но (см. выше) на
+macOS shutdown(SHUT_WR) inert — так что это рабочий cross-thread
+primitive только для блокированных I/O путей, не для non-blocking spin.
+
+**`pthread_kill(SIGUSR1)` только прерывает EINTR-able syscalls.**
+*Где:* любая попытка вытащить тред из stuck kernel call.
+*Симптом:* `select`/`poll`/`recvfrom`/`connect` возвращают EINTR — отлично.
+`__sendto` mid-copyin (когда kernel копирует userspace data в kernel
+buffer) — **uninterruptible**. SIGUSR1 queued, доставится только когда
+copy завершится сам по себе. То же для некоторых Mach IPC.
+*Применение:* SIGUSR1 wake в watchdog (issue #75) помогает для
+большинства hang-паттернов но не для глубокого sendto. Не серебряная пуля.
+
+**`_exit()` поверх stuck kernel syscall → STAT=TX zombie.**
+*Где:* `xrDebug::StartWatchdog` (`src/xrCore/xrDebug.cpp:752-787`).
+*Симптом:* `ps -o stat` показывает `TX` (stopped during exit). `kill -9`
+не помогает. Процесс жив до перезагрузки.
+*Почему:* `_exit` инициирует teardown (close fds, dealloc, etc), но main
+thread в kernel — не может дойти до своей user-space cleanup части,
+kernel не может полностью reap'нуть. На pre-Tahoe macOS видимо просто
+долго ждал, на Tahoe — навсегда.
+*Workaround:* SIGUSR1 wake перед _exit (#75), либо external supervisor
+с Mach `task_terminate` (см. #63, отвергнуто как too heavy для personal
+fork).
+
+**`SCM_RIGHTS` передаёт file descriptors, НЕ `mach_port_t`.**
+*Где:* `sendmsg(socket, ...)` с control message.
+*Симптом:* если кто-то предложит передавать Mach task port через Unix
+domain socket с SCM_RIGHTS — это будет workaround на ошибку. Mach ports
+требуют `mach_msg` с `MACH_MSG_PORT_DESCRIPTOR` поверх уже-shared Mach
+channel, либо `bootstrap_register` через launchd, либо
+`mach_ports_register` перед exec в parent-spawns-child pattern.
+*Контекст:* возникло в discussion #63 supervisor pattern.
+
+**Tahoe TX zombie может появиться независимо от user-space mitigation.**
+*Где:* Dock Force Quit (Option+click → Force Quit) на macOS 26.x.
+*Симптом:* процесс жив-здоров, нажимаешь Force Quit → процесс жив,
+STAT=TX, wchan=`-`, pcpu=0. Даже Activity Monitor → Force Quit не
+помогает.
+*Почему:* Apple-side баг в kernel signal delivery на Tahoe. Не лечится
+из userspace. См. issue #63.
+*Workaround:* перезагрузка системы. SIGUSR1 wake в watchdog (#75) **не**
+лечит этот класс — там watchdog не успевает fire'нуть.
+
+---
+
 ## Что НЕ покрыто но возможно стоит добавить
 
 - Как разрезать DMG на 2GB chunks для распространения (текущий 3.5GB).
