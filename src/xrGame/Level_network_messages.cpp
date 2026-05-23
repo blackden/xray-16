@@ -400,26 +400,12 @@ void CLevel::ClientReceive()
                 P->r_stringZ(LevelVersion);
                 P->r_stringZ(GameType);
 
-                /*
-                u32 str_start = P->r_tell();
-                P->skip_stringZ();
-                u32 str_end = P->r_tell();
-
-                u32 temp_str_size = str_end - str_start;
-                R_ASSERT2(temp_str_size < 256, "level name too big");
-                LevelName = static_cast<char*>(xr_alloca(temp_str_size + 1));
-                P->r_seek(str_start);
-                P->r_stringZ(LevelName);
-
-
-                str_start = P->r_tell();
-                P->skip_stringZ();
-                str_end = P->r_tell();
-                temp_str_size = str_end - str_start;
-                R_ASSERT2(temp_str_size < 256, "incorect game type");
-                GameType = static_cast<char*>(xr_alloca(temp_str_size + 1));
-                P->r_seek(str_start);
-                P->r_stringZ(GameType);*/
+                // Belt-and-suspenders: M_CHANGE_LEVEL_GAME is attacker-influenced
+                // (server packet). LevelName/GameType/LevelVersion are concatenated
+                // into a string4096 below; clamp each field defensively. See #59.
+                R_ASSERT2(xr_strlen(LevelName) < 256, "level name too big");
+                R_ASSERT2(xr_strlen(GameType) < 256, "incorrect game type");
+                R_ASSERT2(xr_strlen(LevelVersion) < 256, "level version too big");
 
                 string4096 NewServerOptions = "";
                 xr_sprintf(NewServerOptions, "%s/%s/%s%s", LevelName.c_str(), GameType.c_str(), map_ver_string,

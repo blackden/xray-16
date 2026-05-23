@@ -19,6 +19,7 @@ XRCORE_API pstr _GetItems(pcstr, int, int, pstr, char separator = ',');
 XRCORE_API pcstr _GetItems(pcstr, int, int, xr_string&, char);
 XRCORE_API pcstr _SetPos(pcstr src, u32 pos, char separator = ',');
 XRCORE_API pcstr _CopyVal(pcstr src, pstr dst, char separator = ',');
+XRCORE_API void _CopyVal(pcstr src, pstr dst, u32 dst_size, char separator = ',');
 XRCORE_API pstr _Trim(pstr str, char whatToTrim = ' ');
 XRCORE_API pstr _TrimLeft(pstr str, char whatToTrim = ' ');
 XRCORE_API pstr _TrimRight(pstr str, char whatToTrim = ' ');
