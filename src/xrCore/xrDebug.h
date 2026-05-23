@@ -87,6 +87,14 @@ public:
     static void Finalize();
     static void OnThreadSpawn();
     static void OnThreadExit();
+
+    // Re-install SIGTERM/SIGALRM/SIGABRT signal handlers after SDL_Init.
+    // SDL2 silently overwrites them inside SDL_InitSubSystem when
+    // SDL_HINT_NO_SIGNAL_HANDLERS is unset. See gitea #61. Should be
+    // called once, immediately after SDL_Init, in addition to setting
+    // the hint before SDL_Init as belt-and-suspenders.
+    static void ReinstallSignalHandlersPostSDL();
+
     static void OnFilesystemInitialized();
 
     static bool DebuggerIsPresent();

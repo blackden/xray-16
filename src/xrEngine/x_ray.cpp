@@ -229,7 +229,15 @@ CApplication::CApplication(pcstr commandLine, GameModule* game, const std::array
         u32 flags = SDL_INIT_VIDEO;
         if (!strstr(commandLine, "-no_gamepad"))
             flags |= SDL_INIT_GAMECONTROLLER;
+        // Belt: ask SDL not to touch our signal handlers in the first place.
+        // SDL2 otherwise silently overwrites SIGTERM/SIGINT inside
+        // SDL_InitSubSystem, undoing xrDebug::OnThreadSpawn. See gitea #61.
+        SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");
         R_ASSERT3(SDL_Init(flags) == 0, "Unable to initialize SDL", SDL_GetError());
+        // Suspenders: even with the hint, defensively re-install our handlers
+        // post-SDL_Init. Cheap; protects against older SDL builds that ignore
+        // the hint or future regressions.
+        xrDebug::ReinstallSignalHandlersPostSDL();
     }
 
 #if defined(XR_PLATFORM_APPLE)
