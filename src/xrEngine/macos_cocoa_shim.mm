@@ -23,14 +23,24 @@
 // SDL_WINDOWEVENT_CLOSE handler (device.cpp) already do — verified to
 // teardown cleanly in any state (in-game, paused, main menu).
 //
-// No two-stage state, no _exit(0) backstop, no Escape synthesis. An earlier
-// revision used a "first press = Esc, second press within 3s = _exit(0)"
-// workaround because graceful teardown was triggering a PAC trap in
-// xrDebug::Fail on ARM64. That trap is fixed; the workaround was masking
-// future regressions of the same teardown path. If teardown ever hangs
-// again it's a bug to root-cause, not to paper over — macOS-level Force
-// Quit (Cmd+Opt+Esc, Activity Monitor) is the user fallback, not in-app
-// self-kill.
+// No two-stage state, no Escape synthesis. Graceful teardown is the primary
+// path for every quit origin (Cmd+Q, Apple menu Quit, Dock Force Quit). An
+// earlier revision used a "first press = Esc, second press within 3s =
+// _exit(0)" workaround because graceful teardown was triggering a PAC trap
+// in xrDebug::Fail on ARM64. That trap is fixed; the workaround was masking
+// future regressions of the same teardown path.
+//
+// There IS a last-resort backstop now, but it is NOT a return to the old
+// hack: applicationShouldTerminate: arms a 10-second dispatch_after that
+// calls _exit(0) if the graceful path hasn't completed by then. Rationale:
+// Dock Force Quit (Option+Quit) on macOS 26.3 calls applicationShouldTerminate:
+// (Cocoa graceful), not SIGTERM; our NSTerminateCancel disables Cocoa's own
+// SIGKILL timer, and Apple's CoreAnalytics atExitHandler can deadlock in
+// malloc_type_calloc during the graceful path, producing a zombie process
+// (Dock icon gone, window dead, process alive). The 10s cap caps that
+// failure mode without masking ordinary teardown regressions — graceful
+// path normally completes in <1s, so the watchdog only fires on a real
+// hang. See gitea #61.
 
 #include <SDL.h>
 #include <unistd.h>
@@ -63,11 +73,29 @@ extern "C" void OpenXRay_RequestGracefulQuit(void);
     OpenXRay_RequestGracefulQuit();
 }
 
-// Fallback for menu-driven quit (Apple menu -> Quit). Routes through the same
-// graceful handler as the key monitor.
+// Fallback for menu-driven quit (Apple menu -> Quit) and Dock Force Quit.
+// Routes through the same graceful handler as the key monitor.
 - (NSApplicationTerminateReply)applicationShouldTerminate:(NSApplication *)sender
 {
     [self handleQuitRequest:@"appShouldTerminate"];
+
+    // Termination watchdog: NSTerminateCancel below tells Cocoa "I'll
+    // handle the quit myself" and disables Cocoa's own SIGKILL timer.
+    // The graceful path then runs (eDisconnect -> DestroyLevel -> eQuit
+    // -> SDL_QUIT -> ~CApplication -> atexit). On macOS 26.3 Apple's
+    // CoreAnalytics atExitHandler can deadlock in malloc_type_calloc,
+    // producing a zombie process (icon gone from Dock, window dead).
+    // 10-second hard ceiling: if graceful path hasn't reached _exit by
+    // then, force it. _exit(0) skips all atexit handlers including
+    // the broken CoreAnalytics one. See gitea #61.
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(10 * NSEC_PER_SEC)),
+                   dispatch_get_global_queue(QOS_CLASS_BACKGROUND, 0), ^{
+        static const char msg[] =
+            "==> Cocoa termination watchdog: graceful path timeout (10s), _exit\n";
+        ::write(STDERR_FILENO, msg, sizeof(msg) - 1);
+        _exit(0);
+    });
+
     return NSTerminateCancel;
 }
 
