@@ -1,4 +1,5 @@
 #include "pch_script.h"
+#include "Common/PostLogMark.hpp"
 #include "Level.h"
 #include "Level_Bullet_Manager.h"
 #include "xrServer.h"
@@ -148,7 +149,9 @@ void CLevel::net_Stop()
     else if (IsDemoSave() && !IsDemoInfoSaved())
         SaveDemoInfo();
 
+    // XXX [POSTLOG_REMOVE_OBJECTS_SLOW]: POSTLOG_MARK("net_Stop: pre-remove_objects");
     remove_objects();
+    // XXX [POSTLOG_REMOVE_OBJECTS_SLOW]: POSTLOG_MARK("net_Stop: post-remove_objects");
 
     // WARNING ! remove_objects() uses this flag, so position of this line must e here ..
     game_configured = FALSE;

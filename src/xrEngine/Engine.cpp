@@ -122,9 +122,17 @@ void CEngine::OnFrame()
 
 void CEngine::RequestGracefulShutdown()
 {
+    // Active canary for unified-entry invariant (see #52, commit 7d2920852).
+    // Every graceful quit path passes through here; OpenXRay_RequestGracefulQuit
+    // marker alone catches only Cmd+Q via Cocoa, leaving 4 of 5 quit paths
+    // (SDL CLOSE, console quit, menu Quit, future) unobservable without these.
+    // If a future change re-fragments quit dispatch, the missing marker pair
+    // in logs is the regression signal.
+    POSTLOG_MARK("RequestGracefulShutdown: enter");
     g_bShuttingDown = true;
     Event.Defer("KERNEL:disconnect");
     Event.Defer("KERNEL:quit");
+    POSTLOG_MARK("RequestGracefulShutdown: defers queued");
 }
 
 #if defined(XR_PLATFORM_APPLE)
