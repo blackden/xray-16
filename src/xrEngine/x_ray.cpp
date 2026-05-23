@@ -393,6 +393,14 @@ int CApplication::Run()
     HideSplash();
     Device.Run();
 
+    // Start main-thread watchdog (gitea #61). Cvar is parsed by user.ltx
+    // load + Console_Commands registration, which has already run by now
+    // (Device.Run() returns after engine init). Loop captures the value
+    // once; runtime cvar changes don't reconfigure the watchdog. Zero
+    // means disabled — debugger-friendly default for non-MasterGold.
+    extern int g_dev_watchdog_seconds;
+    xrDebug::StartWatchdog(static_cast<u32>(g_dev_watchdog_seconds));
+
     // Safe-mode boot recovery. Launcher dropped a sentinel at
     // ~/.openxray-data/_appdata_/.boot_in_progress before exec. We
     // remove it once the engine has run a handful of frames -- by then
