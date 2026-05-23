@@ -84,20 +84,19 @@ int main(int argc, char *argv[])
 
 #if defined(XR_PLATFORM_APPLE)
     // Phase 1 diagnostic for the silent-exit issue on macOS. Unbuffer stdout
-    // so nothing is lost on abrupt termination, and register an atexit marker
-    // so we can tell "exit() was called from somewhere" apart from "killed by
-    // a signal (atexit doesn't run)".
+    // so nothing is lost on abrupt termination.
     setvbuf(stdout, nullptr, _IONBF, 0);
-    atexit([]() {
-        fprintf(stderr, "==> ATEXIT fired\n");
-        fflush(stderr);
-        // Flip into the static-destruction phase. SpatialBase::spatial_unregister
-        // checks this flag and skips touching ISpatial_DB once main has
-        // returned — the spatial DB lives inside CGamePersistent which was
-        // destroyed in ~CApplication, so any further lock would hang
-        // forever on a dead pthread mutex. See gitea #52.
-        g_bStaticDestruction = true;
-    });
+    // Historical note (#52): we used to register an atexit() lambda here that
+    // (a) printed a "==> ATEXIT fired" marker and (b) flipped
+    // g_bStaticDestruction = true to guard spatial_unregister / resource-manager
+    // cleanup against the dead-mutex hang in CGamePersistent's destroyed
+    // ISpatial_DB. With the #61 graceful-exit work we now leave main() via
+    // _exit(0) below, which skips ALL atexit handlers (including Apple's
+    // CoreAnalytics one that deadlocked in malloc_type_calloc after Dock
+    // Force Quit). That makes the lambda unreachable on the normal path, so
+    // it was removed. The g_bStaticDestruction guards themselves are kept as
+    // cheap defense-in-depth in case a future exit path DOES run static
+    // destructors. See gitea #61.
 #endif
 
     try
@@ -149,6 +148,14 @@ int main(int argc, char *argv[])
     fprintf(stderr, "==> main returning with code %d\n", result);
     fflush(stderr);
 #endif
+    // ~CApplication has already done the graceful teardown (engine, SDL,
+    // xrDebug::Finalize). Skip the C runtime's atexit + static-destructor
+    // phase entirely: on macOS 26.3 Apple's CoreAnalytics atexit handler
+    // deadlocks in malloc_type_calloc after we tear down, leaving a zombie
+    // process on Dock Force Quit. _exit(0) bypasses both atexit and static
+    // dtors, so the process actually leaves. See gitea #61.
+    _exit(result);
+    // unreachable
     return result;
 }
 #endif

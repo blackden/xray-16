@@ -149,12 +149,12 @@ extern XRCORE_API xrCore Core;
 // disconnect time on macOS — ~2.5 sec on a CoP level). Never reset to false.
 extern XRCORE_API bool g_bShuttingDown;
 
-// One-shot flag, set true by the atexit lambda in entry_point.cpp AFTER
-// main() returns but BEFORE C++ static destructors run. Read by
-// SpatialBase::spatial_unregister to no-op the unregister during static
-// destruction: ISpatial_DB lives inside CGamePersistent which is destroyed
-// in ~CApplication BEFORE main returns, so by atexit time its mutex is
-// dead and locking it hangs forever on macOS pthread.
+// One-shot flag intended to mark the C++ static-destruction phase (post-main,
+// before/while static destructors run). Read by SpatialBase::spatial_unregister
+// and the resource-manager reclaim/_Delete* guards to no-op cleanup during
+// static destruction: ISpatial_DB lives inside CGamePersistent which is
+// destroyed in ~CApplication BEFORE main returns, so any further lock attempt
+// would hang forever on a dead pthread mutex on macOS.
 //
 // Distinct from g_bShuttingDown above. That flag is set at Cmd+Q time
 // (before eDisconnect) — using IT to guard spatial_unregister was tried
@@ -162,6 +162,14 @@ extern XRCORE_API bool g_bShuttingDown;
 // entries → infinite recursion in box_walker). This flag is strictly
 // post-main, past all engine code that queries the spatial tree, so
 // no-op'ing the unregister here is structurally safe.
+//
+// NOTE: on the normal macOS exit path the engine now finishes main() with
+// _exit(0) (see entry_point.cpp), which skips both atexit handlers and C++
+// static destructors. That means on the normal path this flag is NEVER set
+// to true and the guards never trigger — they are kept as cheap (one bool
+// check) defense-in-depth for any future exit path that DOES run static
+// destructors (e.g., a non-fatal signal that lands in libc cleanup, or a
+// future code path that takes a different exit route).
 //
 // Layering: this flag gates the Layer 3 defense-in-depth backstop. The
 // primary fix for the static-destruction cascade is
@@ -172,7 +180,7 @@ extern XRCORE_API bool g_bShuttingDown;
 // catches what DrainEngineRefs intentionally leaves behind (Lights, plus
 // any future container that can't safely be drained pre-Destroy).
 //
-// See gitea #52.
+// See gitea #52, #61.
 extern XRCORE_API bool g_bStaticDestruction;
 
 // Convert a UTF-8 string in-place to cp1251. Used to bridge POSIX UTF-8
@@ -199,6 +207,15 @@ XRCORE_API void xr_legacy_to_utf8(char* buf, size_t buf_size, pcstr codepage);
 // leaves `out` empty) on iconv failure. UTF-8 size headroom is 4x the
 // source length; cp1251 -> UTF-8 caps at 3x so this is safe.
 XRCORE_API bool xr_legacy_to_utf8_alloc(pcstr src, size_t src_len, pcstr codepage, xr_string& out);
+
+// Main-thread heartbeat for the watchdog thread (gitea #61, sub-part B).
+// Incremented each ProcessFrame; the watchdog polls this and _exits the
+// process if it stops advancing for `dev_watchdog_seconds`. Atomic because
+// it crosses thread boundaries; relaxed ordering is sufficient — the
+// watchdog only checks "did it change since last poll", not ordering vs
+// any other memory. Defined in xrCore.cpp.
+#include <atomic>
+extern XRCORE_API std::atomic<u64> g_mainHeartbeat;
 
 // Diagnostic flag, exposed as the `r__trace_encoding` console var. When
 // non-zero, every XML / INI file the Phase 2 read shim has to transcode

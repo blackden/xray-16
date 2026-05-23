@@ -87,6 +87,14 @@ public:
     static void Finalize();
     static void OnThreadSpawn();
     static void OnThreadExit();
+
+    // Re-install SIGTERM/SIGALRM/SIGABRT signal handlers after SDL_Init.
+    // SDL2 silently overwrites them inside SDL_InitSubSystem when
+    // SDL_HINT_NO_SIGNAL_HANDLERS is unset. See gitea #61. Should be
+    // called once, immediately after SDL_Init, in addition to setting
+    // the hint before SDL_Init as belt-and-suspenders.
+    static void ReinstallSignalHandlersPostSDL();
+
     static void OnFilesystemInitialized();
 
     static bool DebuggerIsPresent();
@@ -112,6 +120,22 @@ public:
                      const char* arg1 = nullptr, const char* arg2 = nullptr);
     [[noreturn]]
     static void DoExit(const std::string& message);
+
+    // Async-signal-safe last-resort signal handler. Used in place of the
+    // rich xrDebug::Fail path for fatal signals (SIGSEGV/SIGILL/SIGFPE/
+    // SIGABRT) where the process state is unknown and we cannot afford
+    // mutexes / malloc / Cocoa dialogs. Arms a 5-second SIGALRM tripwire
+    // (so even this routine can't deadlock indefinitely), writes a stderr
+    // canary + backtrace via async-safe primitives, then _exit(128 + sig).
+    // See gitea #61.
+    static void OnFatalSignal(int sig, const char* reason);
+
+    // Spawn a detached watchdog thread that polls g_mainHeartbeat. If the
+    // counter stops advancing for `timeoutSec` seconds the process _exits
+    // with code 128 + SIGKILL. Pass 0 to disable. Defer call until engine
+    // is past long init phases (load is allowed to take longer than the
+    // timeout). Cvar `dev_watchdog_seconds` controls the value. See #61.
+    static void StartWatchdog(u32 timeoutSec);
 
     static AssertionResult ShowMessage(pcstr title, pcstr message, bool simpleMode = true);
 
