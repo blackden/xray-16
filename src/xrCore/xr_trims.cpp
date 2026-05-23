@@ -57,6 +57,22 @@ pcstr _CopyVal(pcstr src, pstr dst, char separator)
     return dst;
 }
 
+// Bounded form: never writes past dst[dst_size-1] and always NUL-terminates.
+// Use this from any caller that knows its destination buffer size; the
+// 3-arg overload above is retained for legacy callers but is unsafe when
+// the source span up to `separator` exceeds the destination.
+void _CopyVal(pcstr src, pstr dst, u32 dst_size, char separator)
+{
+    if (!dst || dst_size == 0)
+        return;
+    pcstr sep_pos = strchr(src, separator);
+    u32 n = sep_pos ? u32(sep_pos - src) : xr_strlen(src);
+    if (n >= dst_size)
+        n = dst_size - 1;
+    strncpy(dst, src, n);
+    dst[n] = 0;
+}
+
 int _GetItemCount(pcstr src, char separator)
 {
     u32 cnt = 0;
@@ -83,7 +99,7 @@ pstr _GetItem(pcstr src, int index, pstr dst, u32 const dst_size, char separator
     pcstr ptr;
     ptr = _SetPos(src, index, separator);
     if (ptr)
-        _CopyVal(ptr, dst, separator);
+        _CopyVal(ptr, dst, dst_size, separator);
     else
         xr_strcpy(dst, dst_size, def);
     if (trim)
