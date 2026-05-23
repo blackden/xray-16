@@ -86,7 +86,7 @@ These are real bugs from this codebase's recent history. **Pattern-match every p
 
 8. **`g_pGameLevel` may be null at eDisconnect** — e.g., Cmd+Q from main menu. `src/xrEngine/IGame_Persistent.cpp:289` guards `if (g_pGameLevel)` — no level → no `DestroyLevel` → no `level_Unload`. Persistent (non-level) resources (HUD, fonts, console) accumulate and never clear via the level path; they must be cleared elsewhere or accepted as live until process exit.
 
-9. **`level_Unload` is idempotent on empty containers.** `Visuals.clear()` and `Shaders.clear()` on empty vectors are no-ops; the deletion loop at `src/Layers/xrRender_R2/r2_loader.cpp:148-153` skips. Useful for understanding "duplicate call safe vs not".
+9. **`level_Unload` is idempotent on empty containers.** `Visuals.clear()` and `Shaders.clear()` on empty vectors are no-ops; the Visuals deletion loop at `src/Layers/xrRender_R2/r2_loader.cpp:154-159` skips on an empty vector. Useful for understanding "duplicate call safe vs not".
 
 10. **`CRender::destroy()` is called from `OnDeviceDestroy`, not from `D3DXRenderBase::Destroy()`.** `OnDeviceDestroy` runs at `src/xrEngine/Device_destroy.cpp:22`, BEFORE `Destroy` at line 24. By the time `Destroy()` is entered, `CRender::destroy()` has already deleted `Target` (CRenderTarget), `Models` (CModelPool), `HWOCC`, `FluidManager`, and called `PSLibrary.OnDestroy()`. Don't propose work that duplicates these.
 

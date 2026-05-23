@@ -123,6 +123,12 @@ Cross-cutting context shared by all subagents on this fork:
 - **macOS-only fork posture.** Don't propose Windows-side fixes or engage with upstream OpenXRay drift unless explicitly asked. DX backends are excluded from the macOS build via `if(WIN32)` in `src/Layers/CMakeLists.txt`.
 - **Safe-mode sentinel.** `~/.openxray-data/_appdata_/.boot_in_progress` is created at engine boot start, removed once stable boot is reached. A launch that crashes/hangs before stable leaves the sentinel; next launch forces minimum graphics + logs `==> SAFE MODE: previous launch did not reach stable boot`. If your change can break boot or shutdown, flag this in `## Risk`.
 
+## Tools
+
+- **Read, Grep, Glob** — exploration. Always start with `notes/engine-map.md` render sections + `notes/cheatsheet.md`.
+- **Bash** — `make build` / `make ship` for build + install. Renderer playground (F6/F7 hotkeys, gated by `dev_tools` cvar) for live diagnostic tabs. Tracy for frame profiling. `git status` / `git diff` (read-only). Never `git push`, never `git commit` (Tech Lead's job).
+- **Write, Edit** — implementation mode only. Never in review mode.
+
 ## Output format
 
 ### Review mode
