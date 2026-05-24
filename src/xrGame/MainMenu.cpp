@@ -28,6 +28,14 @@
 #ifdef XR_PLATFORM_WINDOWS
 #include <shellapi.h>
 #pragma comment(lib, "shell32.lib")
+#else
+#include <sys/socket.h>
+#include <sys/select.h>
+#include <netinet/in.h>
+#include <netdb.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <errno.h>
 #endif
 
 #include "Common/object_broker.h"
@@ -712,6 +720,96 @@ void CMainMenu::OnPatchCheck(bool success)
 // happens inside CGameSpyFull::Update() in the main thread's OnFrame.
 // ----------------------------------------------------------------------------
 
+namespace
+{
+// Returns true iff a TCP connection to the URL's host:port can be opened
+// within timeoutMs. Pre-flight gate for the updater: ghttp's main-thread
+// polling can block in sendto for the OS TCP retransmit window (~75s on
+// macOS) when the manifest server is unreachable, freezing the UI. The
+// probe lets us bail with a clean error dialog in <1s. See gitea #71.
+bool ProbeUpdateHost(const char* url, int timeoutMs)
+{
+#ifdef XR_PLATFORM_WINDOWS
+    (void)url; (void)timeoutMs;
+    return true;  // No-op on Windows; existing flow handles it.
+#else
+    // Parse host[:port] out of http://host[:port]/path. Tiny parser by hand —
+    // hostname can't contain '/' or ':' so locating them is unambiguous.
+    const char* schemeEnd = strstr(url, "://");
+    if (!schemeEnd)
+        return true;  // Malformed URL — let ghttp surface the error.
+    const char* hostStart = schemeEnd + 3;
+    const char* pathStart = strchr(hostStart, '/');
+    const char* portColon = strchr(hostStart, ':');
+    if (portColon && pathStart && portColon > pathStart)
+        portColon = nullptr;  // ':' is past the path, not a port separator.
+
+    const char* hostEnd = portColon ? portColon : (pathStart ? pathStart : hostStart + strlen(hostStart));
+    const size_t hostLen = static_cast<size_t>(hostEnd - hostStart);
+    char host[128] = {0};
+    if (hostLen == 0 || hostLen >= sizeof(host))
+        return true;
+    memcpy(host, hostStart, hostLen);
+
+    int port = 80;
+    if (portColon)
+    {
+        port = atoi(portColon + 1);
+        if (port <= 0 || port > 65535)
+            return true;
+    }
+
+    char portStr[8];
+    snprintf(portStr, sizeof portStr, "%d", port);
+    struct addrinfo hints = {};
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    struct addrinfo* res = nullptr;
+    if (getaddrinfo(host, portStr, &hints, &res) != 0 || !res)
+    {
+        Msg("! updater probe: getaddrinfo(%s:%s) failed", host, portStr);
+        return false;
+    }
+
+    int sock = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+    if (sock < 0)
+    {
+        freeaddrinfo(res);
+        return false;
+    }
+    const int flags = fcntl(sock, F_GETFL, 0);
+    fcntl(sock, F_SETFL, flags | O_NONBLOCK);
+
+    bool reachable = false;
+    const int rc = connect(sock, res->ai_addr, res->ai_addrlen);
+    if (rc == 0)
+    {
+        reachable = true;
+    }
+    else if (errno == EINPROGRESS)
+    {
+        fd_set wfds;
+        FD_ZERO(&wfds);
+        FD_SET(sock, &wfds);
+        struct timeval tv;
+        tv.tv_sec = timeoutMs / 1000;
+        tv.tv_usec = (timeoutMs % 1000) * 1000;
+        const int sel = select(sock + 1, nullptr, &wfds, nullptr, &tv);
+        if (sel > 0)
+        {
+            int err = 0;
+            socklen_t errLen = sizeof err;
+            if (getsockopt(sock, SOL_SOCKET, SO_ERROR, &err, &errLen) == 0 && err == 0)
+                reachable = true;
+        }
+    }
+    close(sock);
+    freeaddrinfo(res);
+    return reachable;
+#endif
+}
+}  // namespace
+
 void CMainMenu::TriggerUpdateCheck()
 {
     if (!m_pGameSpyFull || !m_pGameSpyFull->GetGameSpyHTTP())
@@ -720,6 +818,16 @@ void CMainMenu::TriggerUpdateCheck()
     if (m_sPDProgress.IsInProgress)
     {
         Msg("! updater: a download is already in progress, ignoring update check");
+        return;
+    }
+
+    // Pre-flight probe: if the manifest server can't be reached within 500ms,
+    // bail with a clean error instead of letting ghttp block main-thread
+    // sendto for ~75s (macOS TCP retransmit). See gitea #71.
+    if (!ProbeUpdateHost(g_updater_manifest_url, 500))
+    {
+        Msg("! updater: server unreachable (probe failed): %s", g_updater_manifest_url);
+        SetErrorDialog(PatchDownloadError);
         return;
     }
 
