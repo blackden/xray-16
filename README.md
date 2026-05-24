@@ -21,15 +21,16 @@
 > Issues, branches, and active development live there (since 2026-05-20).
 > The GitHub mirror is a private backup only.
 >
-> See [`notes/`](notes/) for working docs:
-> [`done-criteria.md`](notes/done-criteria.md) (**what 1.0 means**),
-> [`apple-silicon.md`](notes/apple-silicon.md),
-> [`macos-build-guide.md`](notes/macos-build-guide.md),
-> [`macos-distribution.md`](notes/macos-distribution.md),
-> [`engine-map.md`](notes/engine-map.md) (where things live),
-> [`issues-playthrough.md`](notes/issues-playthrough.md) (open bugs),
-> [`cheatsheet.md`](notes/cheatsheet.md),
-> [`engine-thoughts.md`](notes/engine-thoughts.md).
+> See [`notes/`](notes/) for working docs — [`notes/README.md`](notes/README.md) is the map:
+> [`conventions/done-criteria.md`](notes/conventions/done-criteria.md) (**what 1.0 means**),
+> [`reference/apple-silicon.md`](notes/reference/apple-silicon.md),
+> [`reference/macos-build-guide.md`](notes/reference/macos-build-guide.md),
+> [`reference/macos-distribution.md`](notes/reference/macos-distribution.md),
+> [`reference/engine-map.md`](notes/reference/engine-map.md) (where things live),
+> [`playbooks/issues-playthrough.md`](notes/playbooks/issues-playthrough.md) (open bugs),
+> [`reference/cheatsheet.md`](notes/reference/cheatsheet.md),
+> [`strategy/creator-voice.md`](notes/strategy/creator-voice.md) /
+> [`strategy/roadmap-4year.md`](notes/strategy/roadmap-4year.md) (creator-voice + long-term direction).
 >
 > **Build & run:**
 > ```bash

@@ -5,10 +5,10 @@ Concrete checklist для определения «1.0» этого форка. 
 of truth: ответ на вопрос «сколько осталось до done?» должен читаться
 за минуту.
 
-Связано: [roadmap.md](roadmap.md) (что хотим делать),
-[issues-playthrough.md](issues-playthrough.md) (что открыто),
-[macos-distribution.md](macos-distribution.md) (как ставить),
-[macos-build-guide.md](macos-build-guide.md) (как собирать).
+Связано: [roadmap.md](../strategy/roadmap.md) (что хотим делать),
+[issues-playthrough.md](../playbooks/issues-playthrough.md) (что открыто),
+[macos-distribution.md](../reference/macos-distribution.md) (как ставить),
+[macos-build-guide.md](../reference/macos-build-guide.md) (как собирать).
 
 ## Definition of "done"
 
@@ -43,10 +43,10 @@ playthrough native arm64**, плюс readme/build/distribution docs для
 
 ## 2. Quality bar (should-pass)
 
-- [ ] Нет открытых **P0/P1** issues в `notes/issues-playthrough.md` —
+- [ ] Нет открытых **P0/P1** issues в `../playbooks/issues-playthrough.md` —
       это блокеры данной планки.
 - [ ] Все **P2** либо closed (фикс шиппинутся), либо документированы
-      в `notes/known-divergence.md` с указанием:
+      в `../decisions/known-divergence.md` с указанием:
       vanilla-X-Ray-DX11 / openxray-upstream-Windows / нашего форка
       поведения, плюс план (или «accepted as-is on macOS»).
 - [ ] Все **P3** vanilla quirks (например `#17` rain в bunker
@@ -55,7 +55,7 @@ playthrough native arm64**, плюс readme/build/distribution docs для
 - [ ] Нет необъяснённых `XXX [ragnar] *:` без либо assignee к issue,
       либо явного `INTENTIONALLY DEFERRED` статуса в комментарии.
 - [ ] `~/Library/Logs/OpenXRay/openxray_*.log` ротейтятся: единичный
-      log не превышает 100 MB (см. fix `notes/decisions.md` про log
+      log не превышает 100 MB (см. fix `../decisions/decisions.md` про log
       rotation cap).
 - [ ] CHK_GL не выводит ошибки в Apple-MasterGold-логах из штатного
       gameplay (загрузка → пол-часа игры → quicksave → quicksave-load).
@@ -67,20 +67,20 @@ playthrough native arm64**, плюс readme/build/distribution docs для
       работает: `/Applications/OpenXRay-Dev.app/Contents/MacOS/xrUnpack --list <archive.db0>`.
 - [ ] `make ship` собирает + устанавливает `.app` за <90 секунд на
       M1 (ориентир, не жёсткий gate).
-- [ ] `notes/macos-distribution.md` описывает: что в DMG, как ставить,
+- [ ] `../reference/macos-distribution.md` описывает: что в DMG, как ставить,
       safe-mode, где saves/logs, что делать при первом launch.
 
 ## 4. Documentation
 
-- [ ] `notes/macos-build-guide.md` — точная последовательность шагов
+- [ ] `../reference/macos-build-guide.md` — точная последовательность шагов
       для clean M-чип машины (brew install, git clone --recursive,
       cmake invocation, run). Проверена ручным запуском с чистого
       checkout.
-- [ ] `notes/macos-distribution.md` — что внутри DMG, как ставить,
+- [ ] `../reference/macos-distribution.md` — что внутри DMG, как ставить,
       что такое safe-mode, где сейвы/логи.
 - [ ] `CLAUDE.md` — current build flags, conventions, project layout.
       Не отстаёт от реальности.
-- [ ] `notes/engine-map.md` — каждый non-trivial touchpoint, который
+- [ ] `../reference/engine-map.md` — каждый non-trivial touchpoint, который
       потребовал >1 файла exploration, имеет file:line запись.
 - [ ] README banner на `macos/blackden/master` ветке отражает текущее
       состояние (build/run/known limits/links в notes/).

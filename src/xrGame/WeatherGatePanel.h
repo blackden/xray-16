@@ -9,7 +9,7 @@ namespace xray::editor
 //
 // Surfaces three streams of state per frame:
 //   - LightTrack hemi_smooth read from the actor's CROS_impl, which is
-//     known to be light-polluted (see notes/engine-map.md and memory
+//     known to be light-polluted (see notes/reference/engine-map.md and memory
 //     [[project-hemi-cube-light-pollution]]). The cellar repro should
 //     show this >0 even when the camera is under solid cover.
 //   - CEffect_Rain::m_hemi_factor — the 5-raycast camera-centric gate

@@ -65,7 +65,7 @@ community-saves) — `R_ASSERT2(m_version >= ALIFE_VERSION)` крашится
 **Audit-note (2026-05-19).** Изначально я писал "нет version field" —
 это неточно. Field есть (`u32 ALIFE_VERSION` внутри `ALIFE_CHUNK_DATA`),
 плюс per-CSE `m_wVersion` гейтинг для большинства полей. См.
-`notes/save-format-audit.md`. На *эту* конкретную проблему (кодировка
+`save-format-audit.md` (same dir). На *эту* конкретную проблему (кодировка
 строк) version field бы не помог в любом случае — он определяет
 структуру стрима, а не содержимое полей.
 
@@ -368,7 +368,7 @@ accept the rebuild-for-debug cost.
 **Pattern for new dev surfaces:** add the hotkey, gate the dispatch
 case with `if (!g_dev_tools) break;` (or early-return for if-chain
 sites), do NOT gate construction. Tools menu (if any) stays under
-`#ifndef MASTER_GOLD`. See `notes/architecture.md` and the cvar
+`#ifndef MASTER_GOLD`. See `../reference/architecture.md` and the cvar
 declaration in `src/xrEngine/xr_level_controller.h`.
 
 ---

@@ -17,7 +17,7 @@ void CRenderDevice::Destroy()
     // against in-flight shadow cascades / occlusion queries / streaming
     // uploads via mach_msg, which manifests as a multi-second TX-state
     // hang on Cmd+Q from inside a level. On other platforms FlushGpuQueue
-    // is a no-op. See notes/bug-patterns.md family 6.
+    // is a no-op. See notes/playbooks/bug-patterns.md family 6.
     GEnv.Render->FlushGpuQueue();
     GEnv.Render->OnDeviceDestroy(false);
     Memory.mem_compact();
