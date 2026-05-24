@@ -7,11 +7,16 @@
 все агенты обращаются. Обновляется в конце каждой сессии если что-то
 новое выкристаллизовалось.
 
-Связано: [sub-agents.md](sub-agents.md) (когда дёргать какого
-специалиста), [engine-map.md](engine-map.md) (где живёт что в коде),
-[gotchas.md](gotchas.md) (грабли), [engine-thoughts.md](engine-thoughts.md)
-(стратегические записи), `MEMORY.md` (durable user preferences),
-`.claude/agents/*` (роли).
+Связано: [sub-agents.md](sub-agents.md) (детальный dispatch playbook —
+briefing template, parallel agents, anti-patterns),
+[done-criteria.md](done-criteria.md) (definition of «done» для 1.0),
+[release-track.md](release-track.md) (DEV vs STABLE channels),
+[`engine-map.md`](../reference/engine-map.md) (где живёт что в коде),
+[`gotchas.md`](../playbooks/gotchas.md) (грабли),
+[`creator-voice.md`](../strategy/creator-voice.md) /
+[`roadmap-4year.md`](../strategy/roadmap-4year.md) /
+[`management.md`](../strategy/management.md) (стратегические записи),
+`MEMORY.md` (durable user preferences), `.claude/agents/*` (роли).
 
 ## Роли
 
@@ -74,14 +79,77 @@
 - Меньше «### Heading» в чате, больше прозы
 - Не структурировать каждый ответ как PR description
 
+## Skill discipline
+
+Skills — это не «иногда удобно», это **обязательные gates** для определённых
+триггеров. Реinventing «как мы это делаем» каждый раз когда возникает
+паттерн — против правила [feedback_scriptify_repeats]. Skills есть для того
+чтобы не reinventить — используй их.
+
+### Brainstorming-first gate
+
+**Триггер:** любая creative/feature/новая фича/«а что если». До того как
+открывать план или писать код — `Skill superpowers:brainstorming`.
+
+Это значит: до plan, до Issue body, до brainstorming со специалистом —
+сначала сам skill. Skill structured exploration целей/требований/edge
+cases — без неё план собирается из «легко обозримого», а не из реальной
+задачи (см. team-lead push-back в плане 2026-05-24).
+
+### Verification-before-completion gate
+
+**Триггер:** прежде чем сказать «готово» / открыть PR / запросить smoke у
+ragnar'а — `Skill superpowers:verification-before-completion`.
+
+Verification ≠ smoke. **Smoke = ragnar играет** (memory `feedback_user_is_primary_tester`).
+**Verification = Claude собрал, прогнал, убедился что не сломалось** и
+заявляет об этом конкретными результатами. Без verification «готово»
+становится «оставил ragnar'у». Это разные дисциплины, нужны обе.
+
+В перспективе verification должен быть скриптом (`make verify` /
+`scripts/verify-pre-pr.sh`) — план Issue E (gitea issue для post-D
+работы) — чтобы не reinventить чеклист каждый раз.
+
+### Done-criteria activation
+
+**Триггер:** перед закрытием task'а / merge'ом PR / заявлением «1.0
+ready» — сверь с [done-criteria.md](done-criteria.md).
+
+Этот файл существует с 2026-05-18 и содержит **формальный shipping
+checklist** для macOS 1.0 (functional, quality, distribution,
+documentation, upstream backlog, non-goals). До 2026-05-24 он жил в
+забвении — никто на него не ссылался. Сейчас он подключён: любой agent,
+закрывающий значимый task, читает его до declaration «done».
+
+### Skills triggers table
+
+Какие skills когда вызывать на этом проекте:
+
+| Триггер | Skill | Почему |
+|---------|-------|--------|
+| Старт сессии в этом репо | `xray-16-engine-work` | Загружает project-specific conventions, code-pointers, log paths. Memory `feedback_invoke_xray_skill_at_start` mandate |
+| Creative/feature/«а что если» | `superpowers:brainstorming` | Структурированное exploration до plan |
+| Первый bug / repro / «не работает X» | `superpowers:systematic-debugging` | Phase-based debug; phase 4.5 = 3+ failed → STOP, consult team-lead (см. ниже) |
+| Multi-step task с >3 шагов | `superpowers:writing-plans` | План отдельным файлом до кода |
+| Multi-step execution в этой сессии | `superpowers:executing-plans` | Чеклист step-by-step с verification checkpoints |
+| Перед PR / «готово» declaration | `superpowers:verification-before-completion` | Прогон тестов/build, evidence до assertion |
+| Перед merge / финальный review | `superpowers:requesting-code-review` | Cross-agent review перед merge |
+| 2+ независимых tasks параллельно | `superpowers:dispatching-parallel-agents` | Один tool-block, несколько Agent вызовов |
+| Code review PR'а (review-PR команда) | `code-review:code-review` | Project-aware checklist |
+| Memory consolidation / archiving | (manual через MEMORY.md edit) | Парковка до отдельной meta-сессии |
+| Обновление CLAUDE.md по уроку сессии | `claude-md-management:revise-claude-md` | Targeted CLAUDE.md updates |
+
+Skills не загружаются автоматически (кроме session-start реминдеров) —
+вызывай явно через `Skill <name>` tool.
+
 ## End-of-session ritual
 
 В конце каждой существенной сессии foreground Claude:
 
 1. **Memory MEMORY.md**: добавить новый memory entry если ragnar выдал durable feedback
-2. **`notes/working-agreement.md`** (этот файл): обновить если эмерджентно появилось новое правило/anti-pattern
-3. **`notes/gotchas.md`**: добавить если surfaced новый landmine
-4. **`notes/engine-map.md`**: обновить если эксплорнул новую часть кода которую сложно было найти
+2. **`notes/conventions/working-agreement.md`** (этот файл): обновить если эмерджентно появилось новое правило/anti-pattern
+3. **`notes/playbooks/gotchas.md`**: добавить если surfaced новый landmine
+4. **`notes/reference/engine-map.md`**: обновить если эксплорнул новую часть кода которую сложно было найти
 5. **Park open decisions explicitly**: «Открыто: <вопрос>. Файл: <X>. Контекст: <Y>.» — чтобы следующая сессия не теряла state
 
 ## Anti-patterns (do NOT do)
@@ -120,7 +188,7 @@ ragnar'а. Promote = ragnar'ово решение (он primary tester). Я мо
 
 - **Web search дисциплина**: subagent'ы (cpp-engineer, platform-build, team-lead) умеют WebFetch/WebSearch — перед изобретением workaround'а проверять есть ли OSS precedent. Особенно для платформ-specific багов (macOS, Tahoe).
 - **`uv tool install X`** для Python tools, не pip3 (memory `feedback_python_tooling_uv`).
-- **Submodule edits** только когда vendored library — abandonware (нет апстрима) или мы держим personal fork (memory `feedback_macos_fork_only`). Документировать в `notes/known-divergence.md`.
+- **Submodule edits** только когда vendored library — abandonware (нет апстрима) или мы держим personal fork (memory `feedback_macos_fork_only`). Документировать в [`notes/decisions/known-divergence.md`](../decisions/known-divergence.md).
 
 ## Технические нюансы инструментария
 
@@ -137,7 +205,8 @@ agents.
 
 ## Что НЕ покрыто, возможно стоит добавить позже
 
-- Конкретные триггеры для `Skill` invocation (которые skills всегда, которые контекстуально)
 - Бюджеты времени per session (когда уйти спать, когда форсировать end-of-session)
 - Этикет «consult external Claude Chat» — мы делали раз, было полезно
 - Когда обновлять `.git-blame-ignore-revs` (mass reformat commits)
+- Automated end-of-session script (план Issue E meta-сессии 2026-05-24 —
+  `scripts/end-of-session.sh` walks через 5 шагов ritual)
