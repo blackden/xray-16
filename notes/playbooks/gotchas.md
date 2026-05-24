@@ -192,7 +192,7 @@ backfill'ов.
 
 ## macOS networking / syscall semantics
 
-> Уроки из #71 (updater main-thread hang) и cpp-engineer / platform-build
+> Уроки из #71 (updater main-thread hang) и cpp-engineer / apple-platform
 > peer reviews 2026-05-23/24. Записаны чтобы не потратить ещё 8 часов на
 > тот же класс ошибок.
 
