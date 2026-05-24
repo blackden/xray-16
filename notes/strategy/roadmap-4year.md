@@ -228,3 +228,52 @@ ship CoP на macOS*, потом думать про architecture).
 дважды — 2026-05-19 при первой management/strategy дискуссии и
 2026-05-20 здесь. Если всплывёт третий раз — стоит конкретно обсудить
 «а что если эти 2 года?», иначе так и останется hypothetical.
+
+## Monetization vision (parked)
+
+*Перенесено из memory `project_future_paid_fork` 2026-05-24 при
+консолидации MEMORY.md (issue #91). Парковка — не actionable пока
+текущий macOS port не достигнет «done».*
+
+Юзер 2026-05-20: «я хочу отделиться от апстрима и закрыть свой проект.
+хочу сделать платным код через бусти или типо того. запишем на обсудить
+потом как всё будет доделано».
+
+**Status:** parked. Не предлагать architectural decisions, branching
+strategy или packaging changes «под будущую монетизацию» в текущих
+сессиях. Просто закрывать issues по плану. Когда юзер вернётся к теме
+(после «done» по [done-criteria.md](../conventions/done-criteria.md)) —
+открыть обсуждение.
+
+### Themes для будущего разговора
+
+**Licensing/legal complexity.** X-Ray 1.6.02 был открыт GSC под
+определённой лицензией; OpenXRay/xray-16 наследует её. Третьи стороны
+(LuaJIT MIT, luabind MIT, LZO GPL/commercial dual, OpenAL LGPL,
+Theora BSD, gli MIT, ImGui MIT, sse2neon MIT, DiscordGameSDK
+proprietary, etc.) — каждая со своими ограничениями. Перепродажа
+кода требует аудита dependency tree.
+
+**Practical separation paths.**
+- Full hard fork — rename, новый repo, remove upstream remote.
+- Soft fork — продолжать пулить апстрим, не контрибутить обратно.
+- «macOS distribution business» поверх apache-style commercial
+  support model.
+
+**Boosty/Patreon revenue model options.**
+- Paid binary releases (gating пакет/installer).
+- Early access (commits behind paywall).
+- Member-only fixes/mods.
+- Donations без gating.
+
+Каждая со своими legal/community implications.
+
+**Community considerations.** STALKER community сильно вокруг
+мод-сцены; «закрытый» fork может встретить отторжение если упор не
+на качественный сервис/поддержку, а на просто закрытие исходников.
+
+### Trigger для расконсервации
+
+После того как exit criteria из gitea #87 (native rewrite handoff)
+будут выполнены и macOS rewrite зашиплен — открывать этот разговор
+как первый strategic item.

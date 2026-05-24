@@ -42,3 +42,68 @@
     Для xray-16 специфично: vendor'ные подмодули в Externals/ (luabind, gli,
     OPCODE, ODE) — обязательно exclude из линт-прогона. Они «не наши», править
     нельзя.
+
+## QA automation tiers (parked vision)
+
+*Перенесено из memory `project_test_rig_vision` 2026-05-24 при
+консолидации MEMORY.md (issue #91). Парковка — будем подходить tier
+за tier по мере того как soak harness даёт сигналы где не хватает
+покрытия.*
+
+Юзер 2026-05-20 после 100-cycle save/load soak: «раз ты можешь сделать
+скрипт, значит можно будет написать программу управления для игры, с
+аимом и так далее, чтобы проверять различные ситуации».
+
+**Vision:** автоматизированный QA rig для CoP на macOS, отдельный Mac mini,
+постоянно гоняющий тесты против последнего билда.
+
+### Tier 1 — AppleScript key macros (current)
+
+Soak harness (`scripts/soak/*`) — стартовая точка. Сильно ограничено
+UI-навигацией и invariant'ами. Хорошо для:
+
+- save/load cycles
+- menu navigation
+- dev-cvar toggling
+
+Brittle if focus меняется или появляются unexpected modals.
+
+**Quick wins сейчас:**
+- Выбор non-hazard зоны для soak (Янов outdoor НЕ во время выброса).
+- Immortality cvar для тестового сейва (юзер замечал что персонаж умирал
+  в выбросе во время soak — save/load корректно работал, но cycle тестировался
+  с persistent death state).
+
+### Tier 2 — AppleScript + cliclick / Quartz Event Taps
+
+WASD + relative mouse aim. Можно ходить по уровню, стрелять,
+прицеливаться. Observations всё ещё через log scraping —
+нельзя надёжно знать «персонаж попал в врага» без in-engine хука.
+
+### Tier 3 — Lua in-engine test framework
+
+CoP имеет LuaJIT + богатый API (`db.actor`, spawn, scheme triggers,
+level-script hooks). Можно: ставить игрока в координату, спавнить
+мобов, ждать условия, проверять здоровье / inventory / quest-state.
+Это reactive test framework — наблюдаемый изнутри движка.
+
+**Roadmap-уровень** (если когда-то возьмёмся):
+
+1. `SOAK_LUA` cvar — позволяет engine исполнять `gamedata/scripts/test_*.script`
+   пакеты по расписанию.
+2. Библиотека test-helpers (`assert`, `expect`, `wait_for`,
+   `with_god_mode`).
+3. GitHub Actions / Gitea Actions runner на Mac mini, прогон на каждом
+   push в `macos/blackden/master`.
+
+### Resource consideration
+
+Dedicated Mac mini понадобится свободный M-чип (M1/M2/M3). Поддержка
+в форке уже есть; build pipeline существует (`make ship` ставит .app,
+hooks автоматически).
+
+### Out of scope until pursued
+
+- Подсистема rendering screenshots для visual regression.
+- Perf benchmarks (FPS floor / memory ceiling).
+- Multiplayer test scenarios.
