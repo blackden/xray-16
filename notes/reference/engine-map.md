@@ -422,7 +422,7 @@ Practical examples:
 ## Input / keybinds
 
 - Key map (key name → key code): `src/xrEngine/xr_level_controller.cpp:225`.
-- macOS-friendly subset and rebind syntax: `notes/cheatsheet.md`.
+- macOS-friendly subset and rebind syntax: `cheatsheet.md` (same dir).
 - F6/F7 (dev_tools-gated hotkeys): see memory
   `project_dev_tools_gate.md` for the gating pattern.
 

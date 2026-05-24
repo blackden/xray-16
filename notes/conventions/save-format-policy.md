@@ -2,7 +2,7 @@
 
 Boundary doc for anyone (us included, next month) who's about to
 change a CSE class layout, add a new field, or bump `ALIFE_VERSION`.
-Based on `notes/save-format-audit.md` — read that for the full
+Based on `../decisions/save-format-audit.md` — read that for the full
 reasoning. This doc is the **checklist** distilled to "what do I do
 when…".
 
@@ -128,8 +128,8 @@ Example of the log line:
 
 ## Pointers
 
-- Audit reasoning: `notes/save-format-audit.md`.
-- Original design (now overscoped): `notes/save-format-versioning.md`.
+- Audit reasoning: `../decisions/save-format-audit.md`.
+- Original design (now overscoped): `../decisions/save-format-versioning.md`.
 - `ALIFE_VERSION` define: `src/xrServerEntities/alife_space.h:14`.
 - `STATE_Read/Write` base: `src/xrServerEntities/xrServer_Object_Base.cpp`.
 - Per-class versioning examples: `src/xrServerEntities/xrServer_Objects_ALife_Monsters.cpp`.

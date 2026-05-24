@@ -70,5 +70,5 @@ state).
   ship/promote/list-stable-tags/rollback-stable targets.
 - `scripts/mac/package_app.sh` — собирает .app bundle, PRODUCT_NAME
   параметризован (по умолчанию OpenXRay).
-- `notes/working-agreement.md` § Stable release track — краткое summary
-  для агентов.
+- `working-agreement.md` § Stable release track (same dir) — краткое
+  summary для агентов.
