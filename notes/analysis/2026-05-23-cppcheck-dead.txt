@@ -475,3 +475,318 @@ src/xrCore/LocatorAPI.cpp:687:15: note: Calling function 'xr_strcpy', 1st argume
 src/xrCore/_std_extensions.h:147:21: note: Null pointer dereference
     return strcpy_s(destination, destination_size, source);
                     ^
+src/xrCore/Memory/xrMemory_align.cpp:238:9: error: Memory leak: ptr [memleak]
+        return memblock;
+        ^
+src/xrCore/Threading/ThreadUtil.cpp:55:10: error: syntax error [syntaxError]
+    else __try
+         ^
+src/xrCore/XML/XMLDocument.cpp:144:26: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    xr_sprintf(str, "%s" DELIMITER "%s", path, fn.c_str());
+                         ^
+src/xrCore/_math.cpp:78:2: error: failed to evaluate #if condition, undefined function-like macro invocation: SDL_VERSION_ATLEAST( ... ) [syntaxError]
+#if SDL_VERSION_ATLEAST(2, 24, 0)
+ ^
+src/xrCore/xr_types.h:64:2: error: #error Define here lenght of the file paths strings for your platform [preprocessorErrorDirective]
+#error Define here lenght of the file paths strings for your platform
+ ^
+src/xrCore/_std_extensions.cpp:12:17: error: Uninitialized variable: &tstruct [uninitvar]
+    localtime_s(&tstruct, &now);// thread-safe for windows
+                ^
+src/xrCore/xrsharedmem.cpp:87:17: warning: If resource allocation fails, then there is a possible null pointer dereference: F [nullPointerOutOfResources]
+        fprintf(F, "%4u : crc[%6x], %u bytes\n", v->dwReference, v->dwCRC, v->dwLength);
+                ^
+src/xrCore/xrsharedmem.cpp:85:20: note: Assuming allocation function fails
+    FILE* F = fopen("x:\\$smem_dump$.txt", "w");
+                   ^
+src/xrCore/xrsharedmem.cpp:85:20: note: Assignment 'F=std::fopen("x:\\$smem_dump$.txt","w")', assigned value is 0
+    FILE* F = fopen("x:\\$smem_dump$.txt", "w");
+                   ^
+src/xrCore/xrsharedmem.cpp:86:20: note: Assuming container is not empty
+    for (auto& v : container)
+                   ^
+src/xrCore/xrsharedmem.cpp:87:17: note: Null pointer dereference
+        fprintf(F, "%4u : crc[%6x], %u bytes\n", v->dwReference, v->dwCRC, v->dwLength);
+                ^
+src/xrCore/xrsharedmem.cpp:88:12: warning: If resource allocation fails, then there is a possible null pointer dereference: F [nullPointerOutOfResources]
+    fclose(F);
+           ^
+src/xrCore/xrsharedmem.cpp:85:20: note: Assuming allocation function fails
+    FILE* F = fopen("x:\\$smem_dump$.txt", "w");
+                   ^
+src/xrCore/xrsharedmem.cpp:85:20: note: Assignment 'F=std::fopen("x:\\$smem_dump$.txt","w")', assigned value is 0
+    FILE* F = fopen("x:\\$smem_dump$.txt", "w");
+                   ^
+src/xrCore/xrsharedmem.cpp:86:20: note: Assuming container is not empty
+    for (auto& v : container)
+                   ^
+src/xrCore/xrsharedmem.cpp:88:12: note: Null pointer dereference
+    fclose(F);
+           ^
+src/xrCore/xrstring.cpp:101:25: warning: If resource allocation fails, then there is a possible null pointer dereference: f [nullPointerOutOfResources]
+                fprintf(f, "ref[%4u]-len[%3u]-crc[%8X] : %s\n", value->dwReference, value->dwLength, value->dwCRC,
+                        ^
+src/xrCore/xrstring.cpp:223:20: note: Assuming allocation function fails
+    FILE* F = fopen("d:\\$str_dump$.txt", "w");
+                   ^
+src/xrCore/xrstring.cpp:223:20: note: Assignment 'F=fopen("d:\\$str_dump$.txt","w")', assigned value is 0
+    FILE* F = fopen("d:\\$str_dump$.txt", "w");
+                   ^
+src/xrCore/xrstring.cpp:224:16: note: Calling function 'dump', 1st argument 'F' value is 0
+    impl->dump(F);
+               ^
+src/xrCore/xrstring.cpp:101:25: note: Null pointer dereference
+                fprintf(f, "ref[%4u]-len[%3u]-crc[%8X] : %s\n", value->dwReference, value->dwLength, value->dwCRC,
+                        ^
+src/xrCore/xrstring.cpp:225:12: warning: If resource allocation fails, then there is a possible null pointer dereference: F [nullPointerOutOfResources]
+    fclose(F);
+           ^
+src/xrCore/xrstring.cpp:223:20: note: Assuming allocation function fails
+    FILE* F = fopen("d:\\$str_dump$.txt", "w");
+                   ^
+src/xrCore/xrstring.cpp:223:20: note: Assignment 'F=fopen("d:\\$str_dump$.txt","w")', assigned value is 0
+    FILE* F = fopen("d:\\$str_dump$.txt", "w");
+                   ^
+src/xrCore/xrstring.cpp:225:12: note: Null pointer dereference
+    fclose(F);
+           ^
+src/xrEngine/CameraBase.h:31:24: error: syntax error [syntaxError]
+    bool bClampYaw   : 1 {};
+                       ^
+src/xrEngine/EngineAPI.h:31:5: error: syntax error [syntaxError]
+    FactoryObjectBase(void* params) { CLS_ID = 0; }
+    ^
+src/xrEngine/Environment_misc.cpp:780:49: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    strconcat(sizeof(path), path, "environment" DELIMITER "ambients" DELIMITER, level_name.c_str(), ".ltx");
+                                                ^
+src/xrEngine/IGame_Persistent.cpp:142:43: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    strconcat(sizeof(dest), dest, "intro" DELIMITER "intro_", level_name);
+                                          ^
+src/xrEngine/Rain.cpp:42:34: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    snd_Ambient.create("ambient" DELIMITER "rain", st_Effect, sg_Undefined);
+                                 ^
+src/xrEngine/StringTable/StringTable.cpp:59:35: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    xr_sprintf(files_mask, "text" DELIMITER "%s" DELIMITER "*.xml", pData->m_sLanguage.c_str());
+                                  ^
+src/xrGame/abstract_location_selector_inline.h:104:5: error: There is an unknown macro here somewhere. Configuration is required. If STOP_PROFILE is a macro then please configure it. [unknownMacro]
+    STOP_PROFILE
+    ^
+src/xrGame/BlackGraviArtifact.cpp:45:52: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    pStaticPG = CParticlesObject::Create("anomaly" DELIMITER "galantine", FALSE);
+                                                   ^
+src/xrGame/Car.cpp:73:39: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    m_exhaust_particles = "vehiclefx" DELIMITER "exhaust_1";
+                                      ^
+src/xrGame/CarDoors.cpp:518:9: error: There is an unknown macro here somewhere. Configuration is required. If MAX_OF is a macro then please configure it. [unknownMacro]
+        MAX_OF(abs(pf.i.y), add.set(pf.i); add.mul(bb.m_halfsize.x * fsignum(pf.i.y)), abs(pf.j.y), add.set(pf.j);
+        ^
+src/xrGame/CarSound.cpp:29:98: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+        snd_engine_start.create(READ_IF_EXISTS(ini, r_string, "car_sound", "engine_start", "car" DELIMITER "test_car_start"),
+                                                                                                 ^
+src/xrGame/ClimableObject.cpp:73:5: error: There is an unknown macro here somewhere. Configuration is required. If SORT is a macro then please configure it. [unknownMacro]
+    SORT(
+    ^
+src/xrGame/CustomMonster.cpp:569:5: error: There is an unknown macro here somewhere. Configuration is required. If STOP_PROFILE is a macro then please configure it. [unknownMacro]
+    STOP_PROFILE
+    ^
+src/xrGame/Explosive.cpp:395:62: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+        cartridge.bullet_material_idx = GMLib.GetMaterialIdx(WEAPON_MATERIAL_NAME);
+                                                             ^
+src/xrGame/HUDCrosshair.cpp:12:27: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    hShader->create("hud" DELIMITER "crosshair");
+                          ^
+src/xrGame/HUDTarget.cpp:48:27: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    hShader->create("hud" DELIMITER "cursor", "ui" DELIMITER "cursor");
+                          ^
+src/xrGame/HitMarker.cpp:21:71: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+void CHitMarker::InitShader(LPCSTR tex_name) { hShader2->create("hud" DELIMITER "default", tex_name); }
+                                                                      ^
+src/xrGame/LevelFogOfWar.cpp:76:26: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    hShader.create("hud" DELIMITER "fog_of_war", "ui" DELIMITER "ui_fog_of_war");
+                         ^
+src/xrGame/ui/UISleepStatic.h:16:72: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    virtual void InitTextureEx(LPCSTR tex_name, LPCSTR sh_name = "hud" DELIMITER "default");
+                                                                       ^
+src/xrGame/UIFrameRect.cpp:28:79: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+void CUIFrameRect::InitTexture(LPCSTR texture) { InitTextureEx(texture, "hud" DELIMITER "default"); }
+                                                                              ^
+src/xrGame/UIZoneMap.cpp:184:51: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    m_activeMap->Initialize(Level().name(), "hud" DELIMITER "default");
+                                                  ^
+src/xrGame/WeaponAmmo.cpp:66:48: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    bullet_material_idx = GMLib.GetMaterialIdx(WEAPON_MATERIAL_NAME);
+                                               ^
+src/xrGame/WeaponBinocularsVision.cpp:39:27: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    m_lt.InitTexture("ui" DELIMITER "ui_enemy_frame");
+                          ^
+src/xrGame/WeaponKnife.cpp:151:47: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    knife_material_idx = GMLib.GetMaterialIdx(KNIFE_MATERIAL_NAME);
+                                              ^
+src/xrGame/ai/crow/ai_crow.cpp:134:37: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    m_Sounds.m_idle.Load("monsters" DELIMITER "crow" DELIMITER "idle");
+                                    ^
+src/xrGame/ai/monsters/controller/controller.cpp:209:37: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    m_sound_hit_fx.create("affects" DELIMITER "tinnitus3a", st_Effect, sg_SourceType);
+                                    ^
+src/xrGame/ai/monsters/monster_enemy_memory.cpp:208:12: warning: Uninitialized variable: ret_val.danger [uninitvar]
+    return ret_val;
+           ^
+src/xrGame/ai/monsters/monster_enemy_memory.cpp:205:12: note: Assuming condition is false
+    if (it != m_objects.end())
+           ^
+src/xrGame/ai/monsters/monster_enemy_memory.cpp:208:12: note: Uninitialized variable: ret_val.danger
+    return ret_val;
+           ^
+src/xrGame/ai/monsters/monster_enemy_memory.cpp:208:12: error: Uninitialized struct member: ret_val.danger [uninitStructMember]
+    return ret_val;
+           ^
+src/xrGame/ai/monsters/rats/ai_rat_fsm.cpp:457:9: error: There is an unknown macro here somewhere. Configuration is required. If CHECK_IF_GO_TO_NEW_STATE_THIS_UPDATE is a macro then please configure it. [unknownMacro]
+        CHECK_IF_GO_TO_NEW_STATE_THIS_UPDATE(
+        ^
+src/xrGame/ai/monsters/zombie/zombie.cpp:100:5: error: There is an unknown macro here somewhere. Configuration is required. If STOP_PROFILE is a macro then please configure it. [unknownMacro]
+    STOP_PROFILE
+    ^
+src/xrGame/ai/stalker/ai_stalker.cpp:916:9: error: There is an unknown macro here somewhere. Configuration is required. If STOP_PROFILE is a macro then please configure it. [unknownMacro]
+        STOP_PROFILE
+        ^
+src/xrGame/quadtree_inline.h:46:5: error: There is an unknown macro here somewhere. Configuration is required. If STOP_PROFILE is a macro then please configure it. [unknownMacro]
+    STOP_PROFILE
+    ^
+src/xrGame/alife_switch_manager.cpp:74:5: error: There is an unknown macro here somewhere. Configuration is required. If STOP_PROFILE is a macro then please configure it. [unknownMacro]
+    STOP_PROFILE
+    ^
+src/xrGame/alife_update_manager.cpp:84:5: error: There is an unknown macro here somewhere. Configuration is required. If STOP_PROFILE is a macro then please configure it. [unknownMacro]
+    STOP_PROFILE
+    ^
+src/xrGame/danger_manager.cpp:85:5: error: There is an unknown macro here somewhere. Configuration is required. If START_PROFILE is a macro then please configure it. [unknownMacro]
+    START_PROFILE("Memory Manager/dangers::update")
+    ^
+src/xrGame/ef_storage.cpp:52:65: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    m_pfWeaponEffectiveness = xr_new<CPatternFunction>("common" DELIMITER "WeaponEffectiveness.efd", this);
+                                                                ^
+src/xrGame/game_base_script.cpp:15:5: error: There is an unknown macro here somewhere. Configuration is required. If DEFINE_LUA_WRAPPER_METHOD_R2P1_V1 is a macro then please configure it. [unknownMacro]
+    DEFINE_LUA_WRAPPER_METHOD_R2P1_V1(net_Export, NET_Packet)
+    ^
+src/xrGame/game_cl_mp_script.cpp:22:5: error: There is an unknown macro here somewhere. Configuration is required. If DEFINE_LUA_WRAPPER_METHOD_0 is a macro then please configure it. [unknownMacro]
+    DEFINE_LUA_WRAPPER_METHOD_0(CanBeReady, bool)
+    ^
+src/xrGame/game_sv_item_respawner.cpp:197:46: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    FS.update_path(fn, "$game_config$", "mp" DELIMITER "respawn_items.ltx");
+                                             ^
+src/xrGame/game_sv_mp.cpp:1906:22: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    xr_strcat(fn, "" DELIMITER "online_dump.ltx");
+                     ^
+src/xrGame/game_sv_mp_script.cpp:154:5: error: There is an unknown macro here somewhere. Configuration is required. If DEFINE_LUA_WRAPPER_CONST_METHOD_0 is a macro then please configure it. [unknownMacro]
+    DEFINE_LUA_WRAPPER_CONST_METHOD_0(type_name, LPCSTR)
+    ^
+src/xrGame/ik/limb.cxx:915:13: warning: If resource allocation fails, then there is a possible null pointer dereference: fp [nullPointerOutOfResources]
+    fprintf(fp, "%d\n", euler_type);
+            ^
+src/xrGame/ik/limb.cxx:913:21: note: Assuming allocation function fails
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:913:21: note: Assignment 'fp=fopen(file,"w")', assigned value is 0
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:915:13: note: Null pointer dereference
+    fprintf(fp, "%d\n", euler_type);
+            ^
+src/xrGame/ik/limb.cxx:916:13: warning: If resource allocation fails, then there is a possible null pointer dereference: fp [nullPointerOutOfResources]
+    fprintf(fp, "%f %f %f \n", round_up(min[2]), round_up(min[1]), round_up(min[0]));
+            ^
+src/xrGame/ik/limb.cxx:913:21: note: Assuming allocation function fails
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:913:21: note: Assignment 'fp=fopen(file,"w")', assigned value is 0
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:916:13: note: Null pointer dereference
+    fprintf(fp, "%f %f %f \n", round_up(min[2]), round_up(min[1]), round_up(min[0]));
+            ^
+src/xrGame/ik/limb.cxx:917:13: warning: If resource allocation fails, then there is a possible null pointer dereference: fp [nullPointerOutOfResources]
+    fprintf(fp, "%f %f %f \n", max[2], max[1], max[0]);
+            ^
+src/xrGame/ik/limb.cxx:913:21: note: Assuming allocation function fails
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:913:21: note: Assignment 'fp=fopen(file,"w")', assigned value is 0
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:917:13: note: Null pointer dereference
+    fprintf(fp, "%f %f %f \n", max[2], max[1], max[0]);
+            ^
+src/xrGame/ik/limb.cxx:919:17: warning: If resource allocation fails, then there is a possible null pointer dereference: fp [nullPointerOutOfResources]
+        fprintf(fp, "%f %f %f %f\n", c[i][0], c[i][1], c[i][2], c[i][3]);
+                ^
+src/xrGame/ik/limb.cxx:913:21: note: Assuming allocation function fails
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:913:21: note: Assignment 'fp=fopen(file,"w")', assigned value is 0
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:919:17: note: Null pointer dereference
+        fprintf(fp, "%f %f %f %f\n", c[i][0], c[i][1], c[i][2], c[i][3]);
+                ^
+src/xrGame/ik/limb.cxx:921:17: warning: If resource allocation fails, then there is a possible null pointer dereference: fp [nullPointerOutOfResources]
+        fprintf(fp, "%f %f %f %f\n", s[i][0], s[i][1], s[i][2], s[i][3]);
+                ^
+src/xrGame/ik/limb.cxx:913:21: note: Assuming allocation function fails
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:913:21: note: Assignment 'fp=fopen(file,"w")', assigned value is 0
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:921:17: note: Null pointer dereference
+        fprintf(fp, "%f %f %f %f\n", s[i][0], s[i][1], s[i][2], s[i][3]);
+                ^
+src/xrGame/ik/limb.cxx:923:17: warning: If resource allocation fails, then there is a possible null pointer dereference: fp [nullPointerOutOfResources]
+        fprintf(fp, "%f %f %f %f\n", o[i][0], o[i][1], o[i][2], o[i][3]);
+                ^
+src/xrGame/ik/limb.cxx:913:21: note: Assuming allocation function fails
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:913:21: note: Assignment 'fp=fopen(file,"w")', assigned value is 0
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:923:17: note: Null pointer dereference
+        fprintf(fp, "%f %f %f %f\n", o[i][0], o[i][1], o[i][2], o[i][3]);
+                ^
+src/xrGame/ik/limb.cxx:925:12: warning: If resource allocation fails, then there is a possible null pointer dereference: fp [nullPointerOutOfResources]
+    fclose(fp);
+           ^
+src/xrGame/ik/limb.cxx:913:21: note: Assuming allocation function fails
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:913:21: note: Assignment 'fp=fopen(file,"w")', assigned value is 0
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:925:12: note: Null pointer dereference
+    fclose(fp);
+           ^
+src/xrGame/item_manager.cpp:105:5: error: There is an unknown macro here somewhere. Configuration is required. If STOP_PROFILE is a macro then please configure it. [unknownMacro]
+    STOP_PROFILE
+    ^
+src/xrGame/min_obb.cpp:180:39: warning: Uninitialized variable: afAInitial [uninitvar]
+    kMinimizer.GetMinimum(afA0, afA1, afAInitial, afAMin, fVMin);
+                                      ^
+src/xrGame/min_obb.cpp:168:29: note: Assuming condition is false
+                if (fVolume < fMinVolume)
+                            ^
+src/xrGame/min_obb.cpp:180:39: note: Uninitialized variable: afAInitial
+    kMinimizer.GetMinimum(afA0, afA1, afAInitial, afAMin, fVMin);
+                                      ^
+src/xrGame/movement_manager_physic.cpp:199:5: error: There is an unknown macro here somewhere. Configuration is required. If START_PROFILE is a macro then please configure it. [unknownMacro]
+    START_PROFILE("Build Path/Move Along Path")
+    ^
+src/xrGame/object_handler.cpp:131:5: error: There is an unknown macro here somewhere. Configuration is required. If STOP_PROFILE is a macro then please configure it. [unknownMacro]
+    STOP_PROFILE
+    ^
+src/xrGame/player_hud.cpp:487:46: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+        strconcat(anm_name, "camera_effects" DELIMITER "weapon" DELIMITER, M.name.c_str(), ".anm");
+                                             ^
+src/xrGame/restricted_object.cpp:212:5: error: There is an unknown macro here somewhere. Configuration is required. If START_PROFILE is a macro then please configure it. [unknownMacro]
+    START_PROFILE("Restricted Object/in_restrictions")
+    ^
+src/xrGame/sight_manager.cpp:229:5: error: There is an unknown macro here somewhere. Configuration is required. If STOP_PROFILE is a macro then please configure it. [unknownMacro]
+    STOP_PROFILE
+    ^
