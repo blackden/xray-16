@@ -38,6 +38,8 @@ doc/doxygen/html/*
 
 # per-run macOS session artifacts created by `make run`
 notes/session-*/
+# archived per-run session artifacts (kept on disk, never tracked)
+notes/archive/**/session-*/
 
 # packaged .app bundle output from `make package`
 /dist/

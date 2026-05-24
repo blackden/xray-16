@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 В начале **каждой** сессии в этом репо **сразу** вызови project skill `xray-16-engine-work` через `Skill` tool, прежде чем делать что-либо ещё (включая чтение файлов или ответ на вопрос пользователя). Skill содержит project-specific build/run incantations, log paths, code conventions и pointer-index, которые иначе не загружены в твой контекст. Без него высок риск работы против стиля проекта.
 
-Skill ссылается на `notes/engine-map.md` как канонический индекс «где живёт X» — всегда заглядывай туда первым, прежде чем запускать Explore-агента.
+Skill ссылается на `notes/reference/engine-map.md` как канонический индекс «где живёт X» — всегда заглядывай туда первым, прежде чем запускать Explore-агента. Карта верхнего уровня `notes/` — в [`notes/README.md`](notes/README.md).
 
 ## Проект
 
