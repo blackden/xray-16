@@ -1,0 +1,146 @@
+# Inter-module #include matrix
+# Generated 2026-05-23T17:26:55Z
+# Method: for each module dir under src/, count .cpp/.h/.hpp files that #include from each OTHER module's header path.
+# Row = source module (importer), Column-style listing = target module (provider), Count = number of include occurrences.
+
+## Common includes from:
+  xrCommon                   3
+  xrCore                    10
+
+## Layers includes from:
+  Common                    15
+  xrCDB                     10
+  xrCommon                   2
+  xrCore                    64
+  xrEngine                 103
+  xrMaterialSystem           2
+  xrParticles                3
+  xrScriptEngine             7
+  xrServerEntities           3
+
+## xr_3da includes from:
+  Common                     1
+  xrCore                     1
+  xrEngine                   2
+  xrGame                     1
+
+## xrAICore includes from:
+  Common                    12
+  xrCommon                   3
+  xrCore                    20
+  xrEngine                   2
+  xrScriptEngine             8
+
+## xrCDB includes from:
+  Common                     5
+  xrCommon                   2
+  xrCore                    33
+  xrEngine                  10
+
+## xrCommon includes from:
+  xrCore                     4
+
+## xrCore includes from:
+  Common                     8
+  xrCommon                  45
+  xrServerEntities           2
+
+## xrEngine includes from:
+  Common                    15
+  xr_3da                     1
+  xrCDB                     21
+  xrCommon                  19
+  xrCore                    76
+  xrGame                     1
+  xrMaterialSystem           1
+  xrNetServer                1
+  xrScriptEngine            10
+  xrServerEntities           4
+  xrSound                    5
+
+## xrGame includes from:
+  Common                   168
+  xrAICore                 297
+  xrCDB                     17
+  xrCommon                  31
+  xrCore                   185
+  xrEngine                 442
+  xrGameSpy                 36
+  xrMaterialSystem          19
+  xrNetServer               68
+  xrPhysics                226
+  xrScriptEngine           132
+  xrServerEntities          79
+  xrSound                    2
+  xrUICore                 507
+
+## xrGameSpy includes from:
+  Common                     3
+  xrCommon                   1
+  xrCore                     4
+  xrServerEntities           1
+
+## xrMaterialSystem includes from:
+  Common                     2
+  xrCommon                   1
+  xrCore                     3
+  xrSound                    1
+
+## xrNetServer includes from:
+  Common                     5
+  xrCommon                   5
+  xrCore                    23
+  xrGameSpy                  4
+
+## xrParticles includes from:
+  Common                     1
+  xrCommon                   1
+  xrCore                     5
+  xrEngine                   2
+
+## xrPhysics includes from:
+  Common                     3
+  xrCDB                     13
+  xrCommon                   2
+  xrCore                    37
+  xrEngine                  24
+  xrMaterialSystem           1
+  xrScriptEngine             8
+  xrServerEntities           9
+  xrSound                    1
+
+## xrScriptEngine includes from:
+  Common                     3
+  xrCommon                   3
+  xrCore                     5
+
+## xrServerEntities includes from:
+  Common                    13
+  xrAICore                   3
+  xrCDB                      2
+  xrCommon                  10
+  xrCore                    34
+  xrEngine                   6
+  xrGame                     1
+  xrScriptEngine            13
+  xrSound                    2
+  xrUICore                   3
+
+## xrSound includes from:
+  Common                     3
+  xrCDB                      3
+  xrCommon                   2
+  xrCore                    11
+  xrEngine                   3
+  xrServerEntities           1
+
+## xrUICore includes from:
+  Common                     4
+  xrCDB                      1
+  xrCommon                   7
+  xrCore                    21
+  xrEngine                  27
+  xrScriptEngine             3
+  xrServerEntities           1
+  xrSound                    1
+
