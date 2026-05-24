@@ -130,6 +130,31 @@ else
 fi
 
 # ============================================================
+# Check 4: notes/ doc-refs (catches dead refs from reorg / rename)
+# ============================================================
+# Run only if doc-relevant files are in the push range — saves time
+# on pure-code pushes.
+docs_changed=0
+if [ -n "$range_files" ]; then
+    if echo "$range_files" | grep -qE '(\.md$|^CLAUDE\.md|^README\.md|^Makefile|\.(cpp|h|hpp|c|cc|mm|m|ps|sh|cmake)$)'; then
+        docs_changed=1
+    fi
+fi
+
+if [ "$docs_changed" -eq 1 ]; then
+    repo_root=$(git rev-parse --show-toplevel)
+    if [ -x "$repo_root/scripts/check-doc-refs.sh" ]; then
+        if ! "$repo_root/scripts/check-doc-refs.sh"; then
+            fail=1
+        fi
+    else
+        echo "[pre-push hook] WARNING: scripts/check-doc-refs.sh not executable — skipping doc-refs check"
+    fi
+else
+    echo "[pre-push hook] no doc-relevant files — skipping doc-refs check"
+fi
+
+# ============================================================
 # Verdict
 # ============================================================
 if [ "$fail" -ne 0 ]; then
