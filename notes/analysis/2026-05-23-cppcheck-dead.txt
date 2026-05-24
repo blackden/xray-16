@@ -1,0 +1,792 @@
+src/Layers/xrRender/D3DXRenderBase.cpp:158:38: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+        m_WireShader.create("editor" DELIMITER "wire");
+                                     ^
+src/Layers/xrRender/ETextureParams.cpp:167:45: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    PHelper().CreateCaption(items, "Source" DELIMITER "Width", temp_str);
+                                            ^
+src/Layers/xrRender/SkeletonCustom.h:111:5: error: There is an unknown macro here somewhere. Configuration is required. If DEFINE_VECTOR is a macro then please configure it. [unknownMacro]
+    DEFINE_VECTOR(KinematicsABT::additional_bone_transform, BONE_TRANSFORM_VECTOR, BONE_TRANSFORM_VECTOR_IT)
+    ^
+src/Layers/xrRender/ResourceManager_Resources.cpp:28:28: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+        xr_strcpy(fn, "ed" DELIMITER "ed_not_existing_texture");
+                           ^
+src/Layers/xrRender/ResourceManager_Scripting.cpp:430:5: error: Non-local variable 'SH' will use pointer to local variable 'E'. [danglingLifetime]
+    SH = &E;
+    ^
+src/Layers/xrRender/ResourceManager_Scripting.cpp:430:10: note: Address of variable taken here.
+    SH = &E;
+         ^
+src/Layers/xrRender/ResourceManager_Scripting.cpp:429:19: note: Variable created here.
+    ShaderElement E;
+                  ^
+src/Layers/xrRender/ResourceManager_Scripting.cpp:430:5: note: Non-local variable 'SH' will use pointer to local variable 'E'.
+    SH = &E;
+    ^
+src/Layers/xrRender/Texture.cpp:12:46: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+constexpr cpcstr NOT_EXISTING_TEXTURE = "ed" DELIMITER "ed_not_existing_texture";
+                                             ^
+src/Layers/xrRender/blenders/BlenderDefault.cpp:226:77: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+            u32 stage = C.SampledImage("smp_rtlinear", "s_lmap", "internal" DELIMITER "internal_light_att");
+                                                                            ^
+src/Layers/xrRender/blenders/Blender_Blur.cpp:12:1: error: Unmatched '{'. Configuration: ''. [syntaxError]
+{
+^
+src/Layers/xrRender/blenders/Blender_BmmD.cpp:14:33: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    xr_strcpy(oR_Name, "detail" DELIMITER "detail_grnd_grass"); //"$null");
+                                ^
+src/Layers/xrRender/blenders/Blender_BmmD_deferred.cpp:15:33: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    xr_strcpy(oR_Name, "detail" DELIMITER "detail_grnd_grass"); //"$null");
+                                ^
+src/Layers/xrRender/blenders/Blender_Lm(EbB).cpp:267:46: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+        C.r_Sampler_clf("s_lmap", "internal" DELIMITER "internal_light_att", true);
+                                             ^
+src/Layers/xrRender/blenders/Blender_Model.cpp:203:46: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+        C.r_Sampler_clf("s_lmap", "internal" DELIMITER "internal_light_att", true);
+                                             ^
+src/Layers/xrRender/blenders/Blender_Model_EbB.cpp:170:46: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+        C.r_Sampler_clf("s_lmap", "internal" DELIMITER "internal_light_att", true);
+                                             ^
+src/Layers/xrRender/blenders/Blender_Vertex.cpp:202:77: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+            u32 stage = C.SampledImage("smp_rtlinear", "s_lmap", "internal" DELIMITER "internal_light_att");
+                                                                            ^
+src/Layers/xrRender/blenders/Blender_Vertex_aref.cpp:220:77: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+            u32 stage = C.SampledImage("smp_rtlinear", "s_lmap", "internal" DELIMITER "internal_light_att");
+                                                                            ^
+src/Layers/xrRender/blenders/Blender_default_aref.cpp:238:77: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+            u32 stage = C.SampledImage("smp_rtlinear", "s_lmap", "internal" DELIMITER "internal_light_att");
+                                                                            ^
+src/Layers/xrRender/blenders/Blender_tree.cpp:193:46: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+        C.r_Sampler_clf("s_lmap", "internal" DELIMITER "internal_light_att", true);
+                                             ^
+src/Layers/xrRender/blenders/blender_ssao.h:4:1: error: Unmatched '{'. Configuration: ''. [syntaxError]
+{
+^
+src/Layers/xrRender/blenders/glRainBlender.cpp:32:40: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+        C.r_Sampler("s_water", "water" DELIMITER "water_normal");
+                                       ^
+src/Layers/xrRender/blenders/uber_deffer.cpp:150:42: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+        strconcat(sizeof(hs), hs, "DX11" DELIMITER "tess", params);
+                                         ^
+src/Layers/xrRender/dxDebugRender.cpp:113:16: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+        {"hud" DELIMITER "default", "ui" DELIMITER "ui_pop_up_active_back"}, // dbgShaderWindow
+               ^
+src/Layers/xrRender/dxObjectSpaceRender.cpp:9:71: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+dxObjectSpaceRender::dxObjectSpaceRender() { m_shDebug.create("debug" DELIMITER "wireframe", "$null"); }
+                                                                      ^
+src/Layers/xrRender/dxRainRender.cpp:29:50: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    IReader* F = FS.r_open("$game_meshes$", "dm" DELIMITER "rain.dm");
+                                                 ^
+src/Layers/xrRender/dxUIRender.cpp:159:22: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+        return "hud" DELIMITER "movie";
+                     ^
+src/Layers/xrRender/dxWallMarkArray.cpp:18:24: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    s.create("effects" DELIMITER "wallmark", s_textures);
+                       ^
+src/Layers/xrRender/light.cpp:77:40: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    strconcat(sizeof(temp), temp, "r2" DELIMITER "accum_spot_", name);
+                                       ^
+src/Layers/xrRenderGL/glDetailManager_VS.cpp:19:24: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    S.create("details" DELIMITER "set");
+                       ^
+src/Layers/xrRender_R2/r2_rendertarget.cpp:340:37: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+        s_occq.create(&b_occq, "r2" DELIMITER "occq");
+                                    ^
+src/editors/xrWeatherEditor/pch.hpp:68:9: error: Rethrowing current exception with 'throw;', it seems there is no current exception to rethrow. If there is no current exception this calls std::terminate(). More: https://isocpp.org/wiki/faq/exceptions#throw-without-an-object [rethrowNoCurrentException]
+        VERIFY(!"[tostring][failed] : wcstombs_s failed");
+        ^
+src/editors/xrWeatherEditor/entry_point.cpp:71:5: error: Rethrowing current exception with 'throw;', it seems there is no current exception to rethrow. If there is no current exception this calls std::terminate(). More: https://isocpp.org/wiki/faq/exceptions#throw-without-an-object [rethrowNoCurrentException]
+    VERIFY(!g_ide);
+    ^
+src/editors/xrWeatherEditor/window_view.h:34:15: error: syntax error [syntaxError]
+        m_ide = % ide;
+              ^
+src/editors/xrWeatherEditor/property_boolean.cpp:18:17: error: syntax error [syntaxError]
+property_boolean::!property_boolean()
+                ^
+src/editors/xrWeatherEditor/property_boolean_reference.cpp:14:27: error: syntax error [syntaxError]
+property_boolean_reference::!property_boolean_reference() { delete (m_value); }
+                          ^
+src/editors/xrWeatherEditor/property_boolean_values_value.cpp:26:5: error: Rethrowing current exception with 'throw;', it seems there is no current exception to rethrow. If there is no current exception this calls std::terminate(). More: https://isocpp.org/wiki/faq/exceptions#throw-without-an-object [rethrowNoCurrentException]
+    VERIFY((index < 2));
+    ^
+src/editors/xrWeatherEditor/property_boolean_values_value.cpp:27:5: error: Rethrowing current exception with 'throw;', it seems there is no current exception to rethrow. If there is no current exception this calls std::terminate(). More: https://isocpp.org/wiki/faq/exceptions#throw-without-an-object [rethrowNoCurrentException]
+    VERIFY((index >= 0));
+    ^
+src/editors/xrWeatherEditor/property_boolean_values_value_reference.cpp:25:5: error: Rethrowing current exception with 'throw;', it seems there is no current exception to rethrow. If there is no current exception this calls std::terminate(). More: https://isocpp.org/wiki/faq/exceptions#throw-without-an-object [rethrowNoCurrentException]
+    VERIFY((index < 2));
+    ^
+src/editors/xrWeatherEditor/property_boolean_values_value_reference.cpp:26:5: error: Rethrowing current exception with 'throw;', it seems there is no current exception to rethrow. If there is no current exception this calls std::terminate(). More: https://isocpp.org/wiki/faq/exceptions#throw-without-an-object [rethrowNoCurrentException]
+    VERIFY((index >= 0));
+    ^
+src/editors/xrWeatherEditor/property_collection_base.hpp:19:31: error: syntax error [syntaxError]
+    property_collection_editor::typeid, System::Drawing::Design::UITypeEditor::typeid)]
+                              ^
+src/editors/xrWeatherEditor/property_collection_converter.cpp:16:35: error: syntax error [syntaxError]
+    return (type == System::String::typeid);
+                                  ^
+src/editors/xrWeatherEditor/property_container.hpp:17:77: error: syntax error [syntaxError]
+[System::ComponentModel::TypeConverterAttribute(property_container_converter::typeid)]
+                                                                            ^
+src/editors/xrWeatherEditor/property_color.cpp:21:15: error: syntax error [syntaxError]
+property_color::!property_color()
+              ^
+src/editors/xrWeatherEditor/property_color_reference.cpp:20:25: error: syntax error [syntaxError]
+property_color_reference::!property_color_reference() { delete (m_value); }
+                        ^
+src/editors/xrWeatherEditor/property_converter_float.cpp:26:35: error: syntax error [syntaxError]
+    if (destination_type == float ::typeid)
+                                  ^
+src/editors/xrWeatherEditor/property_float.cpp:20:15: error: syntax error [syntaxError]
+property_float::!property_float()
+              ^
+src/editors/xrWeatherEditor/property_float_reference.cpp:19:25: error: syntax error [syntaxError]
+property_float_reference::!property_float_reference() { delete (m_value); }
+                        ^
+src/editors/xrWeatherEditor/property_integer.cpp:18:17: error: syntax error [syntaxError]
+property_integer::!property_integer()
+                ^
+src/editors/xrWeatherEditor/property_integer_reference.cpp:14:27: error: syntax error [syntaxError]
+property_integer_reference::!property_integer_reference() { delete (m_value); }
+                          ^
+src/editors/xrWeatherEditor/property_integer_values_value.cpp:40:5: error: Rethrowing current exception with 'throw;', it seems there is no current exception to rethrow. If there is no current exception this calls std::terminate(). More: https://isocpp.org/wiki/faq/exceptions#throw-without-an-object [rethrowNoCurrentException]
+    VERIFY((index >= 0));
+    ^
+src/editors/xrWeatherEditor/property_integer_values_value_getter.cpp:30:37: error: syntax error [syntaxError]
+property_integer_values_value_getter::!property_integer_values_value_getter()
+                                    ^
+src/editors/xrWeatherEditor/property_integer_values_value_reference.cpp:40:5: error: Rethrowing current exception with 'throw;', it seems there is no current exception to rethrow. If there is no current exception this calls std::terminate(). More: https://isocpp.org/wiki/faq/exceptions#throw-without-an-object [rethrowNoCurrentException]
+    VERIFY((index >= 0));
+    ^
+src/editors/xrWeatherEditor/property_integer_values_value_reference_getter.cpp:30:47: error: syntax error [syntaxError]
+property_integer_values_value_reference_getter::!property_integer_values_value_reference_getter()
+                                              ^
+src/editors/xrWeatherEditor/property_string.cpp:18:16: error: syntax error [syntaxError]
+property_string::!property_string()
+               ^
+src/editors/xrWeatherEditor/property_string_shared_str.cpp:19:27: error: syntax error [syntaxError]
+property_string_shared_str::!property_string_shared_str() {}
+                          ^
+src/editors/xrWeatherEditor/property_string_values_value_getter.cpp:27:36: error: syntax error [syntaxError]
+property_string_values_value_getter::!property_string_values_value_getter()
+                                   ^
+src/editors/xrWeatherEditor/property_string_values_value_shared_str_getter.cpp:27:47: error: syntax error [syntaxError]
+property_string_values_value_shared_str_getter::!property_string_values_value_shared_str_getter()
+                                              ^
+src/editors/xrWeatherEditor/property_vec3f.cpp:20:15: error: syntax error [syntaxError]
+property_vec3f::!property_vec3f()
+              ^
+src/editors/xrWeatherEditor/property_vec3f_reference.cpp:20:25: error: syntax error [syntaxError]
+property_vec3f_reference::!property_vec3f_reference() { delete (m_value); }
+                        ^
+src/editors/xrWeatherEditor/window_weather_editor.h:133:149: error: syntax error [syntaxError]
+        System::ComponentModel::ComponentResourceManager^  resources = (gcnew System::ComponentModel::ComponentResourceManager(window_weather_editor::typeid));
+                                                                                                                                                    ^
+src/editors/xrWeatherEditor/window_tree_values.h:81:146: error: syntax error [syntaxError]
+        System::ComponentModel::ComponentResourceManager^  resources = (gcnew System::ComponentModel::ComponentResourceManager(window_tree_values::typeid));
+                                                                                                                                                 ^
+src/editors/xrWeatherEditor/window_weather.h:70:142: error: syntax error [syntaxError]
+        System::ComponentModel::ComponentResourceManager^  resources = (gcnew System::ComponentModel::ComponentResourceManager(window_weather::typeid));
+                                                                                                                                             ^
+src/editors/xrWeatherEngine/editor_environment_effects_manager.cpp:46:98: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    CInifile* config = xr_new<CInifile>(FS.update_path(file_name, "$game_config$", "environment" DELIMITER "effects.ltx"), true, true, false);
+                                                                                                 ^
+src/editors/xrWeatherEngine/editor_environment_suns_gradient.cpp:25:88: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    m_shader = READ_IF_EXISTS(&config, r_string, section, "gradient_shader", "effects" DELIMITER "flare");
+                                                                                       ^
+src/editors/xrWeatherEngine/editor_environment_suns_manager.cpp:58:94: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    auto* config = xr_new<CInifile>(FS.update_path(file_name, "$game_config$", "environment" DELIMITER "suns.ltx"), true, true, false);
+                                                                                             ^
+src/editors/xrWeatherEngine/editor_environment_suns_sun.cpp:37:80: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    m_shader = READ_IF_EXISTS(&config, r_string, m_id, "sun_shader", "effects" DELIMITER "sun");
+                                                                               ^
+src/editors/xrWeatherEngine/editor_environment_thunderbolts_manager.cpp:91:98: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    CInifile* config = xr_new<CInifile>(FS.update_path(file_name, "$game_config$", "environment" DELIMITER "thunderbolts.ltx"), true, true, false);
+                                                                                                 ^
+src/utils/mp_gpprof_server/libraries/fcgi-2.4.0/libfcgi/os_win32.c:832:21: warning: If memory allocation fails, then there is a possible null pointer dereference: host [nullPointerOutOfMemory]
+            strncpy(host, bindPath, len);
+                    ^
+src/utils/mp_gpprof_server/libraries/fcgi-2.4.0/libfcgi/os_win32.c:831:26: note: Assuming allocation function fails
+            host = malloc(len);
+                         ^
+src/utils/mp_gpprof_server/libraries/fcgi-2.4.0/libfcgi/os_win32.c:831:26: note: Assignment 'host=malloc(len)', assigned value is 0
+            host = malloc(len);
+                         ^
+src/utils/mp_gpprof_server/libraries/fcgi-2.4.0/libfcgi/os_win32.c:832:21: note: Null pointer dereference
+            strncpy(host, bindPath, len);
+                    ^
+src/utils/mp_gpprof_server/libraries/fcgi-2.4.0/libfcgi/os_win32.c:833:13: warning: If memory allocation fails, then there is a possible null pointer dereference: host [nullPointerOutOfMemory]
+            host[len] = '\0';
+            ^
+src/utils/mp_gpprof_server/libraries/fcgi-2.4.0/libfcgi/os_win32.c:831:26: note: Assuming allocation function fails
+            host = malloc(len);
+                         ^
+src/utils/mp_gpprof_server/libraries/fcgi-2.4.0/libfcgi/os_win32.c:831:26: note: Assignment 'host=malloc(len)', assigned value is 0
+            host = malloc(len);
+                         ^
+src/utils/mp_gpprof_server/libraries/fcgi-2.4.0/libfcgi/os_win32.c:833:13: note: Null pointer dereference
+            host[len] = '\0';
+            ^
+src/utils/mp_gpprof_server/libraries/fcgi-2.4.0/libfcgi/os_win32.c:1579:19: error: Uninitialized variable: buf [uninitvar]
+        (LPTSTR) &buf,
+                  ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsPlatform.h:33:4: error: #error "PlayStation2 network stack was not defined!" [preprocessorErrorDirective]
+  #error "PlayStation2 network stack was not defined!"
+   ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsCrypt.c:413:44: warning: Possible null pointer dereference: hash [nullPointer]
+ memcpy(&writeBuf[aKeyByteLength-hashLen], hash, hashLen);
+                                           ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsCrypt.c:346:31: note: Assignment 'hash=NULL', assigned value is 0
+ const unsigned char * hash = NULL;
+                              ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsCrypt.c:360:40: note: Calling function 'gsCryptRSASignHash', 2nd argument 'hash' value is 0
+ return gsCryptRSASignHash(privateKey, hash, GS_CRYPT_MD5_HASHSIZE, signedDataOut, lenOut);
+                                       ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsCrypt.c:391:43: note: Assuming condition is false
+ if (hashLen + anOidLen + aReservedLength > aKeyByteLength)
+                                          ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsCrypt.c:413:44: note: Null pointer dereference
+ memcpy(&writeBuf[aKeyByteLength-hashLen], hash, hashLen);
+                                           ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsLargeInt.c:1365:11: error: Shifting signed 32-bit value by 31 bits is undefined behaviour [shiftTooManyBitsSigned]
+ while(((1<<(expHighBit-1))&power.mData[power.mLength-1]) == 0)
+          ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsLargeInt.c:1364:13: note: Assignment 'expHighBit=(sizeof(unsigned int))*8', assigned value is 32
+ expHighBit=GS_LARGEINT_DIGIT_SIZE_BITS;
+            ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsLargeInt.c:1365:11: note: Shift
+ while(((1<<(expHighBit-1))&power.mData[power.mLength-1]) == 0)
+          ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsPlatform.c:78:13: error: The address of variable '_in' is accessed at non-zero index. [objectIndex]
+ out[0] = in[7];
+            ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsPlatform.c:76:27: note: Address of variable taken here.
+ const char *in = (char *)&_in;
+                          ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsPlatform.c:78:13: note: The address of variable '_in' is accessed at non-zero index.
+ out[0] = in[7];
+            ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsPlatform.c:79:13: error: The address of variable '_in' is accessed at non-zero index. [objectIndex]
+ out[1] = in[6];
+            ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsPlatform.c:76:27: note: Address of variable taken here.
+ const char *in = (char *)&_in;
+                          ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsPlatform.c:79:13: note: The address of variable '_in' is accessed at non-zero index.
+ out[1] = in[6];
+            ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsPlatform.c:80:13: error: The address of variable '_in' is accessed at non-zero index. [objectIndex]
+ out[2] = in[5];
+            ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsPlatform.c:76:27: note: Address of variable taken here.
+ const char *in = (char *)&_in;
+                          ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsPlatform.c:80:13: note: The address of variable '_in' is accessed at non-zero index.
+ out[2] = in[5];
+            ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsPlatform.c:81:13: error: The address of variable '_in' is accessed at non-zero index. [objectIndex]
+ out[3] = in[4];
+            ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsPlatform.c:76:27: note: Address of variable taken here.
+ const char *in = (char *)&_in;
+                          ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsPlatform.c:81:13: note: The address of variable '_in' is accessed at non-zero index.
+ out[3] = in[4];
+            ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/nitro/gsSocketNitro.c:95:1: error: There is an unknown macro here somewhere. Configuration is required. If SOCKET is a macro then please configure it. [unknownMacro]
+SOCKET send(SOCKET sock, const char* buf, int len, int flags)
+^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsUdpEngine.c:202:2: warning: Uninitialized variable: anAddr [uninitvar]
+ GSI_UNUSED(anAddr);
+ ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsUdpEngine.c:290:2: error: Uninitialized variable: anAddr [uninitvar]
+ GSI_UNUSED(anAddr);
+ ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsUdpEngine.c:324:2: warning: Uninitialized variable: anAddr [uninitvar]
+ GSI_UNUSED(anAddr);
+ ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsUdpEngine.c:371:2: warning: Uninitialized variable: anAddr [uninitvar]
+ GSI_UNUSED(anAddr);
+ ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsUdpEngine.c:394:2: error: Uninitialized variable: anAddr [uninitvar]
+ GSI_UNUSED(anAddr);
+ ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsUdpEngine.c:458:2: error: Uninitialized variable: anAddr [uninitvar]
+ GSI_UNUSED(anAddr);
+ ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/nitro/backup.c:68:9: error: Uninitialized variable: result [legacyUninitvar]
+ return result;
+        ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/nitro/wireless.c:386:34: error: There is an unknown macro here somewhere. Configuration is required. If ATTRIBUTE_ALIGN is a macro then please configure it. [unknownMacro]
+static u8 IWBuffer[IW_WORK_SIZE] ATTRIBUTE_ALIGN(32);
+                                 ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/ps2/ps2common.c:174:74: warning: Uninitialized variable: idVendor [uninitvar]
+    scePrintf("Device ready (idVendor=0x%04X idProduct=0x%04X)\n", ((int)idVendor) & 0xFFFF, ((int)idProduct) & 0xFFFF);
+                                                                         ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/ps2/ps2common.c:159:27: note: Assuming condition is false
+    while(device_attached == SN_DEV_TYPE_NONE)
+                          ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/ps2/ps2common.c:174:74: note: Uninitialized variable: idVendor
+    scePrintf("Device ready (idVendor=0x%04X idProduct=0x%04X)\n", ((int)idVendor) & 0xFFFF, ((int)idProduct) & 0xFFFF);
+                                                                         ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/ps2/ps2common.c:174:100: warning: Uninitialized variable: idProduct [uninitvar]
+    scePrintf("Device ready (idVendor=0x%04X idProduct=0x%04X)\n", ((int)idVendor) & 0xFFFF, ((int)idProduct) & 0xFFFF);
+                                                                                                   ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/ps2/ps2common.c:159:27: note: Assuming condition is false
+    while(device_attached == SN_DEV_TYPE_NONE)
+                          ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/ps2/ps2common.c:174:100: note: Uninitialized variable: idProduct
+    scePrintf("Device ready (idVendor=0x%04X idProduct=0x%04X)\n", ((int)idVendor) & 0xFFFF, ((int)idProduct) & 0xFFFF);
+                                                                                                   ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/ps3/SpeexSpursTaskManager/SpeexSpursTask/SpuSpeexTaskMain.cpp:42:64: error: There is an unknown macro here somewhere. Configuration is required. If POST_ALIGN is a macro then please configure it. [unknownMacro]
+char gviSpursSpeexStateBuffer[SPEEX_ENCODER_STATE_BUFFER_SIZE] POST_ALIGN(128);
+                                                               ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/ps3/SpeexSpursTaskManager/spursSupportInterface.h:53:3: error: syntax error [syntaxError]
+  CELL_PPU_POINTER(CellSpursQueue) ppuResponseQueue;
+  ^
+src/utils/mp_gpprof_server/libraries/gamespy/gt2/gt2action/TGAFile.cpp:366:49: warning: If resource allocation fails, then there is a possible null pointer dereference: fp [nullPointerOutOfResources]
+ long  rc = fread(&tgahd, 1, sizeof(TGAHEADER), fp);
+                                                ^
+src/utils/mp_gpprof_server/libraries/gamespy/gt2/gt2action/TGAFile.cpp:365:12: note: Assuming allocation function fails
+ fp = fopen(fileName, "rb");
+           ^
+src/utils/mp_gpprof_server/libraries/gamespy/gt2/gt2action/TGAFile.cpp:365:12: note: Assignment 'fp=fopen(fileName,"rb")', assigned value is 0
+ fp = fopen(fileName, "rb");
+           ^
+src/utils/mp_gpprof_server/libraries/gamespy/gt2/gt2action/TGAFile.cpp:366:49: note: Null pointer dereference
+ long  rc = fread(&tgahd, 1, sizeof(TGAHEADER), fp);
+                                                ^
+src/utils/mp_gpprof_server/libraries/gamespy/gt2/gt2action/TGAFile.cpp:367:9: warning: If resource allocation fails, then there is a possible null pointer dereference: fp [nullPointerOutOfResources]
+ fclose(fp);
+        ^
+src/utils/mp_gpprof_server/libraries/gamespy/gt2/gt2action/TGAFile.cpp:365:12: note: Assuming allocation function fails
+ fp = fopen(fileName, "rb");
+           ^
+src/utils/mp_gpprof_server/libraries/gamespy/gt2/gt2action/TGAFile.cpp:365:12: note: Assignment 'fp=fopen(fileName,"rb")', assigned value is 0
+ fp = fopen(fileName, "rb");
+           ^
+src/utils/mp_gpprof_server/libraries/gamespy/gt2/gt2action/TGAFile.cpp:367:9: note: Null pointer dereference
+ fclose(fp);
+        ^
+src/utils/mp_gpprof_server/libraries/gamespy/gt2/gt2action/gt2aSound.c:75:37: error: Uninitialized variable: pcmWaveFormat [uninitvar]
+    if( mmioRead( hmmioIn, (HPSTR) &pcmWaveFormat,
+                                    ^
+src/utils/mp_gpprof_server/libraries/gamespy/common/gsPlatformUtil.c:710:1: error: Found an exit path from function with non-void return type that has missing return statement [missingReturn]
+}
+^
+src/utils/mp_gpprof_server/libraries/pthreads-w32-2-8-0-release/pthread_cond_init.c:143:7: warning: Possible null pointer dereference: cv [nullPointer]
+      cv->next = NULL;
+      ^
+src/utils/mp_gpprof_server/libraries/pthreads-w32-2-8-0-release/pthread_cond_init.c:136:8: note: Assignment 'cv=NULL', assigned value is 0
+  cv = NULL;
+       ^
+src/utils/mp_gpprof_server/libraries/pthreads-w32-2-8-0-release/pthread_cond_init.c:143:7: note: Null pointer dereference
+      cv->next = NULL;
+      ^
+src/utils/mp_gpprof_server/libraries/pthreads-w32-2-8-0-release/pthread_cond_init.c:144:7: warning: Possible null pointer dereference: cv [nullPointer]
+      cv->prev = ptw32_cond_list_tail;
+      ^
+src/utils/mp_gpprof_server/libraries/pthreads-w32-2-8-0-release/pthread_cond_init.c:136:8: note: Assignment 'cv=NULL', assigned value is 0
+  cv = NULL;
+       ^
+src/utils/mp_gpprof_server/libraries/pthreads-w32-2-8-0-release/pthread_cond_init.c:144:7: note: Null pointer dereference
+      cv->prev = ptw32_cond_list_tail;
+      ^
+src/utils/mp_gpprof_server/libraries/pthreads-w32-2-8-0-release/ptw32_InterlockedCompareExchange.c:147:10: warning: Uninitialized variable: result [uninitvar]
+  return result;
+         ^
+src/utils/mp_gpprof_server/libraries/pthreads-w32-2-8-0-release/ptw32_InterlockedCompareExchange.c:70:7: note: Assuming condition is false
+  if (ptw32_smp_system)
+      ^
+src/utils/mp_gpprof_server/libraries/pthreads-w32-2-8-0-release/ptw32_InterlockedCompareExchange.c:147:10: note: Uninitialized variable: result
+  return result;
+         ^
+src/utils/mp_gpprof_server/libraries/pthreads-w32-2-8-0-release/ptw32_InterlockedCompareExchange.c:282:10: warning: Uninitialized variable: result [uninitvar]
+  return result;
+         ^
+src/utils/mp_gpprof_server/libraries/pthreads-w32-2-8-0-release/ptw32_InterlockedCompareExchange.c:180:7: note: Assuming condition is false
+  if (ptw32_smp_system)
+      ^
+src/utils/mp_gpprof_server/libraries/pthreads-w32-2-8-0-release/ptw32_InterlockedCompareExchange.c:282:10: note: Uninitialized variable: result
+  return result;
+         ^
+src/utils/mp_gpprof_server/libraries/pthreads-w32-2-8-0-release/ptw32_InterlockedCompareExchange.c:147:10: error: Uninitialized variable: result [uninitvar]
+  return result;
+         ^
+src/utils/mp_gpprof_server/libraries/pthreads-w32-2-8-0-release/ptw32_InterlockedCompareExchange.c:282:10: error: Uninitialized variable: result [uninitvar]
+  return result;
+         ^
+src/utils/mp_gpprof_server/libraries/pthreads-w32-2-8-0-release/sem_init.c:154:8: error: Memory pointed to by 's' is freed twice. [doubleFree]
+       free(s);
+       ^
+src/utils/mp_gpprof_server/libraries/pthreads-w32-2-8-0-release/sem_init.c:124:8: note: Memory pointed to by 's' is freed twice.
+       free (s);
+       ^
+src/utils/mp_gpprof_server/libraries/pthreads-w32-2-8-0-release/sem_init.c:154:8: note: Memory pointed to by 's' is freed twice.
+       free(s);
+       ^
+src/utils/mp_gpprof_server/libraries/pthreads-w32-2-8-0-release/signal.c:177:1: error: Found an exit path from function with non-void return type that has missing return statement [missingReturn]
+}
+^
+src/xrAICore/Navigation/level_graph.cpp:188:5: error: There is an unknown macro here somewhere. Configuration is required. If START_PROFILE is a macro then please configure it. [unknownMacro]
+    START_PROFILE("Level_Graph::find vertex")
+    ^
+src/xrCore/Compression/Model.cpp:1081:44: error: Uninitialized variables: (MinContext=MaxContext)->NumStats.NumStats, (MinContext=MaxContext)->NumStats.Flags, (MinContext=MaxContext)->NumStats.Stats, (MinContext=MaxContext)->NumStats.Suffix [uninitvar]
+        u8 ns = (MinContext = MaxContext)->NumStats;
+                                           ^
+src/xrCore/Compression/Model.cpp:122:11: warning: Uninitialized variable: s1 [uninitvar]
+    (u16&)s1 = (u16&)s2;
+          ^
+src/xrCore/Compression/Model.cpp:543:22: note: Calling function 'StateCpy', 1st argument 'tmp' value is <Uninit>
+            StateCpy(tmp, *(p1 = p));
+                     ^
+src/xrCore/Compression/Model.cpp:122:11: note: Uninitialized variable: s1
+    (u16&)s1 = (u16&)s2;
+          ^
+src/xrCore/Compression/rt_compressor9.cpp:28:53: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    FS.update_path(file_name, "$game_config$", "mp" DELIMITER "lzo-dict.bin");
+                                                    ^
+src/xrCore/Debug/DXTrace.inl:8:42: error: There is an unknown macro here somewhere. Configuration is required. If STR_FMT_SPEC is a macro then please configure it. [unknownMacro]
+    DX_SPRINTF_S(strBuffer, BUFFER_SIZE, DX_STR_WRAP(STR_FMT_SPEC "(" STR_FMT_SPEC "): "), strFile, strBufferLine);
+                                         ^
+src/xrCore/FileSystem.cpp:322:12: warning: Uninitialized variable: dest_name [uninitvar]
+    return dest_name;
+           ^
+src/xrCore/FileSystem.cpp:287:69: note: Calling function 'AppendFolderToName', 2nd argument '_fn' value is <Uninit>
+    xr_strcpy(tex_name, tex_name_size, AppendFolderToName(tex_name, _fn, sizeof(_fn), depth, full_name));
+                                                                    ^
+src/xrCore/FileSystem.cpp:310:9: note: Assuming condition is false
+    if (full_name)
+        ^
+src/xrCore/FileSystem.cpp:322:12: note: Uninitialized variable: dest_name
+    return dest_name;
+           ^
+src/xrCore/LocatorAPI.cpp:1390:5: error: Address of local auto-variable assigned to a function parameter. [autoVariables]
+    source_name = &fname_copy[0];
+    ^
+src/xrCore/_std_extensions.h:147:21: warning: Possible null pointer dereference: destination [nullPointer]
+    return strcpy_s(destination, destination_size, source);
+                    ^
+src/xrCore/LocatorAPI.cpp:686:28: note: Assignment 'scanPath={0}', assigned value is 0
+    string_path scanPath = { 0 };
+                           ^
+src/xrCore/LocatorAPI.cpp:687:15: note: Calling function 'xr_strcpy', 1st argument 'scanPath' value is 0
+    xr_strcpy(scanPath, sizeof scanPath, path);
+              ^
+src/xrCore/_std_extensions.h:147:21: note: Null pointer dereference
+    return strcpy_s(destination, destination_size, source);
+                    ^
+src/xrCore/Memory/xrMemory_align.cpp:238:9: error: Memory leak: ptr [memleak]
+        return memblock;
+        ^
+src/xrCore/Threading/ThreadUtil.cpp:55:10: error: syntax error [syntaxError]
+    else __try
+         ^
+src/xrCore/XML/XMLDocument.cpp:144:26: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    xr_sprintf(str, "%s" DELIMITER "%s", path, fn.c_str());
+                         ^
+src/xrCore/_math.cpp:78:2: error: failed to evaluate #if condition, undefined function-like macro invocation: SDL_VERSION_ATLEAST( ... ) [syntaxError]
+#if SDL_VERSION_ATLEAST(2, 24, 0)
+ ^
+src/xrCore/xr_types.h:64:2: error: #error Define here lenght of the file paths strings for your platform [preprocessorErrorDirective]
+#error Define here lenght of the file paths strings for your platform
+ ^
+src/xrCore/_std_extensions.cpp:12:17: error: Uninitialized variable: &tstruct [uninitvar]
+    localtime_s(&tstruct, &now);// thread-safe for windows
+                ^
+src/xrCore/xrsharedmem.cpp:87:17: warning: If resource allocation fails, then there is a possible null pointer dereference: F [nullPointerOutOfResources]
+        fprintf(F, "%4u : crc[%6x], %u bytes\n", v->dwReference, v->dwCRC, v->dwLength);
+                ^
+src/xrCore/xrsharedmem.cpp:85:20: note: Assuming allocation function fails
+    FILE* F = fopen("x:\\$smem_dump$.txt", "w");
+                   ^
+src/xrCore/xrsharedmem.cpp:85:20: note: Assignment 'F=std::fopen("x:\\$smem_dump$.txt","w")', assigned value is 0
+    FILE* F = fopen("x:\\$smem_dump$.txt", "w");
+                   ^
+src/xrCore/xrsharedmem.cpp:86:20: note: Assuming container is not empty
+    for (auto& v : container)
+                   ^
+src/xrCore/xrsharedmem.cpp:87:17: note: Null pointer dereference
+        fprintf(F, "%4u : crc[%6x], %u bytes\n", v->dwReference, v->dwCRC, v->dwLength);
+                ^
+src/xrCore/xrsharedmem.cpp:88:12: warning: If resource allocation fails, then there is a possible null pointer dereference: F [nullPointerOutOfResources]
+    fclose(F);
+           ^
+src/xrCore/xrsharedmem.cpp:85:20: note: Assuming allocation function fails
+    FILE* F = fopen("x:\\$smem_dump$.txt", "w");
+                   ^
+src/xrCore/xrsharedmem.cpp:85:20: note: Assignment 'F=std::fopen("x:\\$smem_dump$.txt","w")', assigned value is 0
+    FILE* F = fopen("x:\\$smem_dump$.txt", "w");
+                   ^
+src/xrCore/xrsharedmem.cpp:86:20: note: Assuming container is not empty
+    for (auto& v : container)
+                   ^
+src/xrCore/xrsharedmem.cpp:88:12: note: Null pointer dereference
+    fclose(F);
+           ^
+src/xrCore/xrstring.cpp:101:25: warning: If resource allocation fails, then there is a possible null pointer dereference: f [nullPointerOutOfResources]
+                fprintf(f, "ref[%4u]-len[%3u]-crc[%8X] : %s\n", value->dwReference, value->dwLength, value->dwCRC,
+                        ^
+src/xrCore/xrstring.cpp:223:20: note: Assuming allocation function fails
+    FILE* F = fopen("d:\\$str_dump$.txt", "w");
+                   ^
+src/xrCore/xrstring.cpp:223:20: note: Assignment 'F=fopen("d:\\$str_dump$.txt","w")', assigned value is 0
+    FILE* F = fopen("d:\\$str_dump$.txt", "w");
+                   ^
+src/xrCore/xrstring.cpp:224:16: note: Calling function 'dump', 1st argument 'F' value is 0
+    impl->dump(F);
+               ^
+src/xrCore/xrstring.cpp:101:25: note: Null pointer dereference
+                fprintf(f, "ref[%4u]-len[%3u]-crc[%8X] : %s\n", value->dwReference, value->dwLength, value->dwCRC,
+                        ^
+src/xrCore/xrstring.cpp:225:12: warning: If resource allocation fails, then there is a possible null pointer dereference: F [nullPointerOutOfResources]
+    fclose(F);
+           ^
+src/xrCore/xrstring.cpp:223:20: note: Assuming allocation function fails
+    FILE* F = fopen("d:\\$str_dump$.txt", "w");
+                   ^
+src/xrCore/xrstring.cpp:223:20: note: Assignment 'F=fopen("d:\\$str_dump$.txt","w")', assigned value is 0
+    FILE* F = fopen("d:\\$str_dump$.txt", "w");
+                   ^
+src/xrCore/xrstring.cpp:225:12: note: Null pointer dereference
+    fclose(F);
+           ^
+src/xrEngine/CameraBase.h:31:24: error: syntax error [syntaxError]
+    bool bClampYaw   : 1 {};
+                       ^
+src/xrEngine/EngineAPI.h:31:5: error: syntax error [syntaxError]
+    FactoryObjectBase(void* params) { CLS_ID = 0; }
+    ^
+src/xrEngine/Environment_misc.cpp:780:49: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    strconcat(sizeof(path), path, "environment" DELIMITER "ambients" DELIMITER, level_name.c_str(), ".ltx");
+                                                ^
+src/xrEngine/IGame_Persistent.cpp:142:43: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    strconcat(sizeof(dest), dest, "intro" DELIMITER "intro_", level_name);
+                                          ^
+src/xrEngine/Rain.cpp:42:34: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    snd_Ambient.create("ambient" DELIMITER "rain", st_Effect, sg_Undefined);
+                                 ^
+src/xrEngine/StringTable/StringTable.cpp:59:35: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    xr_sprintf(files_mask, "text" DELIMITER "%s" DELIMITER "*.xml", pData->m_sLanguage.c_str());
+                                  ^
+src/xrGame/abstract_location_selector_inline.h:104:5: error: There is an unknown macro here somewhere. Configuration is required. If STOP_PROFILE is a macro then please configure it. [unknownMacro]
+    STOP_PROFILE
+    ^
+src/xrGame/BlackGraviArtifact.cpp:45:52: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    pStaticPG = CParticlesObject::Create("anomaly" DELIMITER "galantine", FALSE);
+                                                   ^
+src/xrGame/Car.cpp:73:39: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    m_exhaust_particles = "vehiclefx" DELIMITER "exhaust_1";
+                                      ^
+src/xrGame/CarDoors.cpp:518:9: error: There is an unknown macro here somewhere. Configuration is required. If MAX_OF is a macro then please configure it. [unknownMacro]
+        MAX_OF(abs(pf.i.y), add.set(pf.i); add.mul(bb.m_halfsize.x * fsignum(pf.i.y)), abs(pf.j.y), add.set(pf.j);
+        ^
+src/xrGame/CarSound.cpp:29:98: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+        snd_engine_start.create(READ_IF_EXISTS(ini, r_string, "car_sound", "engine_start", "car" DELIMITER "test_car_start"),
+                                                                                                 ^
+src/xrGame/ClimableObject.cpp:73:5: error: There is an unknown macro here somewhere. Configuration is required. If SORT is a macro then please configure it. [unknownMacro]
+    SORT(
+    ^
+src/xrGame/CustomMonster.cpp:569:5: error: There is an unknown macro here somewhere. Configuration is required. If STOP_PROFILE is a macro then please configure it. [unknownMacro]
+    STOP_PROFILE
+    ^
+src/xrGame/Explosive.cpp:395:62: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+        cartridge.bullet_material_idx = GMLib.GetMaterialIdx(WEAPON_MATERIAL_NAME);
+                                                             ^
+src/xrGame/HUDCrosshair.cpp:12:27: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    hShader->create("hud" DELIMITER "crosshair");
+                          ^
+src/xrGame/HUDTarget.cpp:48:27: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    hShader->create("hud" DELIMITER "cursor", "ui" DELIMITER "cursor");
+                          ^
+src/xrGame/HitMarker.cpp:21:71: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+void CHitMarker::InitShader(LPCSTR tex_name) { hShader2->create("hud" DELIMITER "default", tex_name); }
+                                                                      ^
+src/xrGame/LevelFogOfWar.cpp:76:26: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    hShader.create("hud" DELIMITER "fog_of_war", "ui" DELIMITER "ui_fog_of_war");
+                         ^
+src/xrGame/ui/UISleepStatic.h:16:72: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    virtual void InitTextureEx(LPCSTR tex_name, LPCSTR sh_name = "hud" DELIMITER "default");
+                                                                       ^
+src/xrGame/UIFrameRect.cpp:28:79: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+void CUIFrameRect::InitTexture(LPCSTR texture) { InitTextureEx(texture, "hud" DELIMITER "default"); }
+                                                                              ^
+src/xrGame/UIZoneMap.cpp:184:51: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    m_activeMap->Initialize(Level().name(), "hud" DELIMITER "default");
+                                                  ^
+src/xrGame/WeaponAmmo.cpp:66:48: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    bullet_material_idx = GMLib.GetMaterialIdx(WEAPON_MATERIAL_NAME);
+                                               ^
+src/xrGame/WeaponBinocularsVision.cpp:39:27: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    m_lt.InitTexture("ui" DELIMITER "ui_enemy_frame");
+                          ^
+src/xrGame/WeaponKnife.cpp:151:47: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    knife_material_idx = GMLib.GetMaterialIdx(KNIFE_MATERIAL_NAME);
+                                              ^
+src/xrGame/ai/crow/ai_crow.cpp:134:37: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    m_Sounds.m_idle.Load("monsters" DELIMITER "crow" DELIMITER "idle");
+                                    ^
+src/xrGame/ai/monsters/controller/controller.cpp:209:37: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    m_sound_hit_fx.create("affects" DELIMITER "tinnitus3a", st_Effect, sg_SourceType);
+                                    ^
+src/xrGame/ai/monsters/monster_enemy_memory.cpp:208:12: warning: Uninitialized variable: ret_val.danger [uninitvar]
+    return ret_val;
+           ^
+src/xrGame/ai/monsters/monster_enemy_memory.cpp:205:12: note: Assuming condition is false
+    if (it != m_objects.end())
+           ^
+src/xrGame/ai/monsters/monster_enemy_memory.cpp:208:12: note: Uninitialized variable: ret_val.danger
+    return ret_val;
+           ^
+src/xrGame/ai/monsters/monster_enemy_memory.cpp:208:12: error: Uninitialized struct member: ret_val.danger [uninitStructMember]
+    return ret_val;
+           ^
+src/xrGame/ai/monsters/rats/ai_rat_fsm.cpp:457:9: error: There is an unknown macro here somewhere. Configuration is required. If CHECK_IF_GO_TO_NEW_STATE_THIS_UPDATE is a macro then please configure it. [unknownMacro]
+        CHECK_IF_GO_TO_NEW_STATE_THIS_UPDATE(
+        ^
+src/xrGame/ai/monsters/zombie/zombie.cpp:100:5: error: There is an unknown macro here somewhere. Configuration is required. If STOP_PROFILE is a macro then please configure it. [unknownMacro]
+    STOP_PROFILE
+    ^
+src/xrGame/ai/stalker/ai_stalker.cpp:916:9: error: There is an unknown macro here somewhere. Configuration is required. If STOP_PROFILE is a macro then please configure it. [unknownMacro]
+        STOP_PROFILE
+        ^
+src/xrGame/quadtree_inline.h:46:5: error: There is an unknown macro here somewhere. Configuration is required. If STOP_PROFILE is a macro then please configure it. [unknownMacro]
+    STOP_PROFILE
+    ^
+src/xrGame/alife_switch_manager.cpp:74:5: error: There is an unknown macro here somewhere. Configuration is required. If STOP_PROFILE is a macro then please configure it. [unknownMacro]
+    STOP_PROFILE
+    ^
+src/xrGame/alife_update_manager.cpp:84:5: error: There is an unknown macro here somewhere. Configuration is required. If STOP_PROFILE is a macro then please configure it. [unknownMacro]
+    STOP_PROFILE
+    ^
+src/xrGame/danger_manager.cpp:85:5: error: There is an unknown macro here somewhere. Configuration is required. If START_PROFILE is a macro then please configure it. [unknownMacro]
+    START_PROFILE("Memory Manager/dangers::update")
+    ^
+src/xrGame/ef_storage.cpp:52:65: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    m_pfWeaponEffectiveness = xr_new<CPatternFunction>("common" DELIMITER "WeaponEffectiveness.efd", this);
+                                                                ^
+src/xrGame/game_base_script.cpp:15:5: error: There is an unknown macro here somewhere. Configuration is required. If DEFINE_LUA_WRAPPER_METHOD_R2P1_V1 is a macro then please configure it. [unknownMacro]
+    DEFINE_LUA_WRAPPER_METHOD_R2P1_V1(net_Export, NET_Packet)
+    ^
+src/xrGame/game_cl_mp_script.cpp:22:5: error: There is an unknown macro here somewhere. Configuration is required. If DEFINE_LUA_WRAPPER_METHOD_0 is a macro then please configure it. [unknownMacro]
+    DEFINE_LUA_WRAPPER_METHOD_0(CanBeReady, bool)
+    ^
+src/xrGame/game_sv_item_respawner.cpp:197:46: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    FS.update_path(fn, "$game_config$", "mp" DELIMITER "respawn_items.ltx");
+                                             ^
+src/xrGame/game_sv_mp.cpp:1906:22: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+    xr_strcat(fn, "" DELIMITER "online_dump.ltx");
+                     ^
+src/xrGame/game_sv_mp_script.cpp:154:5: error: There is an unknown macro here somewhere. Configuration is required. If DEFINE_LUA_WRAPPER_CONST_METHOD_0 is a macro then please configure it. [unknownMacro]
+    DEFINE_LUA_WRAPPER_CONST_METHOD_0(type_name, LPCSTR)
+    ^
+src/xrGame/ik/limb.cxx:915:13: warning: If resource allocation fails, then there is a possible null pointer dereference: fp [nullPointerOutOfResources]
+    fprintf(fp, "%d\n", euler_type);
+            ^
+src/xrGame/ik/limb.cxx:913:21: note: Assuming allocation function fails
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:913:21: note: Assignment 'fp=fopen(file,"w")', assigned value is 0
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:915:13: note: Null pointer dereference
+    fprintf(fp, "%d\n", euler_type);
+            ^
+src/xrGame/ik/limb.cxx:916:13: warning: If resource allocation fails, then there is a possible null pointer dereference: fp [nullPointerOutOfResources]
+    fprintf(fp, "%f %f %f \n", round_up(min[2]), round_up(min[1]), round_up(min[0]));
+            ^
+src/xrGame/ik/limb.cxx:913:21: note: Assuming allocation function fails
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:913:21: note: Assignment 'fp=fopen(file,"w")', assigned value is 0
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:916:13: note: Null pointer dereference
+    fprintf(fp, "%f %f %f \n", round_up(min[2]), round_up(min[1]), round_up(min[0]));
+            ^
+src/xrGame/ik/limb.cxx:917:13: warning: If resource allocation fails, then there is a possible null pointer dereference: fp [nullPointerOutOfResources]
+    fprintf(fp, "%f %f %f \n", max[2], max[1], max[0]);
+            ^
+src/xrGame/ik/limb.cxx:913:21: note: Assuming allocation function fails
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:913:21: note: Assignment 'fp=fopen(file,"w")', assigned value is 0
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:917:13: note: Null pointer dereference
+    fprintf(fp, "%f %f %f \n", max[2], max[1], max[0]);
+            ^
+src/xrGame/ik/limb.cxx:919:17: warning: If resource allocation fails, then there is a possible null pointer dereference: fp [nullPointerOutOfResources]
+        fprintf(fp, "%f %f %f %f\n", c[i][0], c[i][1], c[i][2], c[i][3]);
+                ^
+src/xrGame/ik/limb.cxx:913:21: note: Assuming allocation function fails
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:913:21: note: Assignment 'fp=fopen(file,"w")', assigned value is 0
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:919:17: note: Null pointer dereference
+        fprintf(fp, "%f %f %f %f\n", c[i][0], c[i][1], c[i][2], c[i][3]);
+                ^
+src/xrGame/ik/limb.cxx:921:17: warning: If resource allocation fails, then there is a possible null pointer dereference: fp [nullPointerOutOfResources]
+        fprintf(fp, "%f %f %f %f\n", s[i][0], s[i][1], s[i][2], s[i][3]);
+                ^
+src/xrGame/ik/limb.cxx:913:21: note: Assuming allocation function fails
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:913:21: note: Assignment 'fp=fopen(file,"w")', assigned value is 0
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:921:17: note: Null pointer dereference
+        fprintf(fp, "%f %f %f %f\n", s[i][0], s[i][1], s[i][2], s[i][3]);
+                ^
+src/xrGame/ik/limb.cxx:923:17: warning: If resource allocation fails, then there is a possible null pointer dereference: fp [nullPointerOutOfResources]
+        fprintf(fp, "%f %f %f %f\n", o[i][0], o[i][1], o[i][2], o[i][3]);
+                ^
+src/xrGame/ik/limb.cxx:913:21: note: Assuming allocation function fails
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:913:21: note: Assignment 'fp=fopen(file,"w")', assigned value is 0
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:923:17: note: Null pointer dereference
+        fprintf(fp, "%f %f %f %f\n", o[i][0], o[i][1], o[i][2], o[i][3]);
+                ^
+src/xrGame/ik/limb.cxx:925:12: warning: If resource allocation fails, then there is a possible null pointer dereference: fp [nullPointerOutOfResources]
+    fclose(fp);
+           ^
+src/xrGame/ik/limb.cxx:913:21: note: Assuming allocation function fails
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:913:21: note: Assignment 'fp=fopen(file,"w")', assigned value is 0
+    FILE* fp = fopen(file, "w");
+                    ^
+src/xrGame/ik/limb.cxx:925:12: note: Null pointer dereference
+    fclose(fp);
+           ^
+src/xrGame/item_manager.cpp:105:5: error: There is an unknown macro here somewhere. Configuration is required. If STOP_PROFILE is a macro then please configure it. [unknownMacro]
+    STOP_PROFILE
+    ^
+src/xrGame/min_obb.cpp:180:39: warning: Uninitialized variable: afAInitial [uninitvar]
+    kMinimizer.GetMinimum(afA0, afA1, afAInitial, afAMin, fVMin);
+                                      ^
+src/xrGame/min_obb.cpp:168:29: note: Assuming condition is false
+                if (fVolume < fMinVolume)
+                            ^
+src/xrGame/min_obb.cpp:180:39: note: Uninitialized variable: afAInitial
+    kMinimizer.GetMinimum(afA0, afA1, afAInitial, afAMin, fVMin);
+                                      ^
+src/xrGame/movement_manager_physic.cpp:199:5: error: There is an unknown macro here somewhere. Configuration is required. If START_PROFILE is a macro then please configure it. [unknownMacro]
+    START_PROFILE("Build Path/Move Along Path")
+    ^
+src/xrGame/object_handler.cpp:131:5: error: There is an unknown macro here somewhere. Configuration is required. If STOP_PROFILE is a macro then please configure it. [unknownMacro]
+    STOP_PROFILE
+    ^
+src/xrGame/player_hud.cpp:487:46: error: There is an unknown macro here somewhere. Configuration is required. If DELIMITER is a macro then please configure it. [unknownMacro]
+        strconcat(anm_name, "camera_effects" DELIMITER "weapon" DELIMITER, M.name.c_str(), ".anm");
+                                             ^
+src/xrGame/restricted_object.cpp:212:5: error: There is an unknown macro here somewhere. Configuration is required. If START_PROFILE is a macro then please configure it. [unknownMacro]
+    START_PROFILE("Restricted Object/in_restrictions")
+    ^
+src/xrGame/sight_manager.cpp:229:5: error: There is an unknown macro here somewhere. Configuration is required. If STOP_PROFILE is a macro then please configure it. [unknownMacro]
+    STOP_PROFILE
+    ^
