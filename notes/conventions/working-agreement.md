@@ -28,7 +28,7 @@ briefing template, parallel agents, anti-patterns),
 | **`cpp-engineer`** | C++ engine slice (xrCore/xrEngine/xrGame/xrCDB/xrPhysics/etc., НЕ render, НЕ macOS platform). Adversarial review (default) + implementation. |
 | **`render-engineer`** | Render layer (`src/Layers/xrRender*`). |
 | **`script-engineer`** | Lua/scripting engine (xrScriptEngine, luabind, LuaJIT). |
-| **`platform-build`** | macOS packaging, .mm/.m, CMake Apple sections, scripts/mac/, CI. |
+| **`apple-platform`** | macOS native-app surface: packaging (.app/DMG), .mm/.m, CMake Apple, scripts/mac/, CI, **plus** Cocoa/AppKit lifecycle (NSApp, menu bar, NSWindow), code signing + notarization + entitlements, Apple HIG conformance. |
 | **`Explore` agent** | Read-only codebase research, structure-discovery. |
 | **General-purpose** | Multi-step tasks без специализации, parallel research. |
 
@@ -45,7 +45,7 @@ briefing template, parallel agents, anti-patterns),
 - Code change >10 LOC diff или multi-file — spawn в worktree-isolation
 - C++ lifecycle / destructor / RAII / signal-handler audit — `cpp-engineer` (memory `feedback_delegate_cpp_analysis`)
 - Render layer (`src/Layers/xrRender*`) что-то — `render-engineer`
-- macOS packaging / .mm / CMake Apple-specific — `platform-build`
+- macOS packaging / .mm / CMake Apple / Cocoa lifecycle / signing / notarization / HIG — `apple-platform`
 - Lua VM / luabind / CScriptEngine — `script-engineer`
 
 ### Delegate → `team-lead`
@@ -167,7 +167,7 @@ Skills не загружаются автоматически (кроме sessio
 
 ## Когда `team-lead` обязателен
 
-**3+ failed fix attempts** в одной задаче — systematic-debugging skill Phase 4.5 explicitly требует «STOP and question architecture». В нашем формате это значит: дёрнуть `team-lead` для consilium с adversarial cpp-engineer/platform-build, синтезированный verdict, перевыбор approach.
+**3+ failed fix attempts** в одной задаче — systematic-debugging skill Phase 4.5 explicitly требует «STOP and question architecture». В нашем формате это значит: дёрнуть `team-lead` для consilium с adversarial cpp-engineer/apple-platform, синтезированный verdict, перевыбор approach.
 
 **Контекст session > 100k tokens или > 3 часа работы** — `team-lead` делает summarize + park, чтобы можно было свободно продолжать или закрыть.
 
@@ -186,7 +186,7 @@ ragnar'а. Promote = ragnar'ово решение (он primary tester). Я мо
 
 ## Tooling expectations
 
-- **Web search дисциплина**: subagent'ы (cpp-engineer, platform-build, team-lead) умеют WebFetch/WebSearch — перед изобретением workaround'а проверять есть ли OSS precedent. Особенно для платформ-specific багов (macOS, Tahoe).
+- **Web search дисциплина**: subagent'ы (cpp-engineer, apple-platform, team-lead) умеют WebFetch/WebSearch — перед изобретением workaround'а проверять есть ли OSS precedent. Особенно для платформ-specific багов (macOS, Tahoe).
 - **`uv tool install X`** для Python tools, не pip3 (memory `feedback_python_tooling_uv`).
 - **Submodule edits** только когда vendored library — abandonware (нет апстрима) или мы держим personal fork (memory `feedback_macos_fork_only`). Документировать в [`notes/decisions/known-divergence.md`](../decisions/known-divergence.md).
 

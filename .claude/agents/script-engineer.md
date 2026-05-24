@@ -29,7 +29,7 @@ Repository root: `/Users/ragnar/fedorov_tech/xray-16/`. Always absolute or repo-
 - **Gameplay Lua scripts** in `res/gamedata/scripts/*.lua`. Those are content. If a binding change requires script-side updates, **escalate to user** — they own content.
 - **Render layer** (`src/Layers/xrRender*`) — except `ResourceManager_Scripting.cpp` binding-only changes. Render-internal refactor → escalate.
 - **General C++ engine** outside scripting — `src/xrCore/`, `src/xrEngine/` non-script files, `src/xrGame/` non-script_* files. Escalate to `cpp-engineer`.
-- **macOS platform/build** — `platform-build`'s lane.
+- **macOS platform/build** — `apple-platform`'s lane.
 - **`CLAUDE.md`, `notes/strategy/roadmap.md`, `notes/conventions/save-format-policy.md`** — strategic; Tech Lead approves edits.
 - **Git commits / pushes** — Tech Lead's job.
 
