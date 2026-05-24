@@ -385,6 +385,38 @@ uninstall-hooks: ## Remove our symlinked git hooks
 	    fi; \
 	done
 
+verify: ## Pre-PR sanity: doc-refs check + git-status report + clang-format dry-run on staged
+	@echo "==> Step 1/3: notes/ doc-refs"
+	@./scripts/check-doc-refs.sh
+	@echo "==> Step 2/3: git status (informational)"
+	@if [ -n "$$(git status --porcelain)" ]; then \
+	    echo "WARN: working tree dirty:"; \
+	    git status --short; \
+	else \
+	    echo "OK: working tree clean"; \
+	fi
+	@echo "==> Step 3/3: clang-format dry-run on staged C/C++"
+	@staged=$$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(cpp|h|hpp|hxx|cxx|c|cc|mm|m)$$' || true); \
+	if [ -z "$$staged" ]; then \
+	    echo "OK: no staged C/C++ files to format-check"; \
+	else \
+	    if ! command -v clang-format >/dev/null 2>&1; then \
+	        echo "WARN: clang-format not in PATH — skipping (install via brew)"; \
+	    else \
+	        for f in $$staged; do \
+	            if ! diff -q "$$f" <(clang-format "$$f") >/dev/null 2>&1; then \
+	                echo "FAIL: $$f would be reformatted by clang-format"; \
+	                exit 1; \
+	            fi; \
+	        done; \
+	        echo "OK: clang-format clean on $$(echo "$$staged" | wc -w | xargs) staged file(s)"; \
+	    fi; \
+	fi
+	@echo "==> verify: all checks passed"
+
+end-of-session: ## Interactive 5-step end-of-session ritual (see notes/conventions/working-agreement.md)
+	@./scripts/end-of-session.sh
+
 sync-issues: ## Comment/close GitHub issues referenced in commits since last sync
 	@scripts/issues/sync.sh
 
