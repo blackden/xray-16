@@ -439,6 +439,10 @@ Practical examples:
   `xr_*_cmds.cpp`; storage globals in matching `*_console.h`.
 - One-time warning idiom: `static bool warned = false; if (!warned) { Msg("…"); warned = true; }`
   — see new code in `r2.cpp:391-400`.
+- Hang debugging: [`notes/decisions/hang-taxonomy.md`](../decisions/hang-taxonomy.md)
+  lists 3 distinct root causes (blocking I/O on main, lifecycle/destruction,
+  Apple Force Quit + GPU hold). Consult перед debugging любого нового hang
+  report — не изобретай таксономию заново.
 
 ## Open questions / next-time-investigate
 
