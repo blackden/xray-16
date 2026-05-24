@@ -219,7 +219,7 @@ make test
 
 ## Что внутри (наши коммиты)
 
-См. [notes/roadmap.md](roadmap.md). Ключевое:
+См. [roadmap.md](../strategy/roadmap.md). Ключевое:
 - Multi-frame prefetch — главный фикс silent kill во время загрузки уровня (`CResourceManager::DeferredUploadBegin/Step` + `IGame_Persistent::Prefetch_Tick`)
 - CHK_GL log-and-continue на Apple — другие GL-операции не валят процесс
 - `xr_utf8_to_cp1251` хелпер + использование в save-уведомлении — кириллическое имя пользователя не превращается в крокозябры
@@ -251,7 +251,7 @@ grep -E "FATAL|ERROR|CHK_GL" ~/Library/Logs/OpenXRay/openxray.log | head -20
 #    ln -s /Users/ragnar/fedorov_tech/xray-16/res/gamedata /Applications/STALKER-CoP/gamedata
 ```
 
-Если найдёшь регрессию vs vanilla — описать в `notes/roadmap.md` под «Известные баги», в `tests/regression_checks.sh` добавить grep-проверку чтобы не повторилось.
+Если найдёшь регрессию vs vanilla — описать в `notes/strategy/roadmap.md` под «Известные баги», в `tests/regression_checks.sh` добавить grep-проверку чтобы не повторилось.
 
 ## Известные ограничения
 

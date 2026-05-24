@@ -1,6 +1,6 @@
 # Save format versioning — discovery and design
 
-> **SUPERSEDED IN PART — read `notes/save-format-audit.md` first.**
+> **SUPERSEDED IN PART — read `save-format-audit.md` (same dir) first.**
 >
 > An audit done after this doc was written (2026-05-19) showed the engine
 > already has substantial forward-compat machinery:
@@ -28,7 +28,7 @@ extending inventory item flags — we have to bump `ALIFE_VERSION`, and
 every existing player save **silently dies on next load**.
 
 This is the highest-impact latent risk in the engine for any future
-ALife extension work. P2 in `notes/roadmap.md` strategic direction
+ALife extension work. P2 in `../strategy/roadmap.md` strategic direction
 (decisions.md #17 onwards). Doing it once, properly, unlocks safe
 state-schema evolution forever.
 

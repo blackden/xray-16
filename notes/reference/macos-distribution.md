@@ -141,7 +141,7 @@ packages signed apps for distribution.
     ~/Desktop/cop-configs
 ```
 
-Полный workflow с modding'ом описан в `notes/cheatsheet.md` (секция
+Полный workflow с modding'ом описан в `cheatsheet.md` (same dir, секция
 "Modding workflow"). Внутри .app пользователь работает с одним
 сторонним инструментом; никакого CMake/Homebrew не нужно.
 
