@@ -104909,7 +104909,7 @@ In file included from /Users/ragnar/fedorov_tech/xray-16/src/xrPhysics/PHCapture
   120 |       m_taget_object(a_taget_object), m_character(a_character), e_state(cstFree),
       |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~  ~~~~~~~~~~~~~~~~~~~~~~~~  ~~~~~~~~~~~~~~~~
       |       m_capture_pos(Fvector().set(0, 0, 0)) m_back_force(0)     m_pull_force(0)
-  121 | 
+  121 |
   122 |       ///////////////////////////////////////////////////////////////
   123 |       m_taget_element(0),
       |       ~~~~~~~~~~~~~~~~~~
