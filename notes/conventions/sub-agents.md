@@ -1,11 +1,15 @@
-# Sub-agents — playbook для xray-16
+# Sub-agents — dispatch playbook
 
-Зачем: главный контекст в этой репе разъедается двумя вещами — большие grep-результаты
-по `xr*/` и длинные дампы из `src/Layers/`. Sub-agent отрабатывает запрос в своём
-контексте и возвращает только summary — главный остаётся ёмким, мы дольше живём до
-auto-compact.
+Детальный playbook для делегирования агентам. Высокоуровневые правила
+«когда какой агент» — в [working-agreement.md](working-agreement.md);
+здесь — конкретика briefing'а и parallelism'а.
 
-## Когда делегировать
+Зачем: главный контекст в этой репе разъедается двумя вещами — большие
+grep-результаты по `xr*/` и длинные дампы из `src/Layers/`. Sub-agent
+отрабатывает запрос в своём контексте и возвращает только summary —
+главный остаётся ёмким, мы дольше живём до auto-compact.
+
+## Signal → action
 
 | Сигнал | Действие |
 |---|---|
@@ -15,7 +19,11 @@ auto-compact.
 | «Как устроен модуль Z» (например, ALife loader) — нужна структурная картина | **`Agent subagent_type=Explore breadth=very thorough`** или **`feature-dev:code-explorer`** |
 | «Спроектируй фикс/feature X с учётом конвенций» | **`Agent subagent_type=Plan`** или **`feature-dev:code-architect`** |
 | Параллельные независимые задачи (упаковка + lint + smoke-test) | Несколько `Agent` в одном tool-блоке (parallel) |
-| Платформенно-специфичная упаковка/CMake Apple/launcher | **`platform-build`** агент (есть в этом проекте) |
+| C++ lifecycle / destructor / RAII / signal-handler audit | **`cpp-engineer`** (memory `feedback_delegate_cpp_analysis`) |
+| Render layer (`src/Layers/xrRender*`) | **`render-engineer`** |
+| Платформенно-специфичная упаковка/CMake Apple/launcher/Cocoa/AppKit/notarization | **`apple-platform`** агент |
+| Lua VM / luabind / CScriptEngine | **`script-engineer`** |
+| Strategic/meta-вопрос или 3+ failed fix attempts | **`team-lead`** (см. working-agreement.md) |
 | Code review на ветке | **`code-review:code-review`** скилл (его собственный поток) |
 | Security pass перед PR в апстрим | **`code-modernization:security-auditor`** |
 
@@ -26,13 +34,13 @@ auto-compact.
 - Решения, требующие user-context-а (что мы хотим в продукте) — это моё, не агента.
 - Безопасные действия с побочкой (commit, push, gh) — делаем сами, чтобы видеть.
 
-## Шаблон брифинга
+## Шаблон брифинга (mandatory format)
 
 Агент не видит нашу историю. Хороший prompt включает:
 
 1. **Цель** — что ищем/строим и зачем (1-2 строки).
 2. **Контекст** — что уже исключили, что уже пробовали, релевантные файлы/коммиты.
-3. **Конкретика** — пути, символы, флаги CMake, тестовые сценарии.
+3. **Конкретика** — пути (абсолютные), символы, флаги CMake, тестовые сценарии.
 4. **Ожидаемый формат отчёта** — «punch-list», «таблица», «коротко под 200 слов».
 
 Пример (плохо):
@@ -46,7 +54,7 @@ auto-compact.
 > `CALifeStorageManager::save`.
 > Отчёт: punch-list файл:строка + 1-строчное описание триггера. Под 150 слов.
 
-## Anti-patterns
+## Anti-patterns (parallelism-specific)
 
 - **Делегировать-и-параллельно-самому-искать.** Если запустил Explore — не дублируй
   его работу `Bash grep`-ом в main. Дождись результата.
@@ -61,15 +69,22 @@ auto-compact.
 
 Если задачи независимы (нет shared state, нет sequential dependency) — одним
 tool-блоком сразу несколько `Agent`. Например, перед PR в апстрим:
-- security-auditor по diff-у
-- code-reviewer по той же диффе
-- Explore «есть ли upstream-PR, уже трогавший эти файлы»
 
-Запускаются параллельно, отчёты приходят раздельно.
+- `code-modernization:security-auditor` по diff-у
+- `pr-review-toolkit:code-reviewer` по той же диффе
+- `Explore` «есть ли upstream-PR, уже трогавший эти файлы»
+
+Запускаются параллельно, отчёты приходят раздельно. Skill
+`superpowers:dispatching-parallel-agents` — formal trigger для этого
+паттерна.
 
 ## Связанные
 
-- [`engine-map.md`](engine-map.md) — куда направлять Explore-агентов.
-- [`gotchas.md`](gotchas.md) — что агенту проще не открывать заново.
-- skill `xray-16-engine-work` — кодстайл и code-pointer index, агентам можно
-  передавать ссылкой.
+- [`working-agreement.md`](working-agreement.md) — каноничные правила
+  кто/когда/зачем (rules); этот файл — как (mechanics).
+- [`../reference/engine-map.md`](../reference/engine-map.md) — куда
+  направлять Explore-агентов.
+- [`../playbooks/gotchas.md`](../playbooks/gotchas.md) — что агенту проще
+  не открывать заново.
+- skill `xray-16-engine-work` — кодстайл и code-pointer index, агентам
+  можно передавать ссылкой.

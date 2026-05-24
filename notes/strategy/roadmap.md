@@ -8,9 +8,9 @@ done-criteria — «когда останавливаемся».
 
 ## Краткосрочно (часы-дни)
 
-- **Упаковка нашей сборки в `.app` бандл** — Info.plist, copy dylibs, install_name_tool rpath, codesign. Шаблон взят у [Mac Source Ports build script](https://github.com/MacSourcePorts/MSPBuildSystem/blob/main/xray-16/macsourceports_arm64.sh). **Готово**: `make package` → `dist/OpenXRay.app` с иконкой Monolith и launcher-shim'ом. См. [notes/macos-build-guide.md](macos-build-guide.md).
+- **Упаковка нашей сборки в `.app` бандл** — Info.plist, copy dylibs, install_name_tool rpath, codesign. Шаблон взят у [Mac Source Ports build script](https://github.com/MacSourcePorts/MSPBuildSystem/blob/main/xray-16/macsourceports_arm64.sh). **Готово**: `make package` → `dist/OpenXRay.app` с иконкой Monolith и launcher-shim'ом. См. [macos-build-guide.md](../reference/macos-build-guide.md).
 - **Локализация мелочей в `res/gamedata/configs/text/rus/openxray.xml`** — "Выйти в Windows" → "Выйти в macOS" (частично сделано; работает в Clear Sky UI style, в дефолтном CoP menu пока остаётся). Подробности в "Известные баги".
-- **DMG для брата с бандленными игровыми данными** — **Готово**. `make all-in-one` собирает `dist/OpenXRay-AllInOne.dmg` (~4.5 GB UDZO): `OpenXRay.app` + `STALKER-CoP/` side-by-side. Получатель перетаскивает обе иконки в `/Applications/`, кликает по `.app`, играет. Сейвы и логи — `~/Library/Application Support/OpenXRay/` через `-overlaypath` (см. [macos-build-guide.md](macos-build-guide.md) раздел «Вариант "всё в одном"»).
+- **DMG для брата с бандленными игровыми данными** — **Готово**. `make all-in-one` собирает `dist/OpenXRay-AllInOne.dmg` (~4.5 GB UDZO): `OpenXRay.app` + `STALKER-CoP/` side-by-side. Получатель перетаскивает обе иконки в `/Applications/`, кликает по `.app`, играет. Сейвы и логи — `~/Library/Application Support/OpenXRay/` через `-overlaypath` (см. [macos-build-guide.md](../reference/macos-build-guide.md) раздел «Вариант "всё в одном"»).
 - **Cocoa Cmd+Q shim (experimental)** — `src/xrEngine/macos_cocoa_shim.mm` написан и установлен в бандл, но **runtime НЕ верифицирован**. Замысел: первое Cmd+Q → синтез `SDLK_ESCAPE` (открыть pause-меню), второе в течение 3 с → `_exit(0)`. Реализован двойной intercept: NSEvent local key-down monitor (primary) + `applicationShouldTerminate:` override (fallback для menu-driven quit). Первая (delegate-only) ревизия не перехватывала Cmd+Q вообще (логи показывают install, но handler не вызывается); NSEvent-вариант собран, но пользователь не прогнал smoke-test (поставил на паузу: «украшательский скрипт»). Возвращаемся когда стабильность движка позволит спокойно тестировать без зависаний. Связано с overflow `xrDebug::Fail` (см. среднесрочно) — shim только обходит этот баг, не чинит.
 
 ## Среднесрочно (недели)
@@ -240,8 +240,8 @@ What landed:
   the directory itself never got created.
 - **`updater_manifest_url` console cvar.** Tunable from console, no
   rebuild needed when the intranet host appears.
-- **Smoke recipe doc** (`notes/updater-smoke-RU.md`,
-  `notes/updater-smoke.md`). Nine scenarios with exact shell commands.
+- **Smoke recipe doc** (`notes/playbooks/updater-smoke-RU.md`,
+  `notes/playbooks/updater-smoke.md`). Nine scenarios with exact shell commands.
 
 Follow-ups filed and not blocking:
 

@@ -1,7 +1,7 @@
 # OpenXRay automation for macOS (arm64 / x86_64).
 # Thin wrapper around CMake + Homebrew that captures everything needed for a
 # baseline run (stdout, engine log, macOS crash report) into a session dir.
-# See CLAUDE.md, notes/progress.md, notes/apple-silicon.md for context.
+# See CLAUDE.md, notes/strategy/progress.md, notes/reference/apple-silicon.md for context.
 
 SHELL := /bin/bash
 
