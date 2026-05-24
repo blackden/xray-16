@@ -188,6 +188,13 @@ Workaround: `tea login add --name fedorov --url https://git.fedorov.tech
 (`mcp__gitea__issue_write`); скрипт нужен только для cron / out-of-session
 backfill'ов.
 
+**Hang? Сверься с taxonomy ПРЕЖДЕ чем формулировать гипотезу.**
+*Где:* [`notes/decisions/hang-taxonomy.md`](../decisions/hang-taxonomy.md).
+*Симптом:* hard system freeze, `STAT=TX` zombie, Cmd+Q ∞-wait, watchdog
+firing — для любого taxonomy сужает диагноз до Class A/B/C за 30 секунд.
+Без неё ты (или Claude через 2 недели) изобретёт N-ную гипотезу для уже
+известного класса бага.
+
 ---
 
 ## macOS networking / syscall semantics
