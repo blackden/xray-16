@@ -103,6 +103,19 @@
 
 **Контекст session > 100k tokens или > 3 часа работы** — `team-lead` делает summarize + park, чтобы можно было свободно продолжать или закрыть.
 
+## Stable release track
+
+Канал разделён на DEV (`/Applications/OpenXRay-Dev.app`, каждый коммит)
+и STABLE (`/Applications/OpenXRay.app`, только after smoke pass).
+Команды: `make ship` → DEV, `make promote` → STABLE + git tag
+`stable-YYYYMMDD-HHMMSS` (pushed to origin). Откат: `make rollback-stable
+TAG=stable-...`. Полное описание + criteria for promote — в
+[release-track.md](release-track.md).
+
+Правило для foreground Claude: НЕ запускать `make promote` от лица
+ragnar'а. Promote = ragnar'ово решение (он primary tester). Я могу
+готовить (assemble PR, прогнать build, дать checklist), он жмёт кнопку.
+
 ## Tooling expectations
 
 - **Web search дисциплина**: subagent'ы (cpp-engineer, platform-build, team-lead) умеют WebFetch/WebSearch — перед изобретением workaround'а проверять есть ли OSS precedent. Особенно для платформ-specific багов (macOS, Tahoe).

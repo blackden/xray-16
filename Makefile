@@ -391,14 +391,40 @@ sync-issues: ## Comment/close GitHub issues referenced in commits since last syn
 sync-issues-dry: ## Dry-run: show what sync-issues would do
 	@scripts/issues/sync.sh --dry-run
 
-promote: ## Fast-forward STABLE_WORKTREE to current HEAD, then install into STABLE_APP_DIR
+promote: ## FF STABLE_WORKTREE → HEAD, install into STABLE_APP_DIR, create+push stable-YYYYMMDD-HHMMSS tag
 	@head_sha=$$(git rev-parse HEAD); \
 	echo "==> Promoting $$head_sha to stable"; \
 	(cd "$(STABLE_WORKTREE)" && git merge --ff-only "$$head_sha") || { \
 	    echo "ERROR: fast-forward into $(STABLE_WORKTREE) failed."; \
 	    echo "       Check that stable is on a parent commit of HEAD and clean."; exit 1; }
 	@$(MAKE) -C "$(STABLE_WORKTREE)" install INSTALL_APP_DIR="$(STABLE_APP_DIR)"
-	@echo "==> Promoted. Stable now at $$(cd '$(STABLE_WORKTREE)' && git rev-parse --short HEAD)"
+	@head_short=$$(git rev-parse --short HEAD); \
+	tag_name="stable-$$(date +%Y%m%d-%H%M%S)"; \
+	echo "==> Tagging $$tag_name at $$head_short"; \
+	git tag -a "$$tag_name" -m "stable promote: $$head_short"; \
+	if git push origin "$$tag_name" 2>/dev/null; then \
+	    echo "==> Promoted. Stable now at $$head_short (tag: $$tag_name, pushed to origin)"; \
+	else \
+	    echo "WARN: tag $$tag_name created locally but push failed (offline?)."; \
+	    echo "      Run 'git push origin $$tag_name' when network available."; \
+	    echo "==> Promoted. Stable now at $$head_short (tag: $$tag_name, local-only)"; \
+	fi
+
+list-stable-tags: ## List all stable promote tags (most-recent first)
+	@git tag -l 'stable-*' --sort=-refname | head -20
+
+rollback-stable: ## Rollback stable worktree to a previous stable tag (TAG=stable-... required)
+	@if [ -z "$(TAG)" ]; then \
+	    echo "ERROR: TAG=stable-... required."; \
+	    echo "       Run 'make list-stable-tags' to see options."; exit 1; \
+	fi
+	@if ! git rev-parse --verify "$(TAG)" >/dev/null 2>&1; then \
+	    echo "ERROR: tag '$(TAG)' not found locally. Run 'git fetch --tags origin' first."; exit 1; \
+	fi
+	@echo "==> Rolling stable back to $(TAG)"
+	@cd "$(STABLE_WORKTREE)" && git checkout --detach "$(TAG)"
+	@$(MAKE) -C "$(STABLE_WORKTREE)" install INSTALL_APP_DIR="$(STABLE_APP_DIR)"
+	@echo "==> Stable rolled back to $(TAG). Worktree is now detached — promote forward to re-attach."
 
 all-in-one: build-release ## Bundle .app + game data side-by-side into dist/OpenXRay-AllInOne.dmg
 	@if [ ! -f "$(GAMEDATA_SRC)/fsgame.ltx" ]; then \
