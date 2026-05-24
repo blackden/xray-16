@@ -11,6 +11,7 @@
 briefing template, parallel agents, anti-patterns),
 [done-criteria.md](done-criteria.md) (definition of «done» для 1.0),
 [release-track.md](release-track.md) (DEV vs STABLE channels),
+[scripts-and-automation.md](scripts-and-automation.md) (rule → script map),
 [`engine-map.md`](../reference/engine-map.md) (где живёт что в коде),
 [`gotchas.md`](../playbooks/gotchas.md) (грабли),
 [`creator-voice.md`](../strategy/creator-voice.md) /
@@ -208,5 +209,3 @@ agents.
 - Бюджеты времени per session (когда уйти спать, когда форсировать end-of-session)
 - Этикет «consult external Claude Chat» — мы делали раз, было полезно
 - Когда обновлять `.git-blame-ignore-revs` (mass reformat commits)
-- Automated end-of-session script (план Issue E meta-сессии 2026-05-24 —
-  `scripts/end-of-session.sh` walks через 5 шагов ritual)
