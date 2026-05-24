@@ -2,7 +2,7 @@
 
 Long-running stability tests that drive the engine through repetitive
 operations and watch the log for regressions. Used to clear blockers
-in [`notes/done-criteria.md`](../../notes/done-criteria.md).
+in [`notes/conventions/done-criteria.md`](../../notes/conventions/done-criteria.md).
 
 ## save_load.sh
 
@@ -44,7 +44,7 @@ cycles, then summarises engine log slice.
 - `! ALife save format` count = 0.
 - No FATAL / segmentation fault lines.
 - 0x502 count not significantly higher than baseline (per-run delta
-  vs prior `notes/known-divergence.md` baseline).
+  vs prior `notes/decisions/known-divergence.md` baseline).
 
 **Environment:**
 

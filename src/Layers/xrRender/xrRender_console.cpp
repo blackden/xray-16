@@ -211,7 +211,7 @@ float ps_r2_ls_ssm_kernel = .7f; // r2-only
 // the blow-out. Pragmatic fix: bump the default on Apple GL to a
 // value that produces vanilla-comparable subtle bloom (0.05 per
 // user-side A/B). Investigate the shader-level root cause later
-// (see notes/known-divergence.md). Users can override in user.ltx.
+// (see notes/decisions/known-divergence.md). Users can override in user.ltx.
 #if defined(XR_PLATFORM_APPLE)
 float ps_r2_ls_bloom_threshold = .05f; // r2-only, Apple GL workaround
 #else
