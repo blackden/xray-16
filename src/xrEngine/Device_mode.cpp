@@ -140,12 +140,28 @@ void CRenderDevice::UpdateWindowProps()
         const bool useDesktopFullscreen = b_is_Ready && psDeviceMode.WindowStyle == rsFullscreenBorderless;
 
         SDL_SetWindowBordered(m_sdlWnd, drawBorders ? SDL_TRUE : SDL_FALSE);
+#if defined(XR_PLATFORM_APPLE)
+        // macOS: НЕ снимаем RESIZABLE перед DESKTOP-fullscreen. SDL2 cocoa backend
+        // (SDL_cocoawindow.m:2454-2476) при resizable=FALSE делает
+        // setCollectionBehavior:NSWindowCollectionBehaviorFullScreenNone — окно
+        // теряет eligibility на native Cocoa fullscreen Space, toggleFullScreen
+        // falls back на borderless overlay, Cmd-Tab minimize'ит в Dock вместо
+        // Space-switch. Native fullscreen Space сам блокирует resize. См. #99.
+        SDL_SetWindowResizable(m_sdlWnd, SDL_TRUE);
+#else
         SDL_SetWindowResizable(m_sdlWnd, !useDesktopFullscreen ? SDL_TRUE : SDL_FALSE);
+#endif
         SDL_SetWindowFullscreen(m_sdlWnd, useDesktopFullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_DISABLE);
     }
     else if (b_is_Ready)
     {
+#if defined(XR_PLATFORM_APPLE)
+        // macOS: см. комментарий выше — RESIZABLE-bit оставляем, чтобы Cocoa
+        // не downgrade'ил collectionBehavior до FullScreenNone и Cmd-Tab
+        // продолжал переключать Spaces. См. #99.
+#else
         SDL_SetWindowResizable(m_sdlWnd, SDL_FALSE);
+#endif
 #if defined(XR_PLATFORM_APPLE)
         // macOS: exclusive SDL_WINDOW_FULLSCREEN захватывает display эксклюзивно —
         // WindowServer блокирует Cmd-Tab (#50), а video-mode switching вызывает
