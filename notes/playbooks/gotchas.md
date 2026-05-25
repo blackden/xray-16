@@ -164,6 +164,17 @@ GL-бэкенд грузит OGM в looped-mode. Если правишь вид�
 Metal-backed GL он flush'ит command buffer и возвращается. Не full
 pipeline stall как на NVIDIA driver.
 
+**`SDL_SetWindowResizable(SDL_FALSE)` убивает Cocoa fullscreen Space eligibility.**
+*Где:* SDL2 cocoa backend (`SDL_cocoawindow.m:2454-2476`); наши callers —
+`Device_mode.cpp:143,148` (оба Apple-gated).
+*Симптом:* при `resizable=FALSE` SDL зовёт `setCollectionBehavior:
+NSWindowCollectionBehaviorFullScreenNone` — окно теряет право на
+native fullscreen Space, `SDL_SetWindowFullscreen(DESKTOP)` падает в
+borderless overlay fallback, Cmd-Tab minimize'ит в Dock вместо
+переключения Spaces. Apple-gate любой `SDL_SetWindowResizable(SDL_FALSE)`
+перед fullscreen entry на macOS — native fullscreen Space сам блокирует
+resize, RESIZABLE-bit держать безопасно. См. #99.
+
 ---
 
 ## Process
