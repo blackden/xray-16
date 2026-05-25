@@ -175,6 +175,20 @@ borderless overlay fallback, Cmd-Tab minimize'ит в Dock вместо
 перед fullscreen entry на macOS — native fullscreen Space сам блокирует
 resize, RESIZABLE-bit держать безопасно. См. #99.
 
+**Cocoa `NSWindowCollectionBehavior` — sticky на specific `NSWindow*`,
+SDL стомпает её из множественных entry points.**
+*Где:* SDL2 cocoa backend (множество мест: `Cocoa_SetWindowResizable`,
+style/level transitions); наш guard — `src/xrEngine/CocoaFullscreenShim.mm`.
+Re-query `info.info.cocoa.window` каждый раз через `SDL_GetWindowWMInfo`
+если делаешь что-то после window creation — указатель тот же, но SDL
+параллельно его меняет под нами.
+*Симптом:* `[NSWindow toggleFullScreen:]` (через `SDL_WINDOW_FULLSCREEN_DESKTOP`)
+падает в borderless overlay вместо native Space. KVO guard на
+`collectionBehavior` фиксирует когда именно SDL её reset'ит и re-assert'ит
+`NSWindowCollectionBehaviorFullScreenPrimary`. Любой новый callsite
+который делает `SDL_SetWindowResizable`/`Bordered`/`Fullscreen` под Apple
+должен после себя вызвать `OpenXRay_ForceFullscreenPrimary()`. См. #99.
+
 ---
 
 ## Process
