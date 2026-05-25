@@ -440,8 +440,10 @@ Practical examples:
 - One-time warning idiom: `static bool warned = false; if (!warned) { Msg("…"); warned = true; }`
   — see new code in `r2.cpp:391-400`.
 - Hang debugging: [`notes/decisions/hang-taxonomy.md`](../decisions/hang-taxonomy.md)
-  lists 3 distinct root causes (blocking I/O on main, lifecycle/destruction,
-  Apple Force Quit + GPU hold). Consult перед debugging любого нового hang
+  делит hangs на две root-cause family — Family 1 (main-thread
+  cooperative-contract violation; surfaces 1.A blocking I/O, 1.C
+  GPU/IOKit hold) и Family 2 (static destruction ordering; surface
+  2.B destructor cascade). Consult перед debugging любого нового hang
   report — не изобретай таксономию заново.
 
 ## Open questions / next-time-investigate
