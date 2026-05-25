@@ -7,8 +7,11 @@
 #include "xrCore/ModuleLookup.hpp"
 
 #include <SDL.h>
-#ifdef IMGUI_ENABLE_VIEWPORTS
+#if defined(XR_PLATFORM_APPLE) || defined(IMGUI_ENABLE_VIEWPORTS)
 #   include <SDL_syswm.h>
+#endif
+#if defined(XR_PLATFORM_APPLE)
+#   include "CocoaFullscreenShim.hpp"
 #endif
 
 SDL_HitTestResult WindowHitTest(SDL_Window* win, const SDL_Point* area, void* data);
@@ -94,6 +97,24 @@ void CRenderDevice::Initialize()
 
         m_sdlWnd = SDL_CreateWindow(title, 0, 0, 640, 480, flags);
         R_ASSERT3(m_sdlWnd, "Unable to create SDL window", SDL_GetError());
+
+#if defined(XR_PLATFORM_APPLE)
+        // Install KVO guard on NSWindow.collectionBehavior right after
+        // window creation. SDL2 cocoa sets the mask once during
+        // SDL_CreateWindow (with Primary if eligible) but later
+        // SDL_SetWindowResizable / SDL_SetWindowBordered / internal style
+        // transitions can stomp it back to Default, dropping the
+        // FullScreenPrimary bit and forcing borderless-overlay fallback on
+        // toggleFullScreen:. Guard re-asserts the bit + logs each stomp.
+        // See #99.
+        {
+            SDL_SysWMinfo info;
+            SDL_VERSION(&info.version);
+            if (SDL_GetWindowWMInfo(m_sdlWnd, &info))
+                OpenXRay_InstallCocoaFullscreenGuard((void *)info.info.cocoa.window);
+            OpenXRay_ForceFullscreenPrimary();
+        }
+#endif
 
         SDL_SetWindowHitTest(m_sdlWnd, WindowHitTest, nullptr);
         SDL_SetWindowMinimumSize(m_sdlWnd, 256, 192);
