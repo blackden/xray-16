@@ -7,8 +7,9 @@ Brainstorm origin: gitea [#106](https://git.fedorov.tech/ragnar/xray-16/issues/1
 
 ## 1. Контекст
 
-После года инкрементальных Apple-фиксов в SDL накопился architectural
-ceiling, который точечными правками не пробивается:
+После двух недель интенсивных Apple-фиксов в SDL (с 2026-05-14, 272+
+коммитов) накопился architectural ceiling, который точечными правками не
+пробивается:
 
 - **#99** (Cmd-Tab Space stickiness) — три rounds попыток в SDL-слое
   (PR #102 убрать `BORDERLESS` at creation, PR #103 Apple-gate
