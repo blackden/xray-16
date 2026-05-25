@@ -260,13 +260,26 @@ proprietary, etc.) — каждая со своими ограничениями
 - «macOS distribution business» поверх apache-style commercial
   support model.
 
-**Boosty/Patreon revenue model options.**
-- Paid binary releases (gating пакет/installer).
-- Early access (commits behind paywall).
-- Member-only fixes/mods.
-- Donations без gating.
+**Revenue model — self-hosted через Yookassa (decision 2026-05-26).**
 
-Каждая со своими legal/community implications.
+Не Boosty/Patreon/Ko-fi. ragnar — DevOps с 7+ годами опыта (Ситимобил,
+Сбер, Касперский, GrowFood), может поднять свой приём платежей дешевле
+чем платить % посредникам вечно. Working reference — `~/fedorov_tech/YouBooster`
+(его бот с уже интегрированной Yookassa, проверен на production).
+
+Архитектура (ожидание, конкретизируется при имплементации):
+- Telegram channel + bot как frontend
+- Yookassa API для платежей (PCI-DSS на их стороне)
+- Self-employed / ИП на стороне ragnar'а (требует tax/legal check для RU
+  jurisdiction)
+- Только donations, без gating контента или tier'ов
+
+Опции внутри Yookassa-канала:
+- Pure donations без gating (default — кampaign-друг для community)
+- В будущем (если будет аудитория) — optional «спасибо» tier'ы за
+  персональный shoutout / early-access, но не paywall
+
+Детали — memory `monetization-yookassa-self-hosted`.
 
 **Community considerations.** STALKER community сильно вокруг
 мод-сцены; «закрытый» fork может встретить отторжение если упор не
