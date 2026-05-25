@@ -11,7 +11,7 @@
 | [`reference/`](reference/) | «Где живёт X» индексы и руководства: engine-map, architecture, apple-silicon, macos-build-guide, macos-distribution, cheatsheet, performance-options | Когда нужно понять как устроена подсистема |
 | [`playbooks/`](playbooks/) | Известные грабли и процедуры: gotchas, bug-patterns, process-supervision, smoke-tests, issues-playthrough | Когда что-то ломается или нужно прогнать smoke |
 | [`decisions/`](decisions/) | ADR-style решения: decisions, known-divergence, save-format-audit, save-format-versioning | Исторический контекст «почему так сделано» |
-| [`strategy/`](strategy/) | Forward-looking: roadmap, roadmap-4year, creator-voice, management, progress, cpp-tooling-roadmap | Стратегические дискуссии, не операционные |
+| [`strategy/`](strategy/) | Forward-looking: roadmap, roadmap-4year, creator-voice, management, mentor-principles, content-system, progress, cpp-tooling-roadmap | Стратегические дискуссии, не операционные |
 | [`archive/2026-05/`](archive/) | Старые session dumps и устаревшие заметки | Историческая справка, обычно не нужно |
 
 ## Куда писать новое
@@ -24,6 +24,8 @@
 | ADR-style решение «почему так, а не иначе» | `decisions/decisions.md` |
 | Долгосрочная мысль / direction / «а что если» | `strategy/creator-voice.md` (creator) или `strategy/roadmap-4year.md` (strategic arc) |
 | Workflow lesson из ретроспективы сессии | `strategy/management.md` |
+| Принципы общения mentor↔ragnar (как меня вести / как мне тебя пушить) | `strategy/mentor-principles.md` |
+| Контент-стратегия (видео, Telegram, монетизация) | `strategy/content-system.md` |
 | Внутренний tooling roadmap (CI / linters / hooks) | `strategy/cpp-tooling-roadmap.md` или `conventions/scripts-and-automation.md` (когда появится в Issue E) |
 
 Если не уверен куда — спроси `team-lead` агента, он подскажет.
