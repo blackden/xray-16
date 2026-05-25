@@ -3,10 +3,6 @@
 #include "xrCore/xr_token.h"
 #include "xr_input.h"
 
-#if defined(XR_PLATFORM_APPLE)
-#   include "CocoaFullscreenShim.hpp"
-#endif
-
 xr_vector<xr_token> vid_monitor_token;
 xr_map<u32, xr_vector<xr_token>> vid_mode_token;
 
@@ -122,9 +118,6 @@ void CRenderDevice::UpdateWindowProps()
     if (SDL_GetWindowDisplayIndex(m_sdlWnd) != static_cast<int>(psDeviceMode.Monitor))
     {
         SDL_SetWindowFullscreen(m_sdlWnd, SDL_DISABLE);
-#if defined(XR_PLATFORM_APPLE)
-        OpenXRay_ForceFullscreenPrimary(); // re-assert after SDL transition
-#endif
 
         SDL_Rect rect;
         SDL_GetDisplayBounds(psDeviceMode.Monitor, &rect);
@@ -148,7 +141,6 @@ void CRenderDevice::UpdateWindowProps()
 
         SDL_SetWindowBordered(m_sdlWnd, drawBorders ? SDL_TRUE : SDL_FALSE);
 #if defined(XR_PLATFORM_APPLE)
-        OpenXRay_ForceFullscreenPrimary(); // re-assert after SetWindowBordered
         // macOS: НЕ снимаем RESIZABLE перед DESKTOP-fullscreen. SDL2 cocoa backend
         // (SDL_cocoawindow.m:2454-2476) при resizable=FALSE делает
         // setCollectionBehavior:NSWindowCollectionBehaviorFullScreenNone — окно
@@ -160,9 +152,6 @@ void CRenderDevice::UpdateWindowProps()
         SDL_SetWindowResizable(m_sdlWnd, !useDesktopFullscreen ? SDL_TRUE : SDL_FALSE);
 #endif
         SDL_SetWindowFullscreen(m_sdlWnd, useDesktopFullscreen ? SDL_WINDOW_FULLSCREEN_DESKTOP : SDL_DISABLE);
-#if defined(XR_PLATFORM_APPLE)
-        OpenXRay_ForceFullscreenPrimary(); // re-assert after windowed-path SetWindowFullscreen
-#endif
     }
     else if (b_is_Ready)
     {
@@ -182,7 +171,6 @@ void CRenderDevice::UpdateWindowProps()
         SDL_GetCurrentDisplayMode(psDeviceMode.Monitor, &current);
         SDL_SetWindowSize(m_sdlWnd, current.w, current.h);
         SDL_SetWindowFullscreen(m_sdlWnd, SDL_WINDOW_FULLSCREEN_DESKTOP);
-        OpenXRay_ForceFullscreenPrimary(); // re-assert after rsFullscreen-path SetWindowFullscreen
 #else
         SDL_SetWindowFullscreen(m_sdlWnd, SDL_WINDOW_FULLSCREEN);
 
