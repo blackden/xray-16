@@ -146,6 +146,16 @@ void CRenderDevice::UpdateWindowProps()
     else if (b_is_Ready)
     {
         SDL_SetWindowResizable(m_sdlWnd, SDL_FALSE);
+#if defined(XR_PLATFORM_APPLE)
+        // macOS: exclusive SDL_WINDOW_FULLSCREEN захватывает display эксклюзивно —
+        // WindowServer блокирует Cmd-Tab (#50), а video-mode switching вызывает
+        // geometry race в SDL_GL_GetDrawableSize ниже (#48). DESKTOP-режим даёт
+        // borderless-окно во весь экран без mode-switch — race не возникает.
+        SDL_DisplayMode current;
+        SDL_GetCurrentDisplayMode(psDeviceMode.Monitor, &current);
+        SDL_SetWindowSize(m_sdlWnd, current.w, current.h);
+        SDL_SetWindowFullscreen(m_sdlWnd, SDL_WINDOW_FULLSCREEN_DESKTOP);
+#else
         SDL_SetWindowFullscreen(m_sdlWnd, SDL_WINDOW_FULLSCREEN);
 
         SDL_DisplayMode mode;
@@ -154,6 +164,7 @@ void CRenderDevice::UpdateWindowProps()
         mode.h = psDeviceMode.Height;
         mode.refresh_rate = psDeviceMode.RefreshRate;
         SDL_SetWindowDisplayMode(m_sdlWnd, &mode);
+#endif
     }
 
     SDL_PumpEvents();
