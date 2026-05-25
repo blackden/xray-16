@@ -191,9 +191,10 @@ backfill'ов.
 **Hang? Сверься с taxonomy ПРЕЖДЕ чем формулировать гипотезу.**
 *Где:* [`notes/decisions/hang-taxonomy.md`](../decisions/hang-taxonomy.md).
 *Симптом:* hard system freeze, `STAT=TX` zombie, Cmd+Q ∞-wait, watchdog
-firing — для любого taxonomy сужает диагноз до Class A/B/C за 30 секунд.
-Без неё ты (или Claude через 2 недели) изобретёт N-ную гипотезу для уже
-известного класса бага.
+firing — для любого taxonomy сужает диагноз до Family 1.A / 1.C / 2.B
+за 30 секунд. Без неё ты (или Claude через 2 недели) изобретёт N-ную
+гипотезу для уже известного класса бага. И помни ключевое: STAT=TX это
+**наша** вина (не отпустили GPU/IOKit context), не Apple-side bug.
 
 ---
 
