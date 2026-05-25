@@ -22,6 +22,12 @@ void SetSDLSettings(pcstr title)
 #ifdef  SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS
     SDL_SetHint(SDL_HINT_VIDEO_MINIMIZE_ON_FOCUS_LOSS, "0");
 #endif
+#if defined(XR_PLATFORM_APPLE) && defined(SDL_HINT_VIDEO_MAC_FULLSCREEN_SPACES)
+    // macOS: defensive — гарантируем что SDL зайдёт через native Cocoa
+    // fullscreen Spaces ([NSWindow toggleFullScreen:]) когда engine просит
+    // FULLSCREEN_DESKTOP. Default — "1", но не полагаемся. См. #99.
+    SDL_SetHint(SDL_HINT_VIDEO_MAC_FULLSCREEN_SPACES, "1");
+#endif
 #ifdef  SDL_HINT_AUDIO_DEVICE_APP_NAME
     SDL_SetHint(SDL_HINT_AUDIO_DEVICE_APP_NAME, title);
 #endif
@@ -49,8 +55,20 @@ void CRenderDevice::Initialize()
         // dimensions on Retina / scaled HiDPI displays. Without it macOS
         // backs the GL context with a backbuffer matching window points and
         // the engine renders into a quarter of the visible area at 2x scale.
+        //
+        // На macOS НЕ передаём SDL_WINDOW_BORDERLESS при создании — SDL
+        // Cocoa решает fullscreen-Space eligibility в момент SDL_CreateWindow,
+        // и BORDERLESS-окно навсегда получает NSWindowCollectionBehaviorFullScreenNone,
+        // что заставляет SDL_SetWindowFullscreen(DESKTOP) падать в borderless-
+        // overlay fallback вместо [NSWindow toggleFullScreen:] (native Cocoa
+        // Space). rsWindowedBorderless ставит борders=false runtime через
+        // SDL_SetWindowBordered — eligibility сохраняется. См. #99.
+#if defined(XR_PLATFORM_APPLE)
+        Uint32 flags = SDL_WINDOW_HIDDEN | SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
+#else
         Uint32 flags = SDL_WINDOW_BORDERLESS | SDL_WINDOW_HIDDEN |
             SDL_WINDOW_RESIZABLE | SDL_WINDOW_ALLOW_HIGHDPI;
+#endif
 
         GEnv.Render->ObtainRequiredWindowFlags(flags);
 
