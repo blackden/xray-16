@@ -445,6 +445,18 @@ Practical examples:
   GPU/IOKit hold) и Family 2 (static destruction ordering; surface
   2.B destructor cascade). Consult перед debugging любого нового hang
   report — не изобретай таксономию заново.
+- Window / fullscreen lifecycle: `src/xrEngine/Device_mode.cpp:109`
+  (`UpdateWindowProps`) — четыре пути по `psDeviceMode.WindowStyle`:
+  rsWindowed / rsWindowedBorderless (`SDL_DISABLE`), rsFullscreenBorderless
+  (`SDL_WINDOW_FULLSCREEN_DESKTOP`, line 144), rsFullscreen
+  (`SDL_WINDOW_FULLSCREEN`, line 149 — Apple-gated → DESKTOP, см. #97).
+  `SDL_GL_GetDrawableSize` сразу после set (HiDPI pixel resize).
+  Mouse grab: `src/xrEngine/xr_input.cpp:643` (`GrabInput`) — тогглится
+  на focus loss/gain, console/menu open. Title-bar hit-test:
+  `Device_Initialize.cpp:80` регистрирует `WindowHitTest`
+  (`Device_mode.cpp:124-177`). Двойной `UpdateWindowProps` в
+  `Device_destroy.cpp:51,56` — band-aid timing workaround, по подозрению
+  на RT-resize race (см. #48 follow-up).
 
 ## Open questions / next-time-investigate
 
