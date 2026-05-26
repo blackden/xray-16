@@ -49,10 +49,25 @@
 #import <AppKit/AppKit.h>
 #import <Foundation/Foundation.h>
 
+#include "macos_cocoa_shim.h"
+
 // Defined in Engine.cpp under XR_PLATFORM_APPLE — defers KERNEL:disconnect
 // then KERNEL:quit on the engine event queue. Out-of-line to keep this .mm
 // free of xrCore headers (they collide with Foundation types under ObjC++).
 extern "C" void OpenXRay_RequestGracefulQuit(void);
+
+// Defined in xr_input.cpp under XR_PLATFORM_APPLE — pInput->IR_ReleaseAll().
+// Used by the focus-loss observer below to drop every held keyboard scancode
+// and mouse button: иначе Cmd-Tab при удерживаемой LMB оставляет stuck-fire
+// после возврата (NSEvent для button-up в фоновом приложении не приходит).
+extern "C" void OpenXRay_SyntheticReleaseAllKeys(void);
+
+// Defined in xr_input.cpp under XR_PLATFORM_APPLE — записывает переданные
+// NSEvent.modifierFlags в file-static g_lastShimModifierFlags, чтобы следующий
+// FlagsChanged record в NSEventDrain считал diff от актуального состояния.
+// Вызывается из applicationDidBecomeActive: после возврата фокуса (пока мы
+// были в background, FlagsChanged events не приходили — diff устарел).
+extern "C" void OpenXRay_SyncModifierFlags(uint32_t flags);
 
 // Lifecycle flag setters defined in Engine.cpp under XR_PLATFORM_APPLE. Each
 // stores an atomic pending-event enum which is applied by the render thread at
@@ -64,11 +79,140 @@ extern "C" void OpenXRay_OnSystemDidWake(void);
 extern "C" void OpenXRay_OnAppDidBecomeActive(void);
 extern "C" void OpenXRay_OnAppWillResignActive(void);
 
+// ---------------------------------------------------------------------------
+// NSEvent input pipeline (issue #120, A.3 step 2a/4) — infrastructure-only.
+//
+// Fixed-size ring queue + local-monitor scaffolding for keyboard / mouse /
+// scroll / modifier events. Producer is the local-monitor block (main thread);
+// consumer is CInput::OnFrame() via OpenXRay_DrainNSEventQueue (also main
+// thread, разнесён во времени в пределах кадра — без atomics).
+//
+// In commit 2a/4 the handler is a STUB: it returns every event unconditionally
+// (никаких QueuePush, никаких return nil). SDL pipeline продолжает рулить.
+// Activation (consume + nil-return for keyboard) lands in commit 2c.
+// Translator helpers (MakeRecordFrom*) тоже определены но не вызываются —
+// помечены [[maybe_unused]] чтобы compiler не ругался.
+// ---------------------------------------------------------------------------
+
+namespace
+{
+constexpr size_t kQueueCapacity = 256;
+
+struct NSEventQueue
+{
+    OpenXRayNSEventRecord buf[kQueueCapacity];
+    size_t head       = 0; // next read
+    size_t tail       = 0; // next write
+    size_t count      = 0;
+    bool   overflowed = false;
+};
+
+NSEventQueue g_nsEventQueue;
+bool         g_nsEventInputEnabled = true;
+bool         g_mouseCaptured       = false;
+float        g_backingScaleFactor  = 1.0f;
+id           g_nsEventMonitor      = nil;
+
+void QueuePush(const OpenXRayNSEventRecord &rec)
+{
+    if (g_nsEventQueue.count == kQueueCapacity)
+    {
+        // Drop oldest — preserve newer state (release events more critical
+        // than stale presses).
+        g_nsEventQueue.head = (g_nsEventQueue.head + 1) % kQueueCapacity;
+        --g_nsEventQueue.count;
+
+        if (!g_nsEventQueue.overflowed)
+        {
+            static const char msg[] =
+                "==> OpenXRay NSEvent queue overflow — dropping oldest\n";
+            ::write(STDERR_FILENO, msg, sizeof(msg) - 1);
+            g_nsEventQueue.overflowed = true;
+        }
+    }
+    g_nsEventQueue.buf[g_nsEventQueue.tail] = rec;
+    g_nsEventQueue.tail = (g_nsEventQueue.tail + 1) % kQueueCapacity;
+    ++g_nsEventQueue.count;
+}
+
+// Translator helpers — called from the local-monitor handler below.
+
+OpenXRayNSEventRecord MakeRecordFromKey(NSEvent *event, int kind)
+{
+    OpenXRayNSEventRecord rec = {};
+    rec.kind = kind;
+    rec.keyCode = (uint16_t)[event keyCode];
+    rec.modifierFlags = (uint32_t)([event modifierFlags] &
+        NSEventModifierFlagDeviceIndependentFlagsMask);
+    rec.isARepeat = [event isARepeat] ? 1 : 0;
+    return rec;
+}
+
+OpenXRayNSEventRecord MakeRecordFromFlags(NSEvent *event)
+{
+    OpenXRayNSEventRecord rec = {};
+    rec.kind = OXR_NS_EVENT_FLAGS_CHANGED;
+    rec.keyCode = (uint16_t)[event keyCode];
+    rec.modifierFlags = (uint32_t)([event modifierFlags] &
+        NSEventModifierFlagDeviceIndependentFlagsMask);
+    return rec;
+}
+
+OpenXRayNSEventRecord MakeRecordFromMouse(NSEvent *event, int kind, NSWindow *window)
+{
+    OpenXRayNSEventRecord rec = {};
+    rec.kind = kind;
+    rec.modifierFlags = (uint32_t)([event modifierFlags] &
+        NSEventModifierFlagDeviceIndependentFlagsMask);
+
+    NSEventType t = [event type];
+    if (t == NSEventTypeLeftMouseDown || t == NSEventTypeLeftMouseUp ||
+        t == NSEventTypeLeftMouseDragged)
+        rec.mouseButton = 0;
+    else if (t == NSEventTypeRightMouseDown || t == NSEventTypeRightMouseUp ||
+             t == NSEventTypeRightMouseDragged)
+        rec.mouseButton = 1;
+    else
+        rec.mouseButton = 2;
+
+    if (g_mouseCaptured)
+    {
+        rec.deltaX = (float)[event deltaX];
+        rec.deltaY = (float)[event deltaY];
+        rec.locX = 0.0f;
+        rec.locY = 0.0f;
+    }
+    else
+    {
+        NSPoint loc = [event locationInWindow];
+        CGFloat windowHeightPt = window
+            ? window.contentLayoutRect.size.height
+            : [[NSScreen mainScreen] frame].size.height;
+        rec.locX = (float)(loc.x * g_backingScaleFactor);
+        rec.locY = (float)((windowHeightPt - loc.y) * g_backingScaleFactor);
+        rec.deltaX = 0.0f;
+        rec.deltaY = 0.0f;
+    }
+    return rec;
+}
+
+OpenXRayNSEventRecord MakeRecordFromScroll(NSEvent *event)
+{
+    OpenXRayNSEventRecord rec = {};
+    rec.kind = OXR_NS_EVENT_SCROLL_WHEEL;
+    rec.deltaX = (float)[event scrollingDeltaX];
+    rec.deltaY = (float)[event scrollingDeltaY];
+    return rec;
+}
+
+} // namespace
+
 @interface OpenXRayCocoaShim : NSObject <NSApplicationDelegate>
 @property (nonatomic, strong) id sdlDelegate;
 - (void)handleQuitRequest:(NSString *)origin;
 - (void)workspaceWillSleep:(NSNotification *)note;
 - (void)workspaceDidWake:(NSNotification *)note;
+- (void)windowDidChangeBackingProperties:(NSNotification *)note;
 @end
 
 // File-scope strong ref so OpenXRay_ArmLifecycleObservers() (called from
@@ -128,12 +272,40 @@ static OpenXRayCocoaShim *sInstalledShim = nil;
 {
     (void)note;
     OpenXRay_OnSystemWillSleep();
+
+    // Аналогично applicationWillResignActive (A.3.3 Phase 3): отпустить
+    // зажатые клавиши и mouse buttons. NSEvent для key-up / mouse-up между
+    // sleep и wake не приходят, поэтому держимые на момент засыпания биты
+    // останутся залипшими. После wake пользователь начинает с чистого
+    // состояния.
+    OpenXRay_SyntheticReleaseAllKeys();
 }
 
 - (void)workspaceDidWake:(NSNotification *)note
 {
     (void)note;
     OpenXRay_OnSystemDidWake();
+}
+
+// NSWindowDidChangeBackingPropertiesNotification — окно переехало между
+// мониторами с разной плотностью пикселей (e.g. встроенный 2x Retina ->
+// внешний 1x), либо пользователь сменил scale в System Settings. Обновляем
+// кэш g_backingScaleFactor чтобы non-captured mouse coords в next NSEvent
+// record были корректно scaled.
+- (void)windowDidChangeBackingProperties:(NSNotification *)note
+{
+    NSWindow *window = (NSWindow *)[note object];
+    if (!window)
+        return;
+    const float oldScale = g_backingScaleFactor;
+    g_backingScaleFactor = (float)[window backingScaleFactor];
+
+    char buf[160];
+    int n = snprintf(buf, sizeof buf,
+        "==> OpenXRay: backing scale factor changed %.2f -> %.2f\n",
+        (double)oldScale, (double)g_backingScaleFactor);
+    if (n > 0)
+        ::write(STDERR_FILENO, buf, (size_t)n);
 }
 
 // Focus events. Forwarded to SDL's delegate AFTER our hook so SDL's existing
@@ -150,6 +322,15 @@ static OpenXRayCocoaShim *sInstalledShim = nil;
         [(id)self.sdlDelegate performSelector:_cmd withObject:note];
 #pragma clang diagnostic pop
     }
+
+    // Sync g_lastShimModifierFlags с реальным состоянием модификаторов.
+    // Пока мы были не в фокусе пользователь мог отпустить/нажать Shift,
+    // Ctrl, Option и т.п. — NSEvent FlagsChanged события в фоне нам не
+    // приходили. Без sync'а следующий FlagsChanged даст некорректный diff
+    // и часть модификаторов будет либо stuck-pressed, либо проигнорирована.
+    const uint32_t mods = (uint32_t)([NSEvent modifierFlags]
+        & NSEventModifierFlagDeviceIndependentFlagsMask);
+    OpenXRay_SyncModifierFlags(mods);
 }
 
 - (void)applicationWillResignActive:(NSNotification *)note
@@ -162,6 +343,13 @@ static OpenXRayCocoaShim *sInstalledShim = nil;
         [(id)self.sdlDelegate performSelector:_cmd withObject:note];
 #pragma clang diagnostic pop
     }
+
+    // Synthetic release всех зажатых клавиш и mouse buttons. NSEvent local
+    // monitor события для background app не получает, поэтому KeyUp/MouseUp
+    // от Cmd-Tab выпадают — без этого LMB-зажатие + Cmd-Tab оставляет stuck
+    // fire после возврата. IR_ReleaseAll правит и keyboardState и mouseState
+    // и эмитит IR_OnKeyboardRelease / IR_OnMouseRelease для всех держимых.
+    OpenXRay_SyntheticReleaseAllKeys();
 }
 
 // Transparent forwarding to SDL's delegate for everything we don't override.
@@ -233,6 +421,12 @@ extern "C" void OpenXRay_InstallCocoaShim(void)
             eventMonitor ? "active" : "FAILED");
         if (n > 0)
             ::write(STDERR_FILENO, buf, (size_t)n);
+
+        // A.3 NSEvent input monitor — pass-through stub in commit 2a/4. See
+        // namespace block above for queue / translators. Conservative initial
+        // backing scale; refined on windowDidChangeBackingProperties later.
+        g_backingScaleFactor = (float)[[NSScreen mainScreen] backingScaleFactor];
+        OpenXRay_InstallNSEventMonitor();
     }
 }
 
@@ -268,8 +462,141 @@ extern "C" void OpenXRay_ArmLifecycleObservers(void)
                    name:NSWorkspaceDidWakeNotification
                  object:nil];
 
+        // NSWindowDidChangeBackingPropertiesNotification приходит через
+        // DEFAULT NSNotificationCenter (не NSWorkspace). Регистрируем без
+        // object'а — нам интересен любой window, переехавший между мониторами.
+        [[NSNotificationCenter defaultCenter] addObserver:sInstalledShim
+            selector:@selector(windowDidChangeBackingProperties:)
+                name:NSWindowDidChangeBackingPropertiesNotification
+              object:nil];
+
         static const char msg[] =
-            "==> Cocoa shim: lifecycle observers armed (NSWorkspace sleep/wake)\n";
+            "==> Cocoa shim: lifecycle observers armed (NSWorkspace sleep/wake, backing scale)\n";
         ::write(STDERR_FILENO, msg, sizeof(msg) - 1);
     }
+}
+
+// ---------------------------------------------------------------------------
+// NSEvent input pipeline C entries (issue #120, step 2c/4).
+//
+// Keyboard / FlagsChanged events are consumed (handler returns nil), so SDL's
+// NSApp pump never sees them — engine drains via OpenXRay_DrainNSEventQueue
+// from CInput::OnFrame(). Mouse / scroll events are queued but passed through
+// (handler returns event); SDL continues to receive them while engine ignores
+// the queued copies. Phase 3 flips mouse/scroll to nil-return too.
+// ---------------------------------------------------------------------------
+
+extern "C" void OpenXRay_InstallNSEventMonitor(void)
+{
+    if (g_nsEventMonitor != nil)
+        return; // idempotent
+
+    @autoreleasepool
+    {
+        NSEventMask mask =
+            NSEventMaskKeyDown | NSEventMaskKeyUp | NSEventMaskFlagsChanged |
+            NSEventMaskMouseMoved |
+            NSEventMaskLeftMouseDown  | NSEventMaskLeftMouseUp  | NSEventMaskLeftMouseDragged  |
+            NSEventMaskRightMouseDown | NSEventMaskRightMouseUp | NSEventMaskRightMouseDragged |
+            NSEventMaskOtherMouseDown | NSEventMaskOtherMouseUp | NSEventMaskOtherMouseDragged |
+            NSEventMaskScrollWheel;
+
+        g_nsEventMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:mask
+            handler:^NSEvent *(NSEvent *event) {
+                NSEventType t = [event type];
+
+                // Cmd+Q sanity. The Cmd+Q monitor installed earlier in
+                // OpenXRay_InstallCocoaShim() should fire first and consume,
+                // but defend against ordering changes: pass Cmd+Q through
+                // untouched so the dedicated monitor (or, fallback, the menu
+                // dispatch) handles graceful quit.
+                if (t == NSEventTypeKeyDown && [event keyCode] == 0x0C /* kVK_ANSI_Q */ &&
+                    ([event modifierFlags] & NSEventModifierFlagCommand))
+                {
+                    return event;
+                }
+
+                if (!g_nsEventInputEnabled)
+                    return event; // rollback path (cvar=0)
+
+                NSWindow *window = [event window];
+
+                switch (t)
+                {
+                    case NSEventTypeKeyDown:
+                        QueuePush(MakeRecordFromKey(event, OXR_NS_EVENT_KEY_DOWN));
+                        return nil;
+                    case NSEventTypeKeyUp:
+                        QueuePush(MakeRecordFromKey(event, OXR_NS_EVENT_KEY_UP));
+                        return nil;
+                    case NSEventTypeFlagsChanged:
+                        QueuePush(MakeRecordFromFlags(event));
+                        return nil;
+                    case NSEventTypeMouseMoved:
+                        QueuePush(MakeRecordFromMouse(event, OXR_NS_EVENT_MOUSE_MOVE, window));
+                        return nil;
+                    case NSEventTypeLeftMouseDown:
+                    case NSEventTypeRightMouseDown:
+                    case NSEventTypeOtherMouseDown:
+                        QueuePush(MakeRecordFromMouse(event, OXR_NS_EVENT_MOUSE_DOWN, window));
+                        return nil;
+                    case NSEventTypeLeftMouseUp:
+                    case NSEventTypeRightMouseUp:
+                    case NSEventTypeOtherMouseUp:
+                        QueuePush(MakeRecordFromMouse(event, OXR_NS_EVENT_MOUSE_UP, window));
+                        return nil;
+                    case NSEventTypeLeftMouseDragged:
+                    case NSEventTypeRightMouseDragged:
+                    case NSEventTypeOtherMouseDragged:
+                        QueuePush(MakeRecordFromMouse(event, OXR_NS_EVENT_MOUSE_DRAGGED, window));
+                        return nil;
+                    case NSEventTypeScrollWheel:
+                        QueuePush(MakeRecordFromScroll(event));
+                        return nil;
+                    default:
+                        return event;
+                }
+            }];
+
+        char buf[160];
+        int n;
+        if (g_nsEventMonitor == nil)
+        {
+            n = snprintf(buf, sizeof buf,
+                "==> OpenXRay: NSEvent input monitor install FAILED\n");
+        }
+        else
+        {
+            n = snprintf(buf, sizeof buf,
+                "==> OpenXRay: NSEvent input monitor installed (queue capacity %zu)\n",
+                kQueueCapacity);
+        }
+        if (n > 0)
+            ::write(STDERR_FILENO, buf, (size_t)n);
+    }
+}
+
+extern "C" void OpenXRay_SetNSEventInputEnabled(int enabled)
+{
+    g_nsEventInputEnabled = (enabled != 0);
+}
+
+extern "C" void OpenXRay_SetMouseCaptureMode(int captured)
+{
+    g_mouseCaptured = (captured != 0);
+}
+
+extern "C" size_t OpenXRay_DrainNSEventQueue(struct OpenXRayNSEventRecord *out, size_t maxCount)
+{
+    if (out == NULL || maxCount == 0)
+        return 0;
+
+    size_t n = 0;
+    while (g_nsEventQueue.count > 0 && n < maxCount)
+    {
+        out[n++] = g_nsEventQueue.buf[g_nsEventQueue.head];
+        g_nsEventQueue.head = (g_nsEventQueue.head + 1) % kQueueCapacity;
+        --g_nsEventQueue.count;
+    }
+    return n;
 }
