@@ -16,6 +16,17 @@
 
 **Build constraint (memory):** ОДИН `make build-release` за раз, без parallel cmake вызовов, без retry на ошибках. Cmake cache contention → hang.
 
+> ## ⚠ BUILD RULE (per task, repeated)
+>
+> Если `make build-release` упал — **STOP**:
+> 1. Paste error output в report
+> 2. Do **NOT** retry the same `make build-release` call
+> 3. Do **NOT** `make clean` / `rm -rf build` / re-run cmake
+> 4. Wait for human direction
+>
+> Cmake кэш под parallel/retry → hang всей системы. Это hard rule.
+> Это правило **повторяется в каждом task header'е ниже**.
+
 ---
 
 ## Phase 0: Setup и adversarial review
@@ -456,6 +467,121 @@ Plan: docs/superpowers/plans/2026-05-26-a3-nsevent-input.md"
 **Owner:** apple-platform agent.
 
 **Smoke gate:** WASD ходьба (US+RU layouts), Shift+W бег, Esc меню, Cmd+Q quit, `nsevent_input 0`/`1` flip под удерживаемой клавишей — нет stuck.
+
+### Commit granularity (team-lead P1-1)
+
+Phase 2 производит **3 git commits** вместо одного monolith'а ради
+rollback granularity. Каждый commit компилируется и бутается:
+
+| Commit | Что | Ships as |
+|---|---|---|
+| **step 2a/4** | Task 2.0 (CInput API) + Task 2.1 (shim.h struct/decls) + Task 2.2 (ring queue + C entries, **handler stub** returns event unconditionally) | no-op infrastructure — SDL pipeline по-прежнему рулит |
+| **step 2b/4** | Task 2.3 (NSEventDrain + cvar callback) + Task 2.4 (cvar registered, default=1) + Apple-gate early-return в KeyUpdate. Drain читает из ПУСТОЙ очереди → no-op | no-op (handler ещё не consume'ит — но infrastructure ready) |
+| **step 2c/4** | Активация: handler начинает consume keyboard/flags events (mouse/scroll записи в очередь но drain пока их игнорирует). Smoke. | **поведение меняется** — keyboard через NSEvent |
+
+Revert 2c → возврат к safe no-op (2a+2b) на `macos/blackden/master`.
+Revert 2c+2b → возврат к чистой A.3.1. Revert 2c+2b+2a → возврат к
+pre-A.3 состоянию.
+
+**Implementer**: каждый commit делается отдельно с своим smoke step'ом.
+Между commits — `make build-release` обязателен; между 2b и 2c — также
+запустить игру и убедиться что SDL pipeline всё ещё работает (нет
+regressions). Между 2c и Phase 3 — полный smoke gate A.3.2.
+
+### Task 2.0: Расширить `CInput` public API (`IR_ReleaseAll` + `ClearKeyboardState`)
+
+**Why this task exists:** team-lead adversarial review (P2): `CInput::cbStack`
+сейчас `protected` — free-function `OpenXRay_SyntheticReleaseAllKeys` не
+достанет без `friend` (ugly coupling) или public accessor. `ResetKeyboardState`
+не существует в `CInput`. Чтобы не делать "friend obj-c++" хаков, добавляем
+два чистых public method'а ДО handler implementation.
+
+**Files:**
+- Modify: `src/xrEngine/xr_input.h` (public methods)
+- Modify: `src/xrEngine/xr_input.cpp` (implementations)
+
+> **BUILD RULE**: один `make build-release`. Fail → STOP, paste error, wait.
+
+- [ ] **Step 1: Прочитать `xr_input.h` целиком**
+
+Найти: класс `CInput`, member `cbStack`, member `iGetAsyncKeyState`, любые
+существующие `Reset*` / `Clear*` methods.
+
+- [ ] **Step 2: Добавить два public method declaration в `CInput`**
+
+В public section `CInput`:
+
+```cpp
+public:
+    // Synthetic release всех зажатых клавиш (и mouse buttons) через top
+    // receiver на cbStack. Используется при focus loss / sleep / pipeline
+    // flip для избежания stuck keys.
+    void IR_ReleaseAll();
+
+    // Обнулить локальный keyboardState[] без вызова receiver'ов.
+    // Используется после IR_ReleaseAll() чтобы syncнуть наш state с
+    // тем что receiver'ы только что отрелизились.
+    void ClearKeyboardState();
+```
+
+- [ ] **Step 3: Реализовать методы в `xr_input.cpp`**
+
+В соответствующем месте (после других public methods):
+
+```cpp
+void CInput::IR_ReleaseAll()
+{
+    if (cbStack.empty())
+        return;
+    IInputReceiver* receiver = cbStack.back();
+
+    // Keyboard
+    for (int sc = 0; sc < SDL_NUM_SCANCODES; ++sc)
+    {
+        if (iGetAsyncKeyState(sc))
+            receiver->IR_OnKeyboardRelease(sc);
+    }
+
+    // Mouse buttons (left/right/middle — 3 standard buttons in xrInput)
+    for (int btn = 0; btn < 3; ++btn)
+    {
+        if (iGetAsyncBtnState(btn))
+            receiver->IR_OnMouseRelease(btn);
+    }
+
+    ClearKeyboardState();
+}
+
+void CInput::ClearKeyboardState()
+{
+    // Точное имя поля — сверить в xr_input.h. Обычно std::array<bool, N>
+    // или похожее. Если это std::bitset — bitset.reset().
+    // Если это static array — std::fill.
+    // ВАЖНО: если в CInput есть аналогичный mouse-state buffer — обнулить тоже.
+    // Конкретный код — после step 1 чтения header'а.
+}
+```
+
+**Замечание для implementer'а:** точные имена полей (`keyboardState`,
+`mouseState`, `iGetAsyncBtnState`) сверять при чтении header'а. Если
+`iGetAsyncBtnState(btn)` не существует — использовать тот же pattern что
+для keyboard (через `mouseState[]` или `mouseInfo`). Если в `CInput` нет
+явного mouse-button state'а (т.е. он отдаётся receiver'у без локального
+кэша) — mouse часть `IR_ReleaseAll()` ограничится «release все 3 кнопки
+безусловно» (idempotent — receiver сам разберётся).
+
+- [ ] **Step 4: Build (SERIAL)**
+
+```bash
+make build-release
+```
+
+Expected: exit 0. Fail → STOP per BUILD RULE.
+
+- [ ] **Step 5: Не коммитить — это API подложка для Task 2.1+**
+
+Этот task в один commit вместе с Task 2.1 (header additions для shim'а) —
+оба — pure infrastructure без behavior change.
 
 ### Task 2.1: Расширить `macos_cocoa_shim.h` (struct + C entries)
 
@@ -1170,31 +1296,74 @@ Expected: в обеих позициях персонаж реагирует н�
 
 В системных настройках macOS переключить раскладку на Русскую. Запустить игру, повторить базовый smoke (W → персонаж идёт вперёд — мы биндим по physical key, layout не должен ломать).
 
-- [ ] **Step 7: Commit A.3.2**
+- [ ] **Step 7: Three commits per granularity table (Phase 2 header)**
+
+**Commit 2a/4** (после Task 2.0 + 2.1 + 2.2 с handler stub):
 
 ```bash
-git add src/xrEngine/macos_cocoa_shim.h src/xrEngine/macos_cocoa_shim.mm \
-        src/xrEngine/xr_input.h src/xrEngine/xr_input.cpp \
-        src/Layers/xrRender/xrRender_console.cpp
-git commit -m "xrEngine: NSEvent local monitor + queue + drain для клавиатуры (#120 A.3 step 2/4)
+git add src/xrEngine/xr_input.h src/xrEngine/xr_input.cpp \
+        src/xrEngine/macos_cocoa_shim.h src/xrEngine/macos_cocoa_shim.mm
+git commit -m "xrEngine: NSEvent ring buffer + CInput::IR_ReleaseAll API (#120 A.3 step 2a/4)
 
-Расширяет OpenXRayCocoaShim local monitor с Cmd+Q mask на полную
-input mask (keyboard + flags + mouse + scroll). Фиксированный ring
-queue [256] на main thread; producer (handler) и consumer
-(CInput::NSEventDrain) разнесены во времени в пределах кадра без
-atomics.
+Infrastructure-only commit: добавляет фиксированный ring queue [256]
+в macos_cocoa_shim.mm, POD struct OpenXRayNSEventRecord, C entries
+(OpenXRay_InstallNSEventMonitor, SetNSEventInputEnabled,
+SetMouseCaptureMode, DrainNSEventQueue) и CInput public API
+(IR_ReleaseAll, ClearKeyboardState).
 
-Cvar 'nsevent_input' (default 1) даёт runtime rollback на SDL
-pipeline. Flip триггерит OpenXRay_SyntheticReleaseAllKeys() —
-soft reset зажатых клавиш через cbStack.back()->IR_OnKeyboardRelease,
-избегает stuck keys между pipeline'ами.
+Handler пока stub — возвращает event unconditionally (no consume).
+Поведение игры не меняется. Подложка для step 2b/2c.
 
-Этот шаг подключает только keyboard и modifier flags. Mouse +
-scroll records пушатся в очередь но игнорируются в drain'е —
-будут подключены в step 3/4. SDL KeyUpdate под Apple-gate'ом
-становится no-op (нет events — consumed handler'ом).
+Step 2a of 4 toward issue #120: A.3 NSEvent input pipeline."
+```
 
-Step 2 of 4 toward issue #120: A.3 NSEvent input pipeline.
+**Commit 2b/4** (после Task 2.3 + Task 2.4 — drain hook + cvar):
+
+```bash
+git add src/xrEngine/xr_input.cpp src/Layers/xrRender/xrRender_console.cpp
+git commit -m "xrEngine: cvar nsevent_input + NSEventDrain hook + Apple-gate KeyUpdate (#120 A.3 step 2b/4)
+
+Регистрирует cvar 'nsevent_input' (default 1) в xrRender_console.cpp
+под Apple-gate. Подключает CInput::NSEventDrain() в начало OnFrame
+под Apple-gate когда cvar==1. Apple-gate early-return в KeyUpdate
+делает SDL keyboard drain no-op когда NSEvent pipeline активен.
+
+Cvar setter callback дёргает CInput::IR_ReleaseAll() при flip'е
+для избежания stuck keys между pipeline'ами.
+
+Очередь сейчас пустая (handler ещё stub из 2a), drain — no-op.
+Подложка для активации в 2c.
+
+Step 2b of 4 toward issue #120: A.3 NSEvent input pipeline."
+```
+
+**Commit 2c/4** (активация — handler начинает consume keyboard):
+
+В Task 2.2 (handler implementation) после Step 4 (OpenXRay_InstallNSEventMonitor):
+заменить «handler stub returns event unconditionally» на actual switch с
+consume для keyboard/flags. Mouse/scroll records по-прежнему push'атся
+в очередь но drain их игнорирует (Phase 3 включит).
+
+```bash
+git add src/xrEngine/macos_cocoa_shim.mm
+git commit -m "xrEngine: активация NSEvent keyboard pipeline (#120 A.3 step 2c/4)
+
+Handler в local monitor consume'ит keyboard/keyup/FlagsChanged
+events (возвращает nil вместо event'а). Mouse/scroll events пишутся
+в очередь но drain их игнорирует — будут подключены в step 3/4.
+
+SDL KeyUpdate под Apple-gate'ом теперь реально no-op (consumed
+handler'ом раньше чем SDL_PeepEvents увидит). После этого commit'а
+keyboard pipeline на macOS живёт через NSEvent.
+
+Smoke gate (per spec § 7.2):
+- WASD US + RU раскладка
+- Shift+W бег
+- Esc меню
+- Cmd+Q graceful quit
+- nsevent_input 0/1 flip под удерживаемой клавишей — нет stuck
+
+Step 2c of 4 toward issue #120: A.3 NSEvent input pipeline.
 Spec: docs/superpowers/specs/2026-05-26-a3-nsevent-input-design.md
 Plan: docs/superpowers/plans/2026-05-26-a3-nsevent-input.md"
 ```
@@ -1288,6 +1457,58 @@ make build-release
 
 Expected: exit 0.
 
+### Task 3.1b: Mouse-button recovery (team-lead P1-2: stuck-fire after Cmd-Tab)
+
+**Why this task exists:** team-lead adversarial review identified что LMB-held
++ Cmd-Tab — частый user gesture при playtest; получить stuck-fire когда NSEvent
+mouse pipeline активен но focus-loss recovery ещё не подключён (запланирован
+A.3.4) → ragnar теряет 2 дня на «вчера работало». Минимальный
+mouse-button release делается в A.3.3 параллельно с активацией mouse'а.
+
+`CInput::IR_ReleaseAll()` уже делает mouse release (Task 2.0 Step 3) —
+этот task **подключает** existing API в shim.mm focus-loss observer.
+
+**Files:**
+- Modify: `src/xrEngine/macos_cocoa_shim.mm`
+
+> **BUILD RULE**: один `make build-release`. Fail → STOP, paste error, wait.
+
+- [ ] **Step 1: В `applicationWillResignActive:` дёрнуть synthetic release (только mouse buttons)**
+
+В existing observer'е (line ~143-165 в shim.mm) **после** forward к SDL delegate'у:
+
+```objc
+// Mouse-button recovery (A.3.3): LMB-held + Cmd-Tab иначе → stuck fire
+// Полная keyboard recovery приедет в A.3.4. Для A.3.3 ограничиваемся
+// mouse чтобы не split-ить feature flag'и.
+extern "C" void OpenXRay_SyntheticReleaseAllKeys(void);  // forward decl (определён в xr_input.cpp под Apple-gate)
+OpenXRay_SyntheticReleaseAllKeys();
+```
+
+**Замечание**: `IR_ReleaseAll()` отрелизит и keyboard и mouse — это
+**desirable** для A.3.3 smoke gate (отпускаем всё, не только мышь).
+Phase 4 добавит дополнительные observer'ы (sleep, backing scale) и
+modifier sync — это incremental поверх 3.1b.
+
+- [ ] **Step 2: Build (SERIAL)**
+
+```bash
+make build-release
+```
+
+Expected: exit 0. Fail → STOP per BUILD RULE.
+
+- [ ] **Step 3: Smoke — Cmd-Tab во время удержания LMB**
+
+```bash
+make ship && open /Applications/OpenXRay-Dev.app
+```
+
+In game: зажать LMB (стрельба), не отпускать; Cmd-Tab в Safari; вернуться
+в игру; expected: стрельба прекратилась после Cmd-Tab (synthetic release
+сработал). Если NSEvent ещё не подключён к mouse — этот шаг будет
+проверять только что код собирается; полный smoke в Task 3.2.
+
 ### Task 3.2: A.3.3 smoke + commit
 
 - [ ] **Step 1: Ship + запуск**
@@ -1342,25 +1563,24 @@ Plan: docs/superpowers/plans/2026-05-26-a3-nsevent-input.md"
 
 **Smoke gate:** Cmd-Tab во время удержания W → возврат → нет stuck; sleep → wake → нет stuck; 30 min CoP gameplay clean.
 
-### Task 4.1: Расширить `OpenXRayCocoaShim` — focus/sleep/backing observers
+### Task 4.1: Расширить `OpenXRayCocoaShim` — sleep + modifier sync + backing observers
+
+**Note:** mouse+keyboard synthetic release при `applicationWillResignActive`
+уже подключён в Task 3.1b. Phase 4 добавляет sleep observer, modifier
+state sync при becomeActive, и backing-scale tracking.
 
 **Files:**
 - Modify: `src/xrEngine/macos_cocoa_shim.mm`
 
+> **BUILD RULE**: один `make build-release`. Fail → STOP, paste error, wait.
+
 - [ ] **Step 1: Прочитать существующие observer'ы в shim'е**
 
-Read existing `applicationDidBecomeActive:` / `applicationWillResignActive:` (~line 143-165) и `workspaceWillSleep:` / `workspaceDidWake:` (~244-275).
+Read existing `applicationDidBecomeActive:` / `applicationWillResignActive:` (~line 143-165) и `workspaceWillSleep:` / `workspaceDidWake:` (~244-275). `applicationWillResignActive:` уже дёргает `OpenXRay_SyntheticReleaseAllKeys()` после Task 3.1b — не дублировать.
 
-- [ ] **Step 2: В `applicationWillResignActive:` вызвать synthetic release**
+- [ ] **Step 2: SKIP — уже сделано в Task 3.1b**
 
-После existing forward к SDL delegate:
-
-```objc
-// Synthetic release всех зажатых клавиш — избегает stuck-keys когда
-// фокус потерян (KeyUp может уйти другому app)
-extern "C" void OpenXRay_SyntheticReleaseAllKeys(void);
-OpenXRay_SyntheticReleaseAllKeys();
-```
+(Шаг оставлен для нумерации; Phase 4 фокусируется на sleep + modifier sync + backing.)
 
 - [ ] **Step 3: В `applicationDidBecomeActive:` — синхронизация modifier state**
 
