@@ -216,6 +216,16 @@ public:
     void iCapture(IInputReceiver* pc);
     void iRelease(IInputReceiver* pc);
 
+    // Synthetic release всех зажатых клавиш + mouse buttons через top receiver
+    // на cbStack. Используется при focus loss / sleep / pipeline flip
+    // (`nsevent_input` cvar) для избежания stuck keys. Локальный keyboardState
+    // / mouseState также обнуляется (см. ClearKeyboardState).
+    void IR_ReleaseAll();
+
+    // Обнулить локальные keyboardState / mouseState без вызова receiver'ов.
+    // Используется после IR_ReleaseAll() либо самостоятельно при pipeline reset.
+    void ClearKeyboardState();
+
     bool iGetAsyncKeyState(const int key);
     const auto& iGetAsyncControllerState() const { return controllerState; }
     bool iAnyMouseButtonDown() const { return mouseState.any(); }

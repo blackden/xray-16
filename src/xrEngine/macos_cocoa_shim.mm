@@ -49,6 +49,8 @@
 #import <AppKit/AppKit.h>
 #import <Foundation/Foundation.h>
 
+#include "macos_cocoa_shim.h"
+
 // Defined in Engine.cpp under XR_PLATFORM_APPLE — defers KERNEL:disconnect
 // then KERNEL:quit on the engine event queue. Out-of-line to keep this .mm
 // free of xrCore headers (they collide with Foundation types under ObjC++).
@@ -63,6 +65,135 @@ extern "C" void OpenXRay_OnSystemWillSleep(void);
 extern "C" void OpenXRay_OnSystemDidWake(void);
 extern "C" void OpenXRay_OnAppDidBecomeActive(void);
 extern "C" void OpenXRay_OnAppWillResignActive(void);
+
+// ---------------------------------------------------------------------------
+// NSEvent input pipeline (issue #120, A.3 step 2a/4) — infrastructure-only.
+//
+// Fixed-size ring queue + local-monitor scaffolding for keyboard / mouse /
+// scroll / modifier events. Producer is the local-monitor block (main thread);
+// consumer is CInput::OnFrame() via OpenXRay_DrainNSEventQueue (also main
+// thread, разнесён во времени в пределах кадра — без atomics).
+//
+// In commit 2a/4 the handler is a STUB: it returns every event unconditionally
+// (никаких QueuePush, никаких return nil). SDL pipeline продолжает рулить.
+// Activation (consume + nil-return for keyboard) lands in commit 2c.
+// Translator helpers (MakeRecordFrom*) тоже определены но не вызываются —
+// помечены [[maybe_unused]] чтобы compiler не ругался.
+// ---------------------------------------------------------------------------
+
+namespace
+{
+constexpr size_t kQueueCapacity = 256;
+
+struct NSEventQueue
+{
+    OpenXRayNSEventRecord buf[kQueueCapacity];
+    size_t head       = 0; // next read
+    size_t tail       = 0; // next write
+    size_t count      = 0;
+    bool   overflowed = false;
+};
+
+NSEventQueue g_nsEventQueue;
+bool         g_nsEventInputEnabled = true;
+bool         g_mouseCaptured       = false;
+float        g_backingScaleFactor  = 1.0f;
+id           g_nsEventMonitor      = nil;
+
+[[maybe_unused]] void QueuePush(const OpenXRayNSEventRecord &rec)
+{
+    if (g_nsEventQueue.count == kQueueCapacity)
+    {
+        // Drop oldest — preserve newer state (release events more critical
+        // than stale presses).
+        g_nsEventQueue.head = (g_nsEventQueue.head + 1) % kQueueCapacity;
+        --g_nsEventQueue.count;
+
+        if (!g_nsEventQueue.overflowed)
+        {
+            static const char msg[] =
+                "==> OpenXRay NSEvent queue overflow — dropping oldest\n";
+            ::write(STDERR_FILENO, msg, sizeof(msg) - 1);
+            g_nsEventQueue.overflowed = true;
+        }
+    }
+    g_nsEventQueue.buf[g_nsEventQueue.tail] = rec;
+    g_nsEventQueue.tail = (g_nsEventQueue.tail + 1) % kQueueCapacity;
+    ++g_nsEventQueue.count;
+}
+
+// Translator helpers — used in step 2c when handler начинает push'ить в queue.
+// В 2a определены но никем не вызываются; [[maybe_unused]] душит warning.
+
+[[maybe_unused]] OpenXRayNSEventRecord MakeRecordFromKey(NSEvent *event, int kind)
+{
+    OpenXRayNSEventRecord rec = {};
+    rec.kind = kind;
+    rec.keyCode = (uint16_t)[event keyCode];
+    rec.modifierFlags = (uint32_t)([event modifierFlags] &
+        NSEventModifierFlagDeviceIndependentFlagsMask);
+    rec.isARepeat = [event isARepeat] ? 1 : 0;
+    return rec;
+}
+
+[[maybe_unused]] OpenXRayNSEventRecord MakeRecordFromFlags(NSEvent *event)
+{
+    OpenXRayNSEventRecord rec = {};
+    rec.kind = OXR_NS_EVENT_FLAGS_CHANGED;
+    rec.keyCode = (uint16_t)[event keyCode];
+    rec.modifierFlags = (uint32_t)([event modifierFlags] &
+        NSEventModifierFlagDeviceIndependentFlagsMask);
+    return rec;
+}
+
+[[maybe_unused]] OpenXRayNSEventRecord MakeRecordFromMouse(NSEvent *event, int kind, NSWindow *window)
+{
+    OpenXRayNSEventRecord rec = {};
+    rec.kind = kind;
+    rec.modifierFlags = (uint32_t)([event modifierFlags] &
+        NSEventModifierFlagDeviceIndependentFlagsMask);
+
+    NSEventType t = [event type];
+    if (t == NSEventTypeLeftMouseDown || t == NSEventTypeLeftMouseUp ||
+        t == NSEventTypeLeftMouseDragged)
+        rec.mouseButton = 0;
+    else if (t == NSEventTypeRightMouseDown || t == NSEventTypeRightMouseUp ||
+             t == NSEventTypeRightMouseDragged)
+        rec.mouseButton = 1;
+    else
+        rec.mouseButton = 2;
+
+    if (g_mouseCaptured)
+    {
+        rec.deltaX = (float)[event deltaX];
+        rec.deltaY = (float)[event deltaY];
+        rec.locX = 0.0f;
+        rec.locY = 0.0f;
+    }
+    else
+    {
+        NSPoint loc = [event locationInWindow];
+        CGFloat windowHeightPt = window
+            ? window.contentLayoutRect.size.height
+            : [[NSScreen mainScreen] frame].size.height;
+        rec.locX = (float)(loc.x * g_backingScaleFactor);
+        rec.locY = (float)((windowHeightPt - loc.y) * g_backingScaleFactor);
+        rec.deltaX = 0.0f;
+        rec.deltaY = 0.0f;
+    }
+    return rec;
+}
+
+[[maybe_unused]] OpenXRayNSEventRecord MakeRecordFromScroll(NSEvent *event)
+{
+    OpenXRayNSEventRecord rec = {};
+    rec.kind = OXR_NS_EVENT_SCROLL_WHEEL;
+    rec.deltaX = (float)[event scrollingDeltaX];
+    rec.deltaY = (float)[event scrollingDeltaY];
+    return rec;
+}
+
+} // namespace
 
 @interface OpenXRayCocoaShim : NSObject <NSApplicationDelegate>
 @property (nonatomic, strong) id sdlDelegate;
@@ -233,6 +364,12 @@ extern "C" void OpenXRay_InstallCocoaShim(void)
             eventMonitor ? "active" : "FAILED");
         if (n > 0)
             ::write(STDERR_FILENO, buf, (size_t)n);
+
+        // A.3 NSEvent input monitor — pass-through stub in commit 2a/4. See
+        // namespace block above for queue / translators. Conservative initial
+        // backing scale; refined on windowDidChangeBackingProperties later.
+        g_backingScaleFactor = (float)[[NSScreen mainScreen] backingScaleFactor];
+        OpenXRay_InstallNSEventMonitor();
     }
 }
 
@@ -272,4 +409,78 @@ extern "C" void OpenXRay_ArmLifecycleObservers(void)
             "==> Cocoa shim: lifecycle observers armed (NSWorkspace sleep/wake)\n";
         ::write(STDERR_FILENO, msg, sizeof(msg) - 1);
     }
+}
+
+// ---------------------------------------------------------------------------
+// NSEvent input pipeline C entries (issue #120, step 2a/4).
+//
+// In commit 2a the local-monitor handler is a STUB: returns `event`
+// unconditionally so SDL_PollEvent continues to receive every keyboard /
+// mouse / scroll event. Queue stays empty. Step 2c flips the switch.
+// ---------------------------------------------------------------------------
+
+extern "C" void OpenXRay_InstallNSEventMonitor(void)
+{
+    if (g_nsEventMonitor != nil)
+        return; // idempotent
+
+    @autoreleasepool
+    {
+        NSEventMask mask =
+            NSEventMaskKeyDown | NSEventMaskKeyUp | NSEventMaskFlagsChanged |
+            NSEventMaskMouseMoved |
+            NSEventMaskLeftMouseDown  | NSEventMaskLeftMouseUp  | NSEventMaskLeftMouseDragged  |
+            NSEventMaskRightMouseDown | NSEventMaskRightMouseUp | NSEventMaskRightMouseDragged |
+            NSEventMaskOtherMouseDown | NSEventMaskOtherMouseUp | NSEventMaskOtherMouseDragged |
+            NSEventMaskScrollWheel;
+
+        // STUB handler — passes every event through to the next responder
+        // (including SDL's NSApp pump). No consume, no queue writes. Full
+        // switch + QueuePush lives in commit 2c.
+        g_nsEventMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:mask
+            handler:^NSEvent *(NSEvent *event) {
+                return event;
+            }];
+
+        char buf[160];
+        int n;
+        if (g_nsEventMonitor == nil)
+        {
+            n = snprintf(buf, sizeof buf,
+                "==> OpenXRay: NSEvent input monitor install FAILED\n");
+        }
+        else
+        {
+            n = snprintf(buf, sizeof buf,
+                "==> OpenXRay: NSEvent input monitor installed (queue capacity %zu)\n",
+                kQueueCapacity);
+        }
+        if (n > 0)
+            ::write(STDERR_FILENO, buf, (size_t)n);
+    }
+}
+
+extern "C" void OpenXRay_SetNSEventInputEnabled(int enabled)
+{
+    g_nsEventInputEnabled = (enabled != 0);
+}
+
+extern "C" void OpenXRay_SetMouseCaptureMode(int captured)
+{
+    g_mouseCaptured = (captured != 0);
+}
+
+extern "C" size_t OpenXRay_DrainNSEventQueue(struct OpenXRayNSEventRecord *out, size_t maxCount)
+{
+    if (out == NULL || maxCount == 0)
+        return 0;
+
+    size_t n = 0;
+    while (g_nsEventQueue.count > 0 && n < maxCount)
+    {
+        out[n++] = g_nsEventQueue.buf[g_nsEventQueue.head];
+        g_nsEventQueue.head = (g_nsEventQueue.head + 1) % kQueueCapacity;
+        --g_nsEventQueue.count;
+    }
+    return n;
 }

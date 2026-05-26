@@ -1031,6 +1031,37 @@ void CInput::iRelease(IInputReceiver* p)
     }
 }
 
+void CInput::IR_ReleaseAll()
+{
+    if (cbStack.empty())
+        return;
+    IInputReceiver* receiver = cbStack.back();
+
+    // Keyboard: release every scancode currently marked as held.
+    for (u32 sc = 0; sc < COUNT_KB_BUTTONS; ++sc)
+    {
+        if (keyboardState[sc])
+            receiver->IR_OnKeyboardRelease((int)sc);
+    }
+
+    // Mouse buttons: release every button currently marked as held. Indices
+    // match MouseUpdate()'s IdxToKey[] mapping (idx 0..COUNT_MOUSE_BUTTONS-1 →
+    // MOUSE_INVALID+1+idx, i.e. MOUSE_1..MOUSE_5).
+    for (int idx = 0; idx < COUNT_MOUSE_BUTTONS; ++idx)
+    {
+        if (mouseState[idx])
+            receiver->IR_OnMouseRelease(MOUSE_INVALID + 1 + idx);
+    }
+
+    ClearKeyboardState();
+}
+
+void CInput::ClearKeyboardState()
+{
+    keyboardState.reset();
+    mouseState.reset();
+}
+
 void CInput::OnAppActivate(void)
 {
     if (CurrentIR())
