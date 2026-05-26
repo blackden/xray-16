@@ -3,6 +3,12 @@
 #include "Render.h"
 #include "xrCDB/xrXRC.h"
 
+#if defined(XR_PLATFORM_APPLE)
+// Defined in macos_cocoa_shim.mm. Attaches NSWorkspace sleep/wake observers
+// to the installed Cocoa delegate. Must run after the renderer is ready.
+extern "C" void OpenXRay_ArmLifecycleObservers(void);
+#endif
+
 void CRenderDevice::SetupStates()
 {
     // General Render States
@@ -49,4 +55,10 @@ void CRenderDevice::Create()
     m_imgui_render->OnDeviceCreate(GetImGuiContext());
     Statistic->OnDeviceCreate();
     dwFrame = 0;
+
+#if defined(XR_PLATFORM_APPLE)
+    // Arm NSWorkspace sleep/wake observers now that the renderer is ready to
+    // accept Pause()/OnWindowActivate() calls. See gitea #114 / macos_cocoa_shim.mm.
+    OpenXRay_ArmLifecycleObservers();
+#endif
 }
