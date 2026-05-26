@@ -148,4 +148,78 @@ extern "C" void OpenXRay_RequestGracefulQuit()
     POSTLOG_MARK("OpenXRay_RequestGracefulQuit: Defer(disconnect, quit) issued");
     Engine.RequestGracefulShutdown();
 }
+
+// Lifecycle event glue (gitea #114). NSWorkspace + NSApplication delegate
+// callbacks land on the AppKit main thread; we cannot call Device.Pause() or
+// Device.OnWindowActivate() synchronously from there because the render
+// thread may be mid-frame (GL context bound, command buffer in flight). The
+// setters below only flip an atomic enum; the render thread drains it at the
+// start of CRenderDevice::ProcessFrame via OpenXRay_ApplyPendingLifecycleEvent.
+namespace
+{
+enum class PendingLifecycleEvent : u32
+{
+    None = 0,
+    SystemWillSleep,
+    SystemDidWake,
+    AppActivated,
+    AppDeactivated,
+};
+std::atomic<PendingLifecycleEvent> g_pendingLifecycleEvent{PendingLifecycleEvent::None};
+} // namespace
+
+extern "C" void OpenXRay_OnSystemWillSleep(void)
+{
+    g_pendingLifecycleEvent.store(PendingLifecycleEvent::SystemWillSleep, std::memory_order_release);
+}
+
+extern "C" void OpenXRay_OnSystemDidWake(void)
+{
+    g_pendingLifecycleEvent.store(PendingLifecycleEvent::SystemDidWake, std::memory_order_release);
+}
+
+extern "C" void OpenXRay_OnAppDidBecomeActive(void)
+{
+    g_pendingLifecycleEvent.store(PendingLifecycleEvent::AppActivated, std::memory_order_release);
+}
+
+extern "C" void OpenXRay_OnAppWillResignActive(void)
+{
+    g_pendingLifecycleEvent.store(PendingLifecycleEvent::AppDeactivated, std::memory_order_release);
+}
+
+void OpenXRay_ApplyPendingLifecycleEvent()
+{
+    const auto pending = g_pendingLifecycleEvent.exchange(PendingLifecycleEvent::None, std::memory_order_acq_rel);
+    switch (pending)
+    {
+    case PendingLifecycleEvent::None:
+        return;
+
+    case PendingLifecycleEvent::SystemWillSleep:
+        Msg("* OpenXRay: system will sleep — pausing");
+        Device.Pause(TRUE, TRUE, TRUE, "system will sleep");
+        break;
+
+    case PendingLifecycleEvent::SystemDidWake:
+        Msg("* OpenXRay: system did wake — resuming");
+        // Device.Pause(FALSE, ...) already resets fTimeDelta to EPS_S+EPS_S
+        // inside the unpause branch (Device.cpp:536), which absorbs the long
+        // sleep-induced dt spike without an extra timer-reset call here.
+        Device.Pause(FALSE, TRUE, TRUE, "system did wake");
+        break;
+
+    case PendingLifecycleEvent::AppActivated:
+        // Idempotency: SDL's own focus dispatch (x_ray.cpp:452) may have
+        // already activated us before this Cocoa-originated event drains.
+        if (Device.m_sdlWnd && !Device.b_is_Active)
+            Device.OnWindowActivate(Device.m_sdlWnd, true);
+        break;
+
+    case PendingLifecycleEvent::AppDeactivated:
+        if (Device.m_sdlWnd && Device.b_is_Active)
+            Device.OnWindowActivate(Device.m_sdlWnd, false);
+        break;
+    }
+}
 #endif

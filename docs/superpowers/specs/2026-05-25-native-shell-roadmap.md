@@ -87,6 +87,14 @@ Brainstorm origin: gitea [#106](https://git.fedorov.tech/ragnar/xray-16/issues/1
 | **A.6** | Зачистка остатков | Clipboard (NSPasteboard), system info (`sysctlbyname`), file dialogs (NSOpenPanel где надо), любые остальные `SDL_*` calls под `#ifdef XR_PLATFORM_APPLE`. | grep `SDL_` в `src/xrEngine/`, `src/xrCore/` под Apple-gate — пусто |
 | **A.7** | SDL2 уходит из macOS-билда | `find_package(SDL2)` обёрнут в `if(NOT APPLE)`, линковка `xr_3da` не тащит libSDL2. Bundle перестаёт включать SDL2.framework. | `otool -L bin/arm64/ReleaseMasterGold/xr_3da` не содержит SDL2; CI matrix зелёная; полный CoP playthrough |
 
+**A.1 scope revision 2026-05-26 (gitea #114):** «Engine owns NSWindow + SDL embed» отложено до A.2 или позже. A.1 уменьшен до
+observers-only extension `OpenXRayCocoaShim`: NSWorkspace sleep/wake + NSApplicationDelegate
+`applicationDidBecomeActive:` / `applicationWillResignActive:`, applied at frame boundary через atomic flag в
+`Engine.cpp` (`OpenXRay_ApplyPendingLifecycleEvent` в `CRenderDevice::ProcessFrame`). Обоснование: гейт #99 уже зелёный после PR #102/103, а
+`SDL_CreateWindowFrom` на macOS имеет hybrid-ownership баги (SDL #2561, #8518; см.
+`notes/playbooks/gotchas.md`). Engine-owned NSWindow появится в правильный момент — когда A.3 NSEvent input + A.2 NSRunLoop сделают
+SDL pump ненужным, а не как промежуточный гибрид.
+
 **Ключевая особенность подхода:** шаги A.1 → A.6 — это период когда
 в коде живут оба механизма (SDL + native рядом). Это **временное
 состояние одного объекта в процессе перехода**, не вторая сущность

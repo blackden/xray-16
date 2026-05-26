@@ -258,6 +258,12 @@ void CRenderDevice::DoRender()
     stats.RenderTotal.accum = renderTotalReal.accum;
 }
 
+#if defined(XR_PLATFORM_APPLE)
+// Drains the atomic lifecycle-event flag set by the Cocoa shim (gitea #114).
+// Defined in Engine.cpp under XR_PLATFORM_APPLE.
+extern void OpenXRay_ApplyPendingLifecycleEvent();
+#endif
+
 void CRenderDevice::ProcessFrame()
 {
     ZoneScoped;
@@ -267,6 +273,13 @@ void CRenderDevice::ProcessFrame()
     // change since last poll", so any monotonically-increasing sequence
     // works. Relaxed atomic is sufficient: no ordering vs other memory.
     g_mainHeartbeat.fetch_add(1, std::memory_order_relaxed);
+
+#if defined(XR_PLATFORM_APPLE)
+    // Frame-boundary apply of Cocoa lifecycle events (gitea #114). Keeps the
+    // AppKit main thread out of Device.Pause() / OnWindowActivate() while the
+    // render thread holds the GL context.
+    OpenXRay_ApplyPendingLifecycleEvent();
+#endif
 
     if (!BeforeFrame())
         return;

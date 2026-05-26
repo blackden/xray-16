@@ -54,10 +54,27 @@
 // free of xrCore headers (they collide with Foundation types under ObjC++).
 extern "C" void OpenXRay_RequestGracefulQuit(void);
 
+// Lifecycle flag setters defined in Engine.cpp under XR_PLATFORM_APPLE. Each
+// stores an atomic pending-event enum which is applied by the render thread at
+// the next frame boundary (CRenderDevice::ProcessFrame entry). Decoupling the
+// AppKit main-thread notification from the engine thread side-steps the
+// NSWorkspace-sync vs render-thread race; observers are level-trigger anyway.
+extern "C" void OpenXRay_OnSystemWillSleep(void);
+extern "C" void OpenXRay_OnSystemDidWake(void);
+extern "C" void OpenXRay_OnAppDidBecomeActive(void);
+extern "C" void OpenXRay_OnAppWillResignActive(void);
+
 @interface OpenXRayCocoaShim : NSObject <NSApplicationDelegate>
 @property (nonatomic, strong) id sdlDelegate;
 - (void)handleQuitRequest:(NSString *)origin;
+- (void)workspaceWillSleep:(NSNotification *)note;
+- (void)workspaceDidWake:(NSNotification *)note;
 @end
+
+// File-scope strong ref so OpenXRay_ArmLifecycleObservers() (called from
+// CRenderDevice::Create finalize) can attach NSWorkspace observers after the
+// install step ran during SDL bootstrap. Process-lifetime; no unregister.
+static OpenXRayCocoaShim *sInstalledShim = nil;
 
 @implementation OpenXRayCocoaShim
 
@@ -104,6 +121,49 @@ extern "C" void OpenXRay_RequestGracefulQuit(void);
     return NO;
 }
 
+// NSWorkspace sleep/wake observers. Notifications arrive on the AppKit main
+// thread; we only flip an atomic enum and let the render thread apply it at
+// the next ProcessFrame boundary. Engine.cpp handles the actual Pause() call.
+- (void)workspaceWillSleep:(NSNotification *)note
+{
+    (void)note;
+    OpenXRay_OnSystemWillSleep();
+}
+
+- (void)workspaceDidWake:(NSNotification *)note
+{
+    (void)note;
+    OpenXRay_OnSystemDidWake();
+}
+
+// Focus events. Forwarded to SDL's delegate AFTER our hook so SDL's existing
+// focus pipeline (SDL_APP_DIDENTERFOREGROUND, mouse cursor restoration) keeps
+// working. Apply is also frame-boundary deferred with an idempotency guard,
+// so an SDL-originated activate and our Cocoa-originated one collapse to one.
+- (void)applicationDidBecomeActive:(NSNotification *)note
+{
+    OpenXRay_OnAppDidBecomeActive();
+    if ([self.sdlDelegate respondsToSelector:_cmd])
+    {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+        [(id)self.sdlDelegate performSelector:_cmd withObject:note];
+#pragma clang diagnostic pop
+    }
+}
+
+- (void)applicationWillResignActive:(NSNotification *)note
+{
+    OpenXRay_OnAppWillResignActive();
+    if ([self.sdlDelegate respondsToSelector:_cmd])
+    {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+        [(id)self.sdlDelegate performSelector:_cmd withObject:note];
+#pragma clang diagnostic pop
+    }
+}
+
 // Transparent forwarding to SDL's delegate for everything we don't override.
 - (BOOL)respondsToSelector:(SEL)aSelector
 {
@@ -123,9 +183,8 @@ extern "C" void OpenXRay_RequestGracefulQuit(void);
 
 extern "C" void OpenXRay_InstallCocoaShim(void)
 {
-    static OpenXRayCocoaShim *installed = nil;
     static id eventMonitor = nil;
-    if (installed != nil)
+    if (sInstalledShim != nil)
         return; // idempotent
 
     @autoreleasepool
@@ -134,18 +193,18 @@ extern "C" void OpenXRay_InstallCocoaShim(void)
         id existing = [app delegate];
         NSString *existingClass = existing ? NSStringFromClass([existing class]) : @"<nil>";
 
-        installed = [[OpenXRayCocoaShim alloc] init];
-        installed.sdlDelegate = existing;
+        sInstalledShim = [[OpenXRayCocoaShim alloc] init];
+        sInstalledShim.sdlDelegate = existing;
 
         // Wrap the SDL delegate so menu-driven quit (Apple menu -> Quit) also
         // hits our graceful handler.
-        [app setDelegate:installed];
+        [app setDelegate:sInstalledShim];
 
         // Primary intercept: NSEvent local key-down monitor. Fires BEFORE
         // menu/terminate dispatch, so Cmd+Q never reaches SDL's keyboard
         // handler or the menu's terminate: action. Returning nil consumes
         // the event so nothing else sees it.
-        __weak OpenXRayCocoaShim *weakShim = installed;
+        __weak OpenXRayCocoaShim *weakShim = sInstalledShim;
         eventMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:NSEventMaskKeyDown
             handler:^NSEvent *(NSEvent *event) {
                 NSUInteger mods = event.modifierFlags & NSEventModifierFlagDeviceIndependentFlagsMask;
@@ -174,5 +233,43 @@ extern "C" void OpenXRay_InstallCocoaShim(void)
             eventMonitor ? "active" : "FAILED");
         if (n > 0)
             ::write(STDERR_FILENO, buf, (size_t)n);
+    }
+}
+
+// Attach NSWorkspace sleep/wake observers AFTER Device.Create() finishes —
+// not from OpenXRay_InstallCocoaShim() which runs during early SDL bootstrap.
+// Rationale: if we register sleep observers too early, a spurious notification
+// landing before the renderer is ready would set the pending-event flag and
+// the first ProcessFrame call would apply Pause() against a half-built device.
+extern "C" void OpenXRay_ArmLifecycleObservers(void)
+{
+    if (sInstalledShim == nil)
+    {
+        static const char msg[] =
+            "==> Cocoa shim: ArmLifecycleObservers called before Install — skipped\n";
+        ::write(STDERR_FILENO, msg, sizeof(msg) - 1);
+        return;
+    }
+
+    static BOOL armed = NO;
+    if (armed)
+        return; // idempotent
+    armed = YES;
+
+    @autoreleasepool
+    {
+        NSNotificationCenter *nc = [[NSWorkspace sharedWorkspace] notificationCenter];
+        [nc addObserver:sInstalledShim
+               selector:@selector(workspaceWillSleep:)
+                   name:NSWorkspaceWillSleepNotification
+                 object:nil];
+        [nc addObserver:sInstalledShim
+               selector:@selector(workspaceDidWake:)
+                   name:NSWorkspaceDidWakeNotification
+                 object:nil];
+
+        static const char msg[] =
+            "==> Cocoa shim: lifecycle observers armed (NSWorkspace sleep/wake)\n";
+        ::write(STDERR_FILENO, msg, sizeof(msg) - 1);
     }
 }
