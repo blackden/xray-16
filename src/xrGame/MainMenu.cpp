@@ -821,10 +821,15 @@ void CMainMenu::TriggerUpdateCheck()
         return;
     }
 
-    // Pre-flight probe: if the manifest server can't be reached within 500ms,
-    // bail with a clean error instead of letting ghttp block main-thread
-    // sendto for ~75s (macOS TCP retransmit). See gitea #71.
-    if (!ProbeUpdateHost(g_updater_manifest_url, 500))
+    // Pre-flight probe: if the manifest server can't be reached within 200ms,
+    // surface a clean error dialog immediately. The 200ms budget gives the
+    // user near-instant "no connection" feedback (vs. waiting for ghttp's
+    // own connect timeout, which would otherwise show as a stuck "Checking
+    // for updates..." spinner). See gitea #71 / #74 (#74 workaround retained
+    // as UX-only — A.2 (gitea #117) moved ghttp polling off the main thread,
+    // so the probe is no longer required for hang prevention; kept purely
+    // for fast error feedback).
+    if (!ProbeUpdateHost(g_updater_manifest_url, 200))
     {
         Msg("! updater: server unreachable (probe failed): %s", g_updater_manifest_url);
         SetErrorDialog(PatchDownloadError);

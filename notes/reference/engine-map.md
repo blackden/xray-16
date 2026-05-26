@@ -196,6 +196,69 @@ PR #115 (gitea #114, A.1 native-shell roadmap): own `NSApplicationDelegate`
 Не зови `Device.*` синхронно из ObjC — только atomic flag + apply at
 frame boundary.
 
+## ghttp dispatch worker (gitea #117)
+
+PR follow-up к #115: ghttp/gsCore polling больше не бежит на main thread.
+Тот же drain-pattern что и AppKit lifecycle (atomic-flag flush на frame
+boundary), но для асинхронной библиотеки (ghttp), а не для Cocoa observer'ов.
+
+- **Worker queue + completion drain (module xrGameSpy)**:
+  `src/xrGameSpy/ghttp_worker_apple.mm`. Serial `dispatch_queue`
+  (`tech.fedorov.openxray.ghttp.worker`, QoS user-initiated). API:
+  - `OpenXRay_GhttpInstallWorker` / `OpenXRay_GhttpShutdownWorker`
+    (idempotent install, bounded by StartUp→CleanUp pair).
+  - `OpenXRay_GhttpDispatchAsync(fn)` / `OpenXRay_GhttpDispatchSync(fn)`
+    — marshal arbitrary work onto the worker.
+  - `OpenXRay_GhttpEnqueueCompletion(fn)` — push completion record onto
+    `std::mutex` + `std::deque<GhttpCompletion>`.
+  - `OpenXRay_GhttpDrainCompletions` — main-thread drain (swap-out under
+    mutex, invoke without lock held).
+  - `OpenXRay_GhttpDiscardPendingCompletions` — teardown safety: drop
+    stranded records без invoke() (FastDelegate `this` pointer уже dead).
+  - `OpenXRay_GhttpAssertOnWorkerQueue` (DEBUG-only) — uses
+    `dispatch_queue_set_specific` + `dispatch_get_specific` (НЕ deprecated
+    `dispatch_get_current_queue`).
+- **Hook slot + aggregator (module xrEngine)**: `src/xrEngine/Engine.cpp:248-264`.
+  `OpenXRay_RegisterGhttpDrainHook(fn)` хранит function-pointer
+  атомарно; `OpenXRay_RunPerFrameMacOSHooks` зовёт lifecycle drain THEN
+  ghttp drain (порядок — invariant: lifecycle pause может suppress UI
+  работу которую ghttp completions триггернули бы).
+- **Per-frame hook fire**: `src/xrEngine/device.cpp:280-288`,
+  первой строкой `CRenderDevice::ProcessFrame`, Apple-only.
+- **Call-site routing**: `src/xrGameSpy/GameSpy_HTTP.cpp` под
+  `XR_PLATFORM_APPLE` — `Think`, `DownloadFile`, `FetchString`,
+  `StopDownload` все идут через `OpenXRay_GhttpDispatchAsync`; success/
+  error/early-fail callbacks пушат `OpenXRay_GhttpEnqueueCompletion`.
+
+**Cross-module link edge (Apple-only)**: xrGameSpy → xrEngine для
+`OpenXRay_RegisterGhttpDrainHook`. xrGameSpy сидит downstream от
+xrEngine в обычной dependency tree (xrGame depends on both); под
+`BUILD_SHARED_LIBS=ON` каждая lib линкуется standalone, поэтому
+`src/xrGameSpy/CMakeLists.txt` имеет explicit `target_link_libraries`
+на xrEngine под APPLE-guard. См. комментарий «link-deps» в этом
+CMakeLists. Static-lib build резолвит через xr_3da link order.
+
+**Pattern для нового async/observer source'а**: copy pipeline.
+1. Source (NSWorkspace notification / dispatch worker / GCD source) →
+2. atomic flag или mutex-protected queue в Engine.cpp / .mm файле →
+3. extern "C" register-hook surface если cross-module →
+4. frame-boundary drain в `OpenXRay_RunPerFrameMacOSHooks`
+   (`device.cpp:280-288`) →
+5. main-thread sink (Device.*, UI dialog, sound, etc.).
+Никогда не call'ить main-thread engine API синхронно из observer/worker.
+
+**Teardown invariant (cpp-engineer audit, #117 commit 4)**:
+- Step 1: unregister drain hook (atomic store).
+- Step 2: `dispatch_sync` ghttpCleanup на worker (drains every enqueued
+  Think/Save/Get; ghttp internals torn down on the same thread that
+  touched them).
+- Step 3: discard pending completions (FastDelegate targets могут быть
+  about-to-be-destructed; drop без invoke()).
+- Step 4: shutdown worker (sync barrier + release queue).
+Этот ordering должен соблюдаться во всех будущих teardown paths
+производных от этого паттерна — race window между worker и main =
+UAF source.
+
 ## Shutdown / quit sequence
 
 Three entry points all converge on the same deferred-event sequence:

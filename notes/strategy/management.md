@@ -390,3 +390,89 @@ Manual smoke поймал два vanilla бага (mouse coord mismatch +
 двойной клик title bar → drawable resize fail) — оба A/B
 verified как pre-existing, не регресс A.1. Зафиксировано в
 #116 как отдельный issue, не блокер merge.
+
+## Session 2026-05-26 (поздний вечер): A.2 — premise audit повторно окупился
+
+Шаг A.2 native-shell roadmap'а закрыт через issue #117 (4 коммита: worker
+scaffold → drain plumbing → routing → teardown safety + docs). Тот же
+шаблон что и A.1, повторённый осознанно.
+
+### Что повторилось из A.1
+
+- **Premise audit ДО dispatch'а** — обязательный gate между «roadmap
+  написан неделю назад» и «начинаем шаг». В A.2 это привело к re-scope:
+  `[NSApp run]` + CADisplayLink в гейте отсутствуют (только nc-stall
+  reproducer), а SDL ещё владеет окном до A.3 — поставить NSApp.run
+  сейчас = второй pump параллельно с SDL, brittle hybrid, который A.3
+  всё равно отдерёт. Re-scope: A.2 = «ghttp/gsCore polling в
+  dispatch_queue worker», NSApp.run defer'нут до A.2.5/A.3.
+- **Reuse A.1 plumbing** — atomic-flag drain pattern (Engine.cpp,
+  `OpenXRay_ApplyPendingLifecycleEvent`) расширен на ghttp через
+  function-pointer hook slot. Тот же frame-boundary apply, тот же
+  ordering invariant (lifecycle → ghttp). Не изобретать новый канал,
+  переиспользовать.
+- **4 коммита внутри PR**: scaffold → plumbing → routing → cleanup+docs.
+  Каждый независимо bootable + reviewable; правило из A.1 retro.
+
+### Что появилось нового в A.2
+
+- **Discovery: real blocker — не `sendto`.** Hang-taxonomy в shorthand
+  упоминала «1.A = ghttp sendto». Premise audit (2 explore-агента)
+  показал: реальный блокер — `gethostbyname` в
+  `ghttp/ghttpProcess.c:232` (синхронный DNS до 30с) и `gsCoreThink(15)`
+  в `GameSpy_Full.cpp:50` (15мс blocking select каждый кадр пока меню
+  открыто). Sendto там тоже есть, но не главный. Урок: hang-taxonomy
+  shorthand — pointer на класс, не точная локация. **Premise audit
+  обязателен в начале каждого шага** не «когда сомневаюсь», а всегда.
+- **Pre-flight audit'ы как formal gate** — два audit'а до implementation:
+  (A) script-engineer ctx-ownership audit (5 ghttp call sites, все POD-heap,
+  no Lua / no main-thread-only — passed); (B) menu-init blocking I/O
+  quick grep (one site found: `CGameSpy_Available::CheckAvailableServices`
+  synchronous spin — scope'd out как one-time startup, A.2.1 follow-up).
+  Output landed в `notes/decisions/a2-ghttp-ctx-classification.md` —
+  audit doc стал предшествующим коммитом перед routing'ом.
+- **Cpp-engineer adversarial audit между implementation и PR open.**
+  Audit нашёл 4 blocking fixes (P1 stranded-completion UAF, P2 defensive
+  null-hook, P2 install flag reset, plus PR ack of P2 shutdown DNS-stall)
+  и 5 P2/P3 которые сознательно defer'нуты (не «всё-сразу-фикс»).
+  Без audit'а P1 UAF (stranded `FastDelegate` `this`-pointer в drop'нутой
+  completion queue) ушёл бы в latent debt. Это **новый process step**:
+  cpp-engineer audit обязателен для любого C++ lifecycle change перед PR
+  open (memory `feedback_delegate_cpp_analysis` уже это записал, но
+  только для plan'ов; A.2 показал что для implementation тоже).
+- **Hybrid (mutex+deque) выбран over SPSC** — team-lead consilium указал:
+  drain 60Hz, completions O(1-10)/min, contention nil; mutex+deque
+  «boring, debuggable, obviously correct»; SPSC требует memory ordering
+  без precedent в codebase. Принцип: **bug-class который rescope обязан
+  исключить** — выбирать более простую структуру если разница в
+  performance не measurable.
+
+### Что defer'нуто (сознательно, не «забыли»)
+
+- **NSApp.run + CADisplayLink** — A.3 (SDL pump уйдёт там).
+- **NSURLSession rewrite ghttp** — A.2.5 после решения MP-on-macOS scope.
+- **MP `sendto`/`recvfrom` audit** — отдельный MP epic.
+- **Family 1.C (GPU TX state)** — независимый root cause; A.2 закрывает
+  только 1.A.
+- **CheckAvailableServices offload** — A.2.1 follow-up (one-time startup,
+  не на nc-stall path).
+- **Vendored ghttp DNS swap** (`gethostbyname` → `getaddrinfo`) — A.2.1
+  follow-up (submodule patch — отдельная процедура).
+
+### Что почувствовал
+
+- **Re-scope под premise audit — повторяемая дисциплина.** A.1 был
+  первой проверкой паттерна; A.2 — подтверждение что это не one-off.
+  Теперь это default для каждого roadmap-шага, а не «опциональная
+  предосторожность».
+- **Adversarial audit перед PR — раньше я бы это пропустил.** P1 UAF
+  не виден в smoke (manifest fetch не пересекается с Cmd+Q обычно),
+  но проявился бы как «случайный crash при выходе через 2 недели у
+  ragnar'а». Cpp-engineer нашёл его за 15 минут. Cost discipline:
+  process step стоит ~30 мин session time, ловит то что smoke не ловит.
+- **Cost discipline на defer.** 5 P2/P3 audit findings оставлены в
+  PR description как «known limitations» — каждый со ссылкой на A.2.1
+  или дальше. Не пытаться закрыть всё в одном PR — это antipattern,
+  который раздувает scope и блокирует merge. PR landing → smoke →
+  следующий шаг. Audit findings — input для A.2.1 backlog, не
+  блокер A.2 merge.
