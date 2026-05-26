@@ -69,6 +69,30 @@ target_precompile_headers(xrGameSpy
     stdafx.h
 )
 
+if(APPLE)
+    target_sources_grouped(
+        TARGET xrGameSpy
+        NAME "Platform\\macOS"
+        FILES
+        ghttp_worker_apple.mm
+    )
+    set_source_files_properties(
+        ghttp_worker_apple.mm
+        PROPERTIES
+        SKIP_PRECOMPILE_HEADERS ON
+        SKIP_UNITY_BUILD_INCLUSION ON
+        COMPILE_FLAGS "-fobjc-arc"
+    )
+    # -fobjc-arc on the .mm pulls in libobjc runtime symbols
+    # (objc_storeStrong / objc_autoreleasePool*). In BUILD_SHARED_LIBS
+    # mode xrGameSpy.dylib must resolve these standalone; Foundation
+    # brings libobjc transitively, matching the pattern in xrEngine.
+    target_link_libraries(xrGameSpy
+        PRIVATE
+        "-framework Foundation"
+    )
+endif()
+
 if (BUILD_SHARED_LIBS)
     install(TARGETS xrGameSpy LIBRARY
         DESTINATION "${CMAKE_INSTALL_LIBDIR}"
