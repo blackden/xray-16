@@ -23,6 +23,15 @@
 #endif // (RENDER == R_R3) || (RENDER == R_R4)
 
 
+#if defined(XR_PLATFORM_APPLE)
+// Defined in xrEngine/xr_input.cpp. Console UI writes directly into this
+// storage via CCC_Integer; CCC_NSEventInput below additionally invokes
+// the callback so the engine can perform a synthetic key-release pass
+// when the pipeline is flipped under held keys.
+extern "C" int  g_nsEventInputCvar;
+extern "C" void OpenXRay_OnNSEventInputCvarChanged(int newValue);
+#endif
+
 namespace xray::render::RENDER_NAMESPACE
 {
 u32 ps_Preset = 2;
@@ -734,10 +743,37 @@ public:
 #   endif // MASTER_GOLD
 #endif // (RENDER == R_R3) || (RENDER == R_R4)
 
+#if defined(XR_PLATFORM_APPLE)
+// CCC_Integer subclass that fires OpenXRay_OnNSEventInputCvarChanged
+// after a write so the engine can synthesise key-releases on the way out
+// of the held-key state when the operator flips `nsevent_input`.
+class CCC_NSEventInput : public CCC_Integer
+{
+public:
+    CCC_NSEventInput(LPCSTR N, int* V, int _min, int _max) : CCC_Integer(N, V, _min, _max) {}
+
+    void Execute(LPCSTR args) override
+    {
+        const int oldValue = *value;
+        CCC_Integer::Execute(args);
+        const int newValue = *value;
+        if (newValue != oldValue)
+            ::OpenXRay_OnNSEventInputCvarChanged(newValue);
+    }
+};
+#endif
+
 //-----------------------------------------------------------------------
 void xrRender_initconsole()
 {
     ZoneScoped;
+
+#if defined(XR_PLATFORM_APPLE)
+    // Toggle the macOS NSEvent local-monitor keyboard pipeline. Default 1
+    // (NSEvent path active). Flipping to 0 fails over to the legacy SDL
+    // keyboard drain in CInput::KeyUpdate(). See issue #120.
+    CMD4(CCC_NSEventInput, "nsevent_input", &::g_nsEventInputCvar, 0, 1);
+#endif
 
     CMD3(CCC_Preset, "_preset", &ps_Preset, qpreset_token);
 

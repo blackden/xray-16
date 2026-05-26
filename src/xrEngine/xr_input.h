@@ -216,6 +216,15 @@ public:
     void iCapture(IInputReceiver* pc);
     void iRelease(IInputReceiver* pc);
 
+#if defined(XR_PLATFORM_APPLE)
+    // Drain NSEvent ring queue (filled by the AppKit local monitor in
+    // macos_cocoa_shim.mm) and translate keyboard / FlagsChanged records
+    // into IR_OnKeyboard{Press,Release} calls on the top receiver. Mouse
+    // and scroll-wheel records are ignored here — phase 3 will wire them.
+    // Called from OnFrame() when the `nsevent_input` cvar is enabled.
+    void NSEventDrain();
+#endif
+
     // Synthetic release всех зажатых клавиш + mouse buttons через top receiver
     // на cbStack. Используется при focus loss / sleep / pipeline flip
     // (`nsevent_input` cvar) для избежания stuck keys. Локальный keyboardState
