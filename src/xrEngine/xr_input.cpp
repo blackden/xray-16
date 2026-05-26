@@ -9,6 +9,285 @@
 
 #include <locale>
 
+#if defined(XR_PLATFORM_APPLE)
+// Apple HID virtual key codes (from <Carbon/HIToolbox/Events.h>).
+// Inline-defined here because <Carbon/HIToolbox/Events.h> only resolves
+// in Objective-C/C++ TUs (.m/.mm) — plain .cpp builds reject the
+// sub-framework include syntax even though the header exists. These
+// values are frozen since the Apple Extended Keyboard II (~1990) and
+// will not change.
+namespace
+{
+constexpr int kVK_ANSI_A              = 0x00;
+constexpr int kVK_ANSI_S              = 0x01;
+constexpr int kVK_ANSI_D              = 0x02;
+constexpr int kVK_ANSI_F              = 0x03;
+constexpr int kVK_ANSI_H              = 0x04;
+constexpr int kVK_ANSI_G              = 0x05;
+constexpr int kVK_ANSI_Z              = 0x06;
+constexpr int kVK_ANSI_X              = 0x07;
+constexpr int kVK_ANSI_C              = 0x08;
+constexpr int kVK_ANSI_V              = 0x09;
+constexpr int kVK_ANSI_B              = 0x0B;
+constexpr int kVK_ANSI_Q              = 0x0C;
+constexpr int kVK_ANSI_W              = 0x0D;
+constexpr int kVK_ANSI_E              = 0x0E;
+constexpr int kVK_ANSI_R              = 0x0F;
+constexpr int kVK_ANSI_Y              = 0x10;
+constexpr int kVK_ANSI_T              = 0x11;
+constexpr int kVK_ANSI_1              = 0x12;
+constexpr int kVK_ANSI_2              = 0x13;
+constexpr int kVK_ANSI_3              = 0x14;
+constexpr int kVK_ANSI_4              = 0x15;
+constexpr int kVK_ANSI_6              = 0x16;
+constexpr int kVK_ANSI_5              = 0x17;
+constexpr int kVK_ANSI_Equal          = 0x18;
+constexpr int kVK_ANSI_9              = 0x19;
+constexpr int kVK_ANSI_7              = 0x1A;
+constexpr int kVK_ANSI_Minus          = 0x1B;
+constexpr int kVK_ANSI_8              = 0x1C;
+constexpr int kVK_ANSI_0              = 0x1D;
+constexpr int kVK_ANSI_RightBracket   = 0x1E;
+constexpr int kVK_ANSI_O              = 0x1F;
+constexpr int kVK_ANSI_U              = 0x20;
+constexpr int kVK_ANSI_LeftBracket    = 0x21;
+constexpr int kVK_ANSI_I              = 0x22;
+constexpr int kVK_ANSI_P              = 0x23;
+constexpr int kVK_Return              = 0x24;
+constexpr int kVK_ANSI_L              = 0x25;
+constexpr int kVK_ANSI_J              = 0x26;
+constexpr int kVK_ANSI_Quote          = 0x27;
+constexpr int kVK_ANSI_K              = 0x28;
+constexpr int kVK_ANSI_Semicolon      = 0x29;
+constexpr int kVK_ANSI_Backslash      = 0x2A;
+constexpr int kVK_ANSI_Comma          = 0x2B;
+constexpr int kVK_ANSI_Slash          = 0x2C;
+constexpr int kVK_ANSI_N              = 0x2D;
+constexpr int kVK_ANSI_M              = 0x2E;
+constexpr int kVK_ANSI_Period         = 0x2F;
+constexpr int kVK_Tab                 = 0x30;
+constexpr int kVK_Space               = 0x31;
+constexpr int kVK_ANSI_Grave          = 0x32;
+constexpr int kVK_Delete              = 0x33;
+constexpr int kVK_Escape              = 0x35;
+constexpr int kVK_RightCommand        = 0x36;
+constexpr int kVK_Command             = 0x37;
+constexpr int kVK_Shift               = 0x38;
+constexpr int kVK_CapsLock            = 0x39;
+constexpr int kVK_Option              = 0x3A;
+constexpr int kVK_Control             = 0x3B;
+constexpr int kVK_RightShift          = 0x3C;
+constexpr int kVK_RightOption         = 0x3D;
+constexpr int kVK_RightControl        = 0x3E;
+constexpr int kVK_ANSI_KeypadDecimal  = 0x41;
+constexpr int kVK_ANSI_KeypadMultiply = 0x43;
+constexpr int kVK_ANSI_KeypadPlus     = 0x45;
+constexpr int kVK_ANSI_KeypadClear    = 0x47;
+constexpr int kVK_ANSI_KeypadDivide   = 0x4B;
+constexpr int kVK_ANSI_KeypadEnter    = 0x4C;
+constexpr int kVK_ANSI_KeypadMinus    = 0x4E;
+constexpr int kVK_ANSI_KeypadEquals   = 0x51;
+constexpr int kVK_ANSI_Keypad0        = 0x52;
+constexpr int kVK_ANSI_Keypad1        = 0x53;
+constexpr int kVK_ANSI_Keypad2        = 0x54;
+constexpr int kVK_ANSI_Keypad3        = 0x55;
+constexpr int kVK_ANSI_Keypad4        = 0x56;
+constexpr int kVK_ANSI_Keypad5        = 0x57;
+constexpr int kVK_ANSI_Keypad6        = 0x58;
+constexpr int kVK_ANSI_Keypad7        = 0x59;
+constexpr int kVK_ANSI_Keypad8        = 0x5B;
+constexpr int kVK_ANSI_Keypad9        = 0x5C;
+constexpr int kVK_F5                  = 0x60;
+constexpr int kVK_F6                  = 0x61;
+constexpr int kVK_F7                  = 0x62;
+constexpr int kVK_F3                  = 0x63;
+constexpr int kVK_F8                  = 0x64;
+constexpr int kVK_F9                  = 0x65;
+constexpr int kVK_F11                 = 0x67;
+constexpr int kVK_F13                 = 0x69;
+constexpr int kVK_F14                 = 0x6B;
+constexpr int kVK_F10                 = 0x6D;
+constexpr int kVK_F12                 = 0x6F;
+constexpr int kVK_F15                 = 0x71;
+constexpr int kVK_Help                = 0x72;
+constexpr int kVK_Home                = 0x73;
+constexpr int kVK_PageUp              = 0x74;
+constexpr int kVK_ForwardDelete       = 0x75;
+constexpr int kVK_F4                  = 0x76;
+constexpr int kVK_End                 = 0x77;
+constexpr int kVK_F2                  = 0x78;
+constexpr int kVK_PageDown            = 0x79;
+constexpr int kVK_F1                  = 0x7A;
+constexpr int kVK_LeftArrow           = 0x7B;
+constexpr int kVK_RightArrow          = 0x7C;
+constexpr int kVK_DownArrow           = 0x7D;
+constexpr int kVK_UpArrow             = 0x7E;
+} // namespace
+#endif
+
+#if defined(XR_PLATFORM_APPLE)
+// Apple HID keyCode -> SDL_Scancode mapping.
+// Static replica of SDL's internal table in SDL_cocoakeyboard.m. Lets us
+// drop SDL from the keyboard event path without changing the engine's
+// scancode-based binding system (xr_level_controller.cpp).
+// Indices match NSEvent.keyCode values (kVK_* constants from
+// <Carbon/HIToolbox/Events.h>). Unmapped entries default to
+// SDL_SCANCODE_UNKNOWN.
+namespace
+{
+constexpr SDL_Scancode kNSKeyCodeToSDLScancode[128] = {
+    [kVK_ANSI_A]              = SDL_SCANCODE_A,
+    [kVK_ANSI_S]              = SDL_SCANCODE_S,
+    [kVK_ANSI_D]              = SDL_SCANCODE_D,
+    [kVK_ANSI_F]              = SDL_SCANCODE_F,
+    [kVK_ANSI_H]              = SDL_SCANCODE_H,
+    [kVK_ANSI_G]              = SDL_SCANCODE_G,
+    [kVK_ANSI_Z]              = SDL_SCANCODE_Z,
+    [kVK_ANSI_X]              = SDL_SCANCODE_X,
+    [kVK_ANSI_C]              = SDL_SCANCODE_C,
+    [kVK_ANSI_V]              = SDL_SCANCODE_V,
+    [kVK_ANSI_B]              = SDL_SCANCODE_B,
+    [kVK_ANSI_Q]              = SDL_SCANCODE_Q,
+    [kVK_ANSI_W]              = SDL_SCANCODE_W,
+    [kVK_ANSI_E]              = SDL_SCANCODE_E,
+    [kVK_ANSI_R]              = SDL_SCANCODE_R,
+    [kVK_ANSI_Y]              = SDL_SCANCODE_Y,
+    [kVK_ANSI_T]              = SDL_SCANCODE_T,
+    [kVK_ANSI_1]              = SDL_SCANCODE_1,
+    [kVK_ANSI_2]              = SDL_SCANCODE_2,
+    [kVK_ANSI_3]              = SDL_SCANCODE_3,
+    [kVK_ANSI_4]              = SDL_SCANCODE_4,
+    [kVK_ANSI_6]              = SDL_SCANCODE_6,
+    [kVK_ANSI_5]              = SDL_SCANCODE_5,
+    [kVK_ANSI_Equal]          = SDL_SCANCODE_EQUALS,
+    [kVK_ANSI_9]              = SDL_SCANCODE_9,
+    [kVK_ANSI_7]              = SDL_SCANCODE_7,
+    [kVK_ANSI_Minus]          = SDL_SCANCODE_MINUS,
+    [kVK_ANSI_8]              = SDL_SCANCODE_8,
+    [kVK_ANSI_0]              = SDL_SCANCODE_0,
+    [kVK_ANSI_RightBracket]   = SDL_SCANCODE_RIGHTBRACKET,
+    [kVK_ANSI_O]              = SDL_SCANCODE_O,
+    [kVK_ANSI_U]              = SDL_SCANCODE_U,
+    [kVK_ANSI_LeftBracket]    = SDL_SCANCODE_LEFTBRACKET,
+    [kVK_ANSI_I]              = SDL_SCANCODE_I,
+    [kVK_ANSI_P]              = SDL_SCANCODE_P,
+    [kVK_Return]              = SDL_SCANCODE_RETURN,
+    [kVK_ANSI_L]              = SDL_SCANCODE_L,
+    [kVK_ANSI_J]              = SDL_SCANCODE_J,
+    [kVK_ANSI_Quote]          = SDL_SCANCODE_APOSTROPHE,
+    [kVK_ANSI_K]              = SDL_SCANCODE_K,
+    [kVK_ANSI_Semicolon]      = SDL_SCANCODE_SEMICOLON,
+    [kVK_ANSI_Backslash]      = SDL_SCANCODE_BACKSLASH,
+    [kVK_ANSI_Comma]          = SDL_SCANCODE_COMMA,
+    [kVK_ANSI_Slash]          = SDL_SCANCODE_SLASH,
+    [kVK_ANSI_N]              = SDL_SCANCODE_N,
+    [kVK_ANSI_M]              = SDL_SCANCODE_M,
+    [kVK_ANSI_Period]         = SDL_SCANCODE_PERIOD,
+    [kVK_Tab]                 = SDL_SCANCODE_TAB,
+    [kVK_Space]               = SDL_SCANCODE_SPACE,
+    [kVK_ANSI_Grave]          = SDL_SCANCODE_GRAVE,
+    [kVK_Delete]              = SDL_SCANCODE_BACKSPACE,
+    [kVK_Escape]              = SDL_SCANCODE_ESCAPE,
+    [kVK_Command]             = SDL_SCANCODE_LGUI,
+    [kVK_Shift]               = SDL_SCANCODE_LSHIFT,
+    [kVK_CapsLock]            = SDL_SCANCODE_CAPSLOCK,
+    [kVK_Option]              = SDL_SCANCODE_LALT,
+    [kVK_Control]             = SDL_SCANCODE_LCTRL,
+    [kVK_RightCommand]        = SDL_SCANCODE_RGUI,
+    [kVK_RightShift]          = SDL_SCANCODE_RSHIFT,
+    [kVK_RightOption]         = SDL_SCANCODE_RALT,
+    [kVK_RightControl]        = SDL_SCANCODE_RCTRL,
+    [kVK_ANSI_KeypadDecimal]  = SDL_SCANCODE_KP_PERIOD,
+    [kVK_ANSI_KeypadMultiply] = SDL_SCANCODE_KP_MULTIPLY,
+    [kVK_ANSI_KeypadPlus]     = SDL_SCANCODE_KP_PLUS,
+    [kVK_ANSI_KeypadClear]    = SDL_SCANCODE_NUMLOCKCLEAR,
+    [kVK_ANSI_KeypadDivide]   = SDL_SCANCODE_KP_DIVIDE,
+    [kVK_ANSI_KeypadEnter]    = SDL_SCANCODE_KP_ENTER,
+    [kVK_ANSI_KeypadMinus]    = SDL_SCANCODE_KP_MINUS,
+    [kVK_ANSI_KeypadEquals]   = SDL_SCANCODE_KP_EQUALS,
+    [kVK_ANSI_Keypad0]        = SDL_SCANCODE_KP_0,
+    [kVK_ANSI_Keypad1]        = SDL_SCANCODE_KP_1,
+    [kVK_ANSI_Keypad2]        = SDL_SCANCODE_KP_2,
+    [kVK_ANSI_Keypad3]        = SDL_SCANCODE_KP_3,
+    [kVK_ANSI_Keypad4]        = SDL_SCANCODE_KP_4,
+    [kVK_ANSI_Keypad5]        = SDL_SCANCODE_KP_5,
+    [kVK_ANSI_Keypad6]        = SDL_SCANCODE_KP_6,
+    [kVK_ANSI_Keypad7]        = SDL_SCANCODE_KP_7,
+    [kVK_ANSI_Keypad8]        = SDL_SCANCODE_KP_8,
+    [kVK_ANSI_Keypad9]        = SDL_SCANCODE_KP_9,
+    [kVK_F5]                  = SDL_SCANCODE_F5,
+    [kVK_F6]                  = SDL_SCANCODE_F6,
+    [kVK_F7]                  = SDL_SCANCODE_F7,
+    [kVK_F3]                  = SDL_SCANCODE_F3,
+    [kVK_F8]                  = SDL_SCANCODE_F8,
+    [kVK_F9]                  = SDL_SCANCODE_F9,
+    [kVK_F11]                 = SDL_SCANCODE_F11,
+    [kVK_F13]                 = SDL_SCANCODE_PRINTSCREEN,
+    [kVK_F14]                 = SDL_SCANCODE_SCROLLLOCK,
+    [kVK_F10]                 = SDL_SCANCODE_F10,
+    [kVK_F12]                 = SDL_SCANCODE_F12,
+    [kVK_F15]                 = SDL_SCANCODE_PAUSE,
+    [kVK_Help]                = SDL_SCANCODE_INSERT,
+    [kVK_Home]                = SDL_SCANCODE_HOME,
+    [kVK_PageUp]              = SDL_SCANCODE_PAGEUP,
+    [kVK_ForwardDelete]       = SDL_SCANCODE_DELETE,
+    [kVK_F4]                  = SDL_SCANCODE_F4,
+    [kVK_End]                 = SDL_SCANCODE_END,
+    [kVK_F2]                  = SDL_SCANCODE_F2,
+    [kVK_PageDown]            = SDL_SCANCODE_PAGEDOWN,
+    [kVK_F1]                  = SDL_SCANCODE_F1,
+    [kVK_LeftArrow]           = SDL_SCANCODE_LEFT,
+    [kVK_RightArrow]          = SDL_SCANCODE_RIGHT,
+    [kVK_DownArrow]           = SDL_SCANCODE_DOWN,
+    [kVK_UpArrow]             = SDL_SCANCODE_UP,
+};
+
+void VerifyInputTable()
+{
+    int total = 0;
+    int matches = 0;
+    int mismatches = 0;
+    int unmapped = 0;
+
+    for (int keyCode = 0; keyCode < 128; ++keyCode)
+    {
+        SDL_Scancode ourScancode = kNSKeyCodeToSDLScancode[keyCode];
+
+        // SDL doesn't expose its NSEvent keyCode table directly. Approximate
+        // check: SDL_GetKeyFromScancode(ourScancode) should return a valid
+        // key (i.e. ourScancode is real). For unmapped entries, ourScancode
+        // is SDL_SCANCODE_UNKNOWN (0).
+        if (ourScancode == SDL_SCANCODE_UNKNOWN)
+        {
+            ++unmapped;
+            continue;
+        }
+
+        SDL_Keycode key = SDL_GetKeyFromScancode(ourScancode);
+        if (key == SDLK_UNKNOWN)
+        {
+            Msg("! verify_input_table: keyCode 0x%02x -> scancode %d -> no SDL key",
+                keyCode, ourScancode);
+            ++mismatches;
+        }
+        else
+        {
+            ++matches;
+        }
+        ++total;
+    }
+
+    Msg("verify_input_table: total=%d matches=%d mismatches=%d unmapped=%d",
+        total + unmapped, matches, mismatches, unmapped);
+}
+} // namespace
+
+extern "C" void OpenXRay_VerifyInputTable()
+{
+    VerifyInputTable();
+}
+#endif // XR_PLATFORM_APPLE
+
 CInput* pInput = nullptr;
 
 class DummyReceiver : public IInputReceiver
