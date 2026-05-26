@@ -152,6 +152,12 @@ queues / async ghttp callback chain. Main thread занимается **толь
   как UX-only (200ms feedback) после A.2.
 - **#117 A.2** — ghttp/gsCore polling offload (closed 2026-05-26, PR на
   `macos/blackden/master`).
+- **#120 A.3** — NSEvent input pipeline (closed 2026-05-27, PR #121).
+  Keyboard/mouse/scroll/modifier flags больше не зависят от SDL_PollEvent
+  на macOS; SDL pump для них становится no-op. Это не закрывает
+  Family 1.A напрямую (input не был blocking I/O), но **уменьшает
+  attack surface**: меньше путей через `[NSApp nextEventMatchingMask]`
+  → меньше места где AppKit может зависнуть на main thread.
 - Main-thread stall detector instrumentation (team-lead suggestion
   2026-05-25, ещё не открыт issue)
 

@@ -527,6 +527,70 @@ Practical examples:
 - F6/F7 (dev_tools-gated hotkeys): see memory
   `project_dev_tools_gate.md` for the gating pattern.
 
+### NSEvent pipeline (A.3 / PR #121, 2026-05-27)
+
+macOS получает keyboard/mouse/scroll/modifier flags через NSEvent
+local monitor, не через `SDL_PollEvent`. Controller (gamepad) и
+window events продолжают идти через SDL.
+
+- **Static keyCode → SDL_Scancode таблица**: anonymous namespace в
+  `src/xrEngine/xr_input.cpp` под `#if XR_PLATFORM_APPLE`. Apple
+  HID `kVK_*` константы inline-defined (Carbon header не resolve'ится
+  в `.cpp` TU — см. «Apple gotchas» ниже). Включает `kVK_ISO_Section`
+  (0x0A) → SCANCODE_GRAVE для console-open binding на ISO European
+  keyboards (Mac RU/EU layouts).
+- **Local monitor handler**: `OpenXRay_InstallNSEventMonitor()` в
+  `src/xrEngine/macos_cocoa_shim.mm`. Consume'ит keyboard/flags
+  (return nil); mouse/scroll pushaет в ring queue [256] и тоже
+  consume'ит.
+- **Drain hook**: `CInput::NSEventDrain()` в `OnFrame()`. Транслирует
+  records в существующие `IR_OnKeyboard*` / `IR_OnMouse*` callbacks.
+  **ВАЖНО**: drain также пишет `keyboardState[sc]` / `mouseState[btn]` —
+  engine's hold loop (KeyUpdate:689 / MouseUpdate) читает state,
+  не events. Без записи hold-based actions (WASD движение, sprint)
+  не активируются.
+- **Cvar runtime rollback**: `nsevent_input 0/1` (default 1) в
+  `src/Layers/xrRender/xrRender_console.cpp`. Setter callback дёргает
+  `OpenXRay_SyntheticReleaseAllKeys` → `CInput::IR_ReleaseAll()` для
+  soft-reset state между pipeline'ами.
+- **Stuck-key recovery**: `applicationWillResignActive:` (focus loss)
+  и `workspaceWillSleep:` (system sleep) → `OpenXRay_SyntheticReleaseAllKeys`.
+  `applicationDidBecomeActive:` дополнительно sync'ит
+  `g_lastShimModifierFlags` через `OpenXRay_SyncModifierFlags`.
+- **Capture-mode bridge**: `GrabInput()` в xr_input.cpp дублирует
+  `SDL_SetRelativeMouseMode` вызов через `OpenXRay_SetMouseCaptureMode`
+  чтобы shim знал captured/non-captured для mouse coord translation
+  (deltas vs absolute × backingScaleFactor).
+- **Backing scale tracking**: `windowDidChangeBackingProperties:`
+  observer обновляет `g_backingScaleFactor` при переезде окна между
+  мониторами 1x/2x.
+- **Dev verify command**: `verify_input_table` (gated `dev_tools 1`)
+  walks таблицу, сверяет round-trip через `SDL_GetKeyFromScancode`.
+
+### Apple gotchas (input slice)
+
+- **Carbon HIToolbox headers**: `<Carbon/HIToolbox/Events.h>` НЕ
+  resolve'ится из `.cpp` TU — sub-framework include syntax работает
+  только в `.m`/`.mm`. Solution: inline-define `kVK_*` константы
+  под `#if XR_PLATFORM_APPLE` (frozen с Apple Extended Keyboard II
+  ~1990). Применяется в xr_input.cpp:21-126.
+- **NSEvent FlagsChanged ≠ KeyDown/KeyUp**: модификаторы (Shift,
+  Ctrl, Option, Command, CapsLock) приходят как FlagsChanged events
+  без явного down/up. Drain должен diff'ить `modifierFlags` против
+  предыдущего snapshot'а и эмитить press/release per-flag-bit. См.
+  `CInput::NSEventDrain` FlagsChanged case + `ModifierKeyCodeToScancode`
+  helper.
+- **NSEvent OtherMouse не различает MOUSE_4/5 (X1/X2)**: все
+  «other» buttons → `mouseButton=2` = MOUSE_3. SDL различает через
+  `event.button.button`. Под `nsevent_input=1` сайдовые mouse кнопки
+  недоступны. Default CoP binds их не используют — non-blocker; fix
+  через `[event buttonNumber]` если потребуется.
+- **ISO European keyboards**: клавиша §/±/ёЁ между левым Shift и Z/Я
+  имеет `kVK_ISO_Section` (0x0A), не `kVK_ANSI_Grave` (0x32). SDL
+  свопал их runtime для совместимости с US ANSI bindings. Мы маппим
+  обе на SCANCODE_GRAVE (без runtime detection) — обе работают как
+  console-open, безвредно.
+
 ## Recurring patterns (look here before inventing)
 
 - Apple-platform code gates: `#if defined(XR_PLATFORM_APPLE)` in
