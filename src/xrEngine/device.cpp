@@ -259,9 +259,12 @@ void CRenderDevice::DoRender()
 }
 
 #if defined(XR_PLATFORM_APPLE)
-// Drains the atomic lifecycle-event flag set by the Cocoa shim (gitea #114).
-// Defined in Engine.cpp under XR_PLATFORM_APPLE.
-extern void OpenXRay_ApplyPendingLifecycleEvent();
+// Frame-boundary aggregator for macOS Cocoa hooks. Drains the lifecycle
+// atomic flag (gitea #114) first, then ghttp completion records (gitea #117)
+// via the function-pointer hook registered by xrGameSpy. Order matters: a
+// pending system-sleep must pause the device before any completion-driven
+// UI work fires for the frame. Defined in Engine.cpp.
+extern void OpenXRay_RunPerFrameMacOSHooks();
 #endif
 
 void CRenderDevice::ProcessFrame()
@@ -275,10 +278,13 @@ void CRenderDevice::ProcessFrame()
     g_mainHeartbeat.fetch_add(1, std::memory_order_relaxed);
 
 #if defined(XR_PLATFORM_APPLE)
-    // Frame-boundary apply of Cocoa lifecycle events (gitea #114). Keeps the
-    // AppKit main thread out of Device.Pause() / OnWindowActivate() while the
-    // render thread holds the GL context.
-    OpenXRay_ApplyPendingLifecycleEvent();
+    // Frame-boundary apply of Cocoa lifecycle events (#114) followed by
+    // ghttp completion drain (#117). Order: lifecycle THEN ghttp — lifecycle
+    // pause may suppress UI work that ghttp completions would otherwise
+    // trigger. Both halves no-op when their queues are empty. Keeps the
+    // AppKit main thread out of Device.Pause() / OnWindowActivate() and the
+    // worker thread out of fastdelegate territory.
+    OpenXRay_RunPerFrameMacOSHooks();
 #endif
 
     if (!BeforeFrame())

@@ -35,6 +35,10 @@
 #include <dispatch/dispatch.h>
 
 #include <atomic>
+#include <deque>
+#include <functional>
+#include <mutex>
+#include <utility>
 
 namespace
 {
@@ -46,6 +50,39 @@ static const void* const kWorkerQueueKey = static_cast<const void*>(&kWorkerQueu
 
 dispatch_queue_t g_workerQueue = nullptr;
 std::atomic<bool> g_workerInstalled{false};
+
+// Completion record. Worker thread builds one of these for each ghttp
+// callback it receives (success or error), pushes onto g_completionQueue
+// under g_completionMutex, and the main thread drains the queue at frame
+// boundary via OpenXRay_GhttpDrainCompletions.
+//
+// `kind` is diagnostic only — useful at the lldb prompt; the actual delivery
+// is opaque, via `invoke`. Commit 3 constructs `invoke` as a lambda that
+// captures the FastDelegate (by value) plus its args (deep-copied buffer,
+// error code, etc.) so the main thread just calls invoke() and forgets.
+//
+// Type erasure via std::function is deliberate: FastDelegate lives behind
+// xrCore headers, which we cannot include under Objective-C++ (BOOL clash
+// with <objc/objc.h>, see the include-block note above). Commit 3 builds
+// the lambda inside src/xrGameSpy/GameSpy_HTTP.cpp where FastDelegate is
+// available as a plain C++ type.
+enum class GhttpCompletionKind : unsigned
+{
+    Unknown = 0,
+    FileDownload,        // ghttp success path for ghttpSaveExA-flow
+    FileDownloadError,   // ghttp failure / early-fail for ghttpSaveExA-flow
+    StringFetch,         // ghttp success path for ghttpGetA-flow
+    StringFetchError,    // ghttp failure / early-fail for ghttpGetA-flow
+};
+
+struct GhttpCompletion
+{
+    GhttpCompletionKind kind = GhttpCompletionKind::Unknown;
+    std::function<void()> invoke;
+};
+
+std::mutex g_completionMutex;
+std::deque<GhttpCompletion> g_completionQueue;
 } // namespace
 
 extern "C" void OpenXRay_GhttpInstallWorker(void)
@@ -91,3 +128,37 @@ extern "C" bool OpenXRay_GhttpAssertOnWorkerQueue(void)
     return true;
 #endif
 }
+
+// Drain pending ghttp completion records on the main thread. Registered as
+// the per-frame ghttp drain hook (see OpenXRay_RegisterGhttpDrainHook in
+// src/xrEngine/Engine.cpp); called once per frame from
+// CRenderDevice::ProcessFrame after the A.1 lifecycle apply, so a
+// system-sleep pause has a chance to suppress UI work that a completion
+// might otherwise trigger.
+//
+// Swap-out under mutex, then drain without the mutex held — keeps the
+// critical section O(1) regardless of completion count and lets enqueue
+// from the worker proceed concurrently with delegate invocation on main.
+//
+// Commit 2 (this commit) ships the drain but no producers: enqueue calls
+// land in commit 3 alongside the ghttp routing. Until then the queue is
+// always empty and this drain is a no-op tick. The hook is also not
+// registered yet, so even the no-op tick costs nothing until install
+// runs in commit 3.
+extern "C" void OpenXRay_GhttpDrainCompletions(void)
+{
+    std::deque<GhttpCompletion> local;
+    {
+        std::lock_guard<std::mutex> lock(g_completionMutex);
+        if (g_completionQueue.empty())
+            return;
+        local.swap(g_completionQueue);
+    }
+
+    for (auto& record : local)
+    {
+        if (record.invoke)
+            record.invoke();
+    }
+}
+
