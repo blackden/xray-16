@@ -538,53 +538,78 @@ void CInput::MouseUpdate()
     static_assert(std::size(RemapIdx) == COUNT_MOUSE_BUTTONS);
     static_assert(std::size(IdxToKey) == COUNT_MOUSE_BUTTONS);
 
-    bool mouseMoved = false;
-    int offs[2]{};
-    float scroll[2]{};
     const auto mousePrev = mouseState;
     mouseAxisState[2] = 0;
     mouseAxisState[3] = 0;
 
-    SDL_Event events[MAX_MOUSE_EVENTS];
-    SDL_PumpEvents();
-    const auto count = SDL_PeepEvents(events, MAX_MOUSE_EVENTS,
-        SDL_GETEVENT, SDL_MOUSEMOTION, SDL_MOUSEWHEEL);
+    // SDL drain block — same Apple-gate split pattern as KeyUpdate. With
+    // nsevent_input=1 the NSEvent local monitor consumes mouse/scroll events
+    // before SDL sees them; the drain in NSEventDrain() maintains mouseState
+    // and emits IR_OnMouse* callbacks. The per-frame hold loop below must run
+    // unconditionally so mouseState (populated by either source) drives the
+    // IR_OnMouseHold callbacks (continuous-fire while LMB held, etc.).
+    bool runSDLDrain = true;
+#if defined(XR_PLATFORM_APPLE)
+    if (g_nsEventInputCvar)
+        runSDLDrain = false;
+#endif
 
-    for (int i = 0; i < count; ++i)
+    if (runSDLDrain)
     {
-        const SDL_Event& event = events[i];
+        bool mouseMoved = false;
+        int offs[2]{};
+        float scroll[2]{};
 
-        switch (event.type)
-        {
-        case SDL_MOUSEMOTION:
-            mouseMoved = true;
-            offs[0] += event.motion.xrel;
-            offs[1] += event.motion.yrel;
-            mouseAxisState[0] = event.motion.x;
-            mouseAxisState[1] = event.motion.y;
-            break;
+        SDL_Event events[MAX_MOUSE_EVENTS];
+        SDL_PumpEvents();
+        const auto count = SDL_PeepEvents(events, MAX_MOUSE_EVENTS,
+            SDL_GETEVENT, SDL_MOUSEMOTION, SDL_MOUSEWHEEL);
 
-        case SDL_MOUSEBUTTONDOWN:
+        for (int i = 0; i < count; ++i)
         {
-            const auto idx = RemapIdx[event.button.button - 1];
-            mouseState[idx] = true;
-            cbStack.back()->IR_OnMousePress(IdxToKey[idx]);
-            break;
+            const SDL_Event& event = events[i];
+
+            switch (event.type)
+            {
+            case SDL_MOUSEMOTION:
+                mouseMoved = true;
+                offs[0] += event.motion.xrel;
+                offs[1] += event.motion.yrel;
+                mouseAxisState[0] = event.motion.x;
+                mouseAxisState[1] = event.motion.y;
+                break;
+
+            case SDL_MOUSEBUTTONDOWN:
+            {
+                const auto idx = RemapIdx[event.button.button - 1];
+                mouseState[idx] = true;
+                cbStack.back()->IR_OnMousePress(IdxToKey[idx]);
+                break;
+            }
+            case SDL_MOUSEBUTTONUP:
+            {
+                const auto idx = RemapIdx[event.button.button - 1];
+                mouseState[idx] = false;
+                cbStack.back()->IR_OnMouseRelease(IdxToKey[idx]);
+                break;
+            }
+            case SDL_MOUSEWHEEL:
+                mouseMoved = true;
+                scroll[0] += event.wheel.preciseX;
+                scroll[1] += event.wheel.preciseY;
+                mouseAxisState[2] += event.wheel.x;
+                mouseAxisState[3] += event.wheel.y;
+                break;
+            }
         }
-        case SDL_MOUSEBUTTONUP:
+
+        if (mouseMoved)
         {
-            const auto idx = RemapIdx[event.button.button - 1];
-            mouseState[idx] = false;
-            cbStack.back()->IR_OnMouseRelease(IdxToKey[idx]);
-            break;
-        }
-        case SDL_MOUSEWHEEL:
-            mouseMoved = true;
-            scroll[0] += event.wheel.preciseX;
-            scroll[1] += event.wheel.preciseY;
-            mouseAxisState[2] += event.wheel.x;
-            mouseAxisState[3] += event.wheel.y;
-            break;
+            if (offs[0] || offs[1])
+                cbStack.back()->IR_OnMouseMove(offs[0], offs[1]);
+
+            if (!fis_zero(scroll[0]) || !fis_zero(scroll[1]))
+                cbStack.back()->IR_OnMouseWheel(scroll[0], scroll[1]);
         }
     }
 
@@ -592,15 +617,6 @@ void CInput::MouseUpdate()
     {
         if (mouseState[i] && mousePrev[i])
             cbStack.back()->IR_OnMouseHold(IdxToKey[i]);
-    }
-
-    if (mouseMoved)
-    {
-        if (offs[0] || offs[1])
-            cbStack.back()->IR_OnMouseMove(offs[0], offs[1]);
-
-        if (!fis_zero(scroll[0]) || !fis_zero(scroll[1]))
-            cbStack.back()->IR_OnMouseWheel(scroll[0], scroll[1]);
     }
 }
 
@@ -1018,7 +1034,17 @@ void CInput::GrabInput(const bool grab)
 
     // Grab the mouse
     if (exclusiveInput)
+    {
         SDL_SetRelativeMouseMode(grab ? SDL_TRUE : SDL_FALSE);
+#if defined(XR_PLATFORM_APPLE)
+        // Mirror capture state into the shim so the NSEvent local monitor's
+        // mouse translator picks the right coordinate source: deltas vs
+        // absolute pixel coords. Без этого NSEvent path в captured режиме
+        // продолжал бы слать locX/Y и менюшный курсор бы прыгал в captured
+        // mode (или look-around игнорировал бы deltas).
+        OpenXRay_SetMouseCaptureMode(grab ? 1 : 0);
+#endif
+    }
 
     // We're done here.
     inputGrabbed = grab;
@@ -1209,15 +1235,60 @@ void CInput::NSEventDrain()
                 g_lastShimModifierFlags = r.modifierFlags;
                 break;
             }
-            // Mouse + scroll plumbing arrives in phase 3 (A.3.3). Records
-            // currently still enter the queue (handler writes them in 2c)
-            // but the engine ignores them here so SDL stays authoritative
-            // for mouse until then.
+            // Mouse buttons map: NSEvent.mouseButton (0=left, 1=right, 2=other)
+            // -> MOUSE_1 / MOUSE_2 / MOUSE_3 via MOUSE_INVALID+1+idx. mouseState
+            // index follows the same idx (same convention as IR_ReleaseAll in
+            // 2a). Note: NSEvent already maps middle button to "other", so the
+            // SDL-side RemapIdx (which swaps SDL's middle<->right) is NOT
+            // applied here.
             case OXR_NS_EVENT_MOUSE_MOVE:
-            case OXR_NS_EVENT_MOUSE_DOWN:
-            case OXR_NS_EVENT_MOUSE_UP:
             case OXR_NS_EVENT_MOUSE_DRAGGED:
+            {
+                // record содержит ИЛИ deltaX/Y (captured) ИЛИ locX/Y (absolute).
+                // Shim сам выбирает на основе g_mouseCaptured; здесь просто
+                // передаём что было записано.
+                int dx, dy;
+                if (r.deltaX != 0.0f || r.deltaY != 0.0f)
+                {
+                    dx = (int)r.deltaX;
+                    dy = (int)r.deltaY;
+                }
+                else
+                {
+                    dx = (int)r.locX;
+                    dy = (int)r.locY;
+                    // Non-captured mode delivers absolute pixel coords —
+                    // expose them through mouseAxisState[0..1] so menu code
+                    // pathways which read iGetAsyncMousePos фактически
+                    // получают актуальную позицию.
+                    mouseAxisState[0] = dx;
+                    mouseAxisState[1] = dy;
+                }
+                receiver->IR_OnMouseMove(dx, dy);
+                break;
+            }
+            case OXR_NS_EVENT_MOUSE_DOWN:
+            {
+                if (r.mouseButton < COUNT_MOUSE_BUTTONS)
+                {
+                    const int btn = (int)MOUSE_INVALID + 1 + (int)r.mouseButton;
+                    mouseState[r.mouseButton] = true;
+                    receiver->IR_OnMousePress(btn);
+                }
+                break;
+            }
+            case OXR_NS_EVENT_MOUSE_UP:
+            {
+                if (r.mouseButton < COUNT_MOUSE_BUTTONS)
+                {
+                    const int btn = (int)MOUSE_INVALID + 1 + (int)r.mouseButton;
+                    mouseState[r.mouseButton] = false;
+                    receiver->IR_OnMouseRelease(btn);
+                }
+                break;
+            }
             case OXR_NS_EVENT_SCROLL_WHEEL:
+                receiver->IR_OnMouseWheel((int)r.deltaX, (int)r.deltaY);
                 break;
             }
         }

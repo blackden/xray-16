@@ -56,6 +56,12 @@
 // free of xrCore headers (they collide with Foundation types under ObjC++).
 extern "C" void OpenXRay_RequestGracefulQuit(void);
 
+// Defined in xr_input.cpp under XR_PLATFORM_APPLE — pInput->IR_ReleaseAll().
+// Used by the focus-loss observer below to drop every held keyboard scancode
+// and mouse button: иначе Cmd-Tab при удерживаемой LMB оставляет stuck-fire
+// после возврата (NSEvent для button-up в фоновом приложении не приходит).
+extern "C" void OpenXRay_SyntheticReleaseAllKeys(void);
+
 // Lifecycle flag setters defined in Engine.cpp under XR_PLATFORM_APPLE. Each
 // stores an atomic pending-event enum which is applied by the render thread at
 // the next frame boundary (CRenderDevice::ProcessFrame entry). Decoupling the
@@ -292,6 +298,13 @@ static OpenXRayCocoaShim *sInstalledShim = nil;
         [(id)self.sdlDelegate performSelector:_cmd withObject:note];
 #pragma clang diagnostic pop
     }
+
+    // Synthetic release всех зажатых клавиш и mouse buttons. NSEvent local
+    // monitor события для background app не получает, поэтому KeyUp/MouseUp
+    // от Cmd-Tab выпадают — без этого LMB-зажатие + Cmd-Tab оставляет stuck
+    // fire после возврата. IR_ReleaseAll правит и keyboardState и mouseState
+    // и эмитит IR_OnKeyboardRelease / IR_OnMouseRelease для всех держимых.
+    OpenXRay_SyntheticReleaseAllKeys();
 }
 
 // Transparent forwarding to SDL's delegate for everything we don't override.
@@ -468,25 +481,25 @@ extern "C" void OpenXRay_InstallNSEventMonitor(void)
                         return nil;
                     case NSEventTypeMouseMoved:
                         QueuePush(MakeRecordFromMouse(event, OXR_NS_EVENT_MOUSE_MOVE, window));
-                        return event; // mouse/scroll НЕ consume в 2c — Phase 3 переключит на nil
+                        return nil;
                     case NSEventTypeLeftMouseDown:
                     case NSEventTypeRightMouseDown:
                     case NSEventTypeOtherMouseDown:
                         QueuePush(MakeRecordFromMouse(event, OXR_NS_EVENT_MOUSE_DOWN, window));
-                        return event;
+                        return nil;
                     case NSEventTypeLeftMouseUp:
                     case NSEventTypeRightMouseUp:
                     case NSEventTypeOtherMouseUp:
                         QueuePush(MakeRecordFromMouse(event, OXR_NS_EVENT_MOUSE_UP, window));
-                        return event;
+                        return nil;
                     case NSEventTypeLeftMouseDragged:
                     case NSEventTypeRightMouseDragged:
                     case NSEventTypeOtherMouseDragged:
                         QueuePush(MakeRecordFromMouse(event, OXR_NS_EVENT_MOUSE_DRAGGED, window));
-                        return event;
+                        return nil;
                     case NSEventTypeScrollWheel:
                         QueuePush(MakeRecordFromScroll(event));
-                        return event;
+                        return nil;
                     default:
                         return event;
                 }
