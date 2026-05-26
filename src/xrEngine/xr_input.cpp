@@ -347,6 +347,17 @@ extern "C" void OpenXRay_SyntheticReleaseAllKeys(void)
         pInput->IR_ReleaseAll();
 }
 
+// Called from applicationDidBecomeActive: in macos_cocoa_shim.mm. Re-aligns
+// the FlagsChanged baseline after a focus-loss window: while the app was
+// backgrounded NSEvent FlagsChanged callbacks didn't fire, so the cached
+// snapshot can be stale. Next FlagsChanged would otherwise XOR against a
+// pre-background state and either resurrect a released modifier or hide
+// a newly-pressed one.
+extern "C" void OpenXRay_SyncModifierFlags(uint32_t flags)
+{
+    g_lastShimModifierFlags = flags;
+}
+
 extern "C" void OpenXRay_OnNSEventInputCvarChanged(int newValue)
 {
     const int oldValue = g_nsEventInputCvar;

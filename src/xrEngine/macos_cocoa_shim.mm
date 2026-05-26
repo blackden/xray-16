@@ -62,6 +62,13 @@ extern "C" void OpenXRay_RequestGracefulQuit(void);
 // после возврата (NSEvent для button-up в фоновом приложении не приходит).
 extern "C" void OpenXRay_SyntheticReleaseAllKeys(void);
 
+// Defined in xr_input.cpp under XR_PLATFORM_APPLE — записывает переданные
+// NSEvent.modifierFlags в file-static g_lastShimModifierFlags, чтобы следующий
+// FlagsChanged record в NSEventDrain считал diff от актуального состояния.
+// Вызывается из applicationDidBecomeActive: после возврата фокуса (пока мы
+// были в background, FlagsChanged events не приходили — diff устарел).
+extern "C" void OpenXRay_SyncModifierFlags(uint32_t flags);
+
 // Lifecycle flag setters defined in Engine.cpp under XR_PLATFORM_APPLE. Each
 // stores an atomic pending-event enum which is applied by the render thread at
 // the next frame boundary (CRenderDevice::ProcessFrame entry). Decoupling the
@@ -205,6 +212,7 @@ OpenXRayNSEventRecord MakeRecordFromScroll(NSEvent *event)
 - (void)handleQuitRequest:(NSString *)origin;
 - (void)workspaceWillSleep:(NSNotification *)note;
 - (void)workspaceDidWake:(NSNotification *)note;
+- (void)windowDidChangeBackingProperties:(NSNotification *)note;
 @end
 
 // File-scope strong ref so OpenXRay_ArmLifecycleObservers() (called from
@@ -264,12 +272,40 @@ static OpenXRayCocoaShim *sInstalledShim = nil;
 {
     (void)note;
     OpenXRay_OnSystemWillSleep();
+
+    // Аналогично applicationWillResignActive (A.3.3 Phase 3): отпустить
+    // зажатые клавиши и mouse buttons. NSEvent для key-up / mouse-up между
+    // sleep и wake не приходят, поэтому держимые на момент засыпания биты
+    // останутся залипшими. После wake пользователь начинает с чистого
+    // состояния.
+    OpenXRay_SyntheticReleaseAllKeys();
 }
 
 - (void)workspaceDidWake:(NSNotification *)note
 {
     (void)note;
     OpenXRay_OnSystemDidWake();
+}
+
+// NSWindowDidChangeBackingPropertiesNotification — окно переехало между
+// мониторами с разной плотностью пикселей (e.g. встроенный 2x Retina ->
+// внешний 1x), либо пользователь сменил scale в System Settings. Обновляем
+// кэш g_backingScaleFactor чтобы non-captured mouse coords в next NSEvent
+// record были корректно scaled.
+- (void)windowDidChangeBackingProperties:(NSNotification *)note
+{
+    NSWindow *window = (NSWindow *)[note object];
+    if (!window)
+        return;
+    const float oldScale = g_backingScaleFactor;
+    g_backingScaleFactor = (float)[window backingScaleFactor];
+
+    char buf[160];
+    int n = snprintf(buf, sizeof buf,
+        "==> OpenXRay: backing scale factor changed %.2f -> %.2f\n",
+        (double)oldScale, (double)g_backingScaleFactor);
+    if (n > 0)
+        ::write(STDERR_FILENO, buf, (size_t)n);
 }
 
 // Focus events. Forwarded to SDL's delegate AFTER our hook so SDL's existing
@@ -286,6 +322,15 @@ static OpenXRayCocoaShim *sInstalledShim = nil;
         [(id)self.sdlDelegate performSelector:_cmd withObject:note];
 #pragma clang diagnostic pop
     }
+
+    // Sync g_lastShimModifierFlags с реальным состоянием модификаторов.
+    // Пока мы были не в фокусе пользователь мог отпустить/нажать Shift,
+    // Ctrl, Option и т.п. — NSEvent FlagsChanged события в фоне нам не
+    // приходили. Без sync'а следующий FlagsChanged даст некорректный diff
+    // и часть модификаторов будет либо stuck-pressed, либо проигнорирована.
+    const uint32_t mods = (uint32_t)([NSEvent modifierFlags]
+        & NSEventModifierFlagDeviceIndependentFlagsMask);
+    OpenXRay_SyncModifierFlags(mods);
 }
 
 - (void)applicationWillResignActive:(NSNotification *)note
@@ -417,8 +462,16 @@ extern "C" void OpenXRay_ArmLifecycleObservers(void)
                    name:NSWorkspaceDidWakeNotification
                  object:nil];
 
+        // NSWindowDidChangeBackingPropertiesNotification приходит через
+        // DEFAULT NSNotificationCenter (не NSWorkspace). Регистрируем без
+        // object'а — нам интересен любой window, переехавший между мониторами.
+        [[NSNotificationCenter defaultCenter] addObserver:sInstalledShim
+            selector:@selector(windowDidChangeBackingProperties:)
+                name:NSWindowDidChangeBackingPropertiesNotification
+              object:nil];
+
         static const char msg[] =
-            "==> Cocoa shim: lifecycle observers armed (NSWorkspace sleep/wake)\n";
+            "==> Cocoa shim: lifecycle observers armed (NSWorkspace sleep/wake, backing scale)\n";
         ::write(STDERR_FILENO, msg, sizeof(msg) - 1);
     }
 }
