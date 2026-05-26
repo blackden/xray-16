@@ -698,6 +698,29 @@ public:
     }
 };
 
+#if defined(XR_PLATFORM_APPLE)
+// Dev-only verifier for the NSEvent keyCode -> SDL_Scancode table in
+// xr_input.cpp. Gated by g_dev_tools so shipped MasterGold builds don't
+// expose it without an explicit `dev_tools 1` flip. Implementation lives
+// in xr_input.cpp next to the table itself. g_dev_tools is defined later
+// in this TU; forward-declare so the Execute body sees it.
+extern ENGINE_API int g_dev_tools;
+extern "C" void OpenXRay_VerifyInputTable();
+
+class CCC_VerifyInputTable : public IConsole_Command
+{
+public:
+    CCC_VerifyInputTable(pcstr N) : IConsole_Command(N) { bEmptyArgsHandled = true; }
+    void Execute(pcstr /*args*/) override
+    {
+        if (g_dev_tools)
+            OpenXRay_VerifyInputTable();
+        else
+            Msg("! verify_input_table requires dev_tools 1");
+    }
+};
+#endif // XR_PLATFORM_APPLE
+
 ENGINE_API float g_fov = 67.5f;
 ENGINE_API float psHUD_FOV = 0.45f;
 
@@ -755,6 +778,11 @@ void CCC_Register()
 
     // Developer-only hotkeys gate (F11 playground, F12 ALife inspector).
     CMD4(CCC_Integer, "dev_tools", &g_dev_tools, 0, 1);
+
+#if defined(XR_PLATFORM_APPLE)
+    // Dev-only NSEvent keyCode -> SDL_Scancode table verifier (#120 A.3).
+    CMD1(CCC_VerifyInputTable, "verify_input_table");
+#endif
 
     // Main-thread watchdog timeout (see g_dev_watchdog_seconds note above).
     // Sampled by CApplication::Run at startup, runtime changes don't apply.
