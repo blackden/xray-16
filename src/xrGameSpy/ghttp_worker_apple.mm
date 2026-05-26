@@ -162,3 +162,69 @@ extern "C" void OpenXRay_GhttpDrainCompletions(void)
     }
 }
 
+// Producer API for the worker thread to push completion records that the main
+// thread will drain at the next frame boundary. C++ linkage (not extern "C")
+// because we ship a std::function across the boundary — both sides of the
+// xrGameSpy target compile under the same clang / libc++, so the ABI is
+// guaranteed compatible inside one library. Call site lives in
+// GameSpy_HTTP.cpp's static ghttp callbacks; the callbacks build the lambda
+// where FastDelegate is a real type.
+void OpenXRay_GhttpEnqueueCompletion(std::function<void()> invoke)
+{
+    if (!invoke)
+        return;
+    GhttpCompletion record;
+    record.kind = GhttpCompletionKind::Unknown;
+    record.invoke = std::move(invoke);
+    std::lock_guard<std::mutex> lock(g_completionMutex);
+    g_completionQueue.push_back(std::move(record));
+}
+
+// dispatch_async wrapper for the ghttp worker queue. C++ linkage for the same
+// std::function-ABI reason as above. No-op if the worker is not installed —
+// makes the helper safe to call before StartUp wires the worker up, and from
+// the early-fail path of CleanUp after Shutdown nils the queue.
+void OpenXRay_GhttpDispatchAsync(std::function<void()> work)
+{
+    if (!work)
+        return;
+    if (!g_workerInstalled.load(std::memory_order_acquire) || !g_workerQueue)
+        return;
+    // The block captures by copy; the C++ move into a heap-owned wrapper keeps
+    // the closure alive past the block boundary. Apple's Blocks runtime treats
+    // captured C++ objects with copy semantics — std::function is copyable, so
+    // a direct capture works, but going through a unique_ptr keeps the move
+    // semantics intact and avoids the implicit copy.
+    auto* heldWork = new std::function<void()>(std::move(work));
+    dispatch_async(g_workerQueue, ^{
+        (*heldWork)();
+        delete heldWork;
+    });
+}
+
+// dispatch_sync wrapper for the ghttp worker queue. Used at teardown to drain
+// the queue and run a final task (typically ghttpCleanup) as the last block
+// on the worker before the queue is released. Safe to call from main only —
+// dispatch_sync to a queue you're already on deadlocks; the worker queue is
+// never the caller's queue (we never reenter from inside a worker block).
+void OpenXRay_GhttpDispatchSync(std::function<void()> work)
+{
+    if (!work)
+        return;
+    if (!g_workerInstalled.load(std::memory_order_acquire) || !g_workerQueue)
+    {
+        // Worker not up — run inline so CleanUp ordering still completes
+        // ghttpCleanup on the calling thread. Matches the "no-op when not
+        // installed" semantics of the async variant for safety, but here the
+        // caller wants the work to run regardless.
+        work();
+        return;
+    }
+    // dispatch_sync runs the block synchronously on the target queue and
+    // returns when it finishes. No heap thunk needed — the block keeps the
+    // C++ closure alive for its lifetime, which is bounded by this call.
+    dispatch_sync(g_workerQueue, ^{
+        work();
+    });
+}
+

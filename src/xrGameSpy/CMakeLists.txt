@@ -87,8 +87,20 @@ if(APPLE)
     # (objc_storeStrong / objc_autoreleasePool*). In BUILD_SHARED_LIBS
     # mode xrGameSpy.dylib must resolve these standalone; Foundation
     # brings libobjc transitively, matching the pattern in xrEngine.
+    #
+    # Apple-only: xrEngine on the link list so GameSpy_HTTP.cpp can resolve
+    # OpenXRay_RegisterGhttpDrainHook (defined in src/xrEngine/Engine.cpp
+    # under XR_PLATFORM_APPLE). The dep direction (xrGameSpy → xrEngine)
+    # is unidirectional — xrEngine does not link xrGameSpy, and the
+    # function's only purpose is xrGameSpy registering its drain function
+    # with the per-frame macOS hook aggregator owned by xrEngine. Static
+    # builds dedup this via xr_3da's link order; BUILD_SHARED_LIBS needs
+    # the explicit edge so xrGameSpy.dylib resolves standalone. See
+    # GameSpy_HTTP.cpp's "Defined in src/xrEngine/Engine.cpp" comment for
+    # the call-site rationale.
     target_link_libraries(xrGameSpy
         PRIVATE
+        xrEngine
         "-framework Foundation"
     )
 endif()
