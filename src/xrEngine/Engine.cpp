@@ -222,4 +222,43 @@ void OpenXRay_ApplyPendingLifecycleEvent()
         break;
     }
 }
+
+// Frame-boundary aggregator for macOS per-frame Cocoa hooks. Called from
+// CRenderDevice::ProcessFrame (device.cpp). The fixed order encodes a real
+// invariant:
+//
+//   1. Lifecycle apply runs first — if a system-sleep is pending it pauses
+//      the device immediately, and the subsequent ghttp drain happens in a
+//      paused-engine state (or the same frame's paused-state UI work).
+//   2. Ghttp completion drain runs second — completion callbacks may push
+//      UI events (manifest dialogs, patch download progress) that we would
+//      not want to fire before lifecycle pause had a chance to suppress
+//      them on a sleep-bound frame.
+//
+// Both halves no-op if their respective queues are empty, so the cost on
+// the steady state is two atomic loads + one mutex try-lock.
+//
+// xrGameSpy lives downstream of xrEngine (xrGame depends on both, neither
+// depends on the other), so we cannot reference ghttp_worker_apple.mm
+// directly from here — that would break BUILD_SHARED_LIBS where each
+// library is linked standalone. Instead xrGameSpy registers its drain
+// function into the hook slot below at install time (commit 3 wiring);
+// until then the slot is nullptr and the aggregator is just the lifecycle
+// apply.
+namespace
+{
+std::atomic<void (*)(void)> g_ghttpDrainHook{nullptr};
+} // namespace
+
+extern "C" void OpenXRay_RegisterGhttpDrainHook(void (*hook)(void))
+{
+    g_ghttpDrainHook.store(hook, std::memory_order_release);
+}
+
+void OpenXRay_RunPerFrameMacOSHooks()
+{
+    OpenXRay_ApplyPendingLifecycleEvent();
+    if (auto* hook = g_ghttpDrainHook.load(std::memory_order_acquire))
+        hook();
+}
 #endif
