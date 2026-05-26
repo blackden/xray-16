@@ -9,6 +9,367 @@
 
 #include <locale>
 
+#if defined(XR_PLATFORM_APPLE)
+// Apple HID virtual key codes (from <Carbon/HIToolbox/Events.h>).
+// Inline-defined here because <Carbon/HIToolbox/Events.h> only resolves
+// in Objective-C/C++ TUs (.m/.mm) — plain .cpp builds reject the
+// sub-framework include syntax even though the header exists. These
+// values are frozen since the Apple Extended Keyboard II (~1990) and
+// will not change.
+namespace
+{
+constexpr int kVK_ANSI_A              = 0x00;
+constexpr int kVK_ANSI_S              = 0x01;
+constexpr int kVK_ANSI_D              = 0x02;
+constexpr int kVK_ANSI_F              = 0x03;
+constexpr int kVK_ANSI_H              = 0x04;
+constexpr int kVK_ANSI_G              = 0x05;
+constexpr int kVK_ANSI_Z              = 0x06;
+constexpr int kVK_ANSI_X              = 0x07;
+constexpr int kVK_ANSI_C              = 0x08;
+constexpr int kVK_ANSI_V              = 0x09;
+constexpr int kVK_ISO_Section         = 0x0A;
+constexpr int kVK_ANSI_B              = 0x0B;
+constexpr int kVK_ANSI_Q              = 0x0C;
+constexpr int kVK_ANSI_W              = 0x0D;
+constexpr int kVK_ANSI_E              = 0x0E;
+constexpr int kVK_ANSI_R              = 0x0F;
+constexpr int kVK_ANSI_Y              = 0x10;
+constexpr int kVK_ANSI_T              = 0x11;
+constexpr int kVK_ANSI_1              = 0x12;
+constexpr int kVK_ANSI_2              = 0x13;
+constexpr int kVK_ANSI_3              = 0x14;
+constexpr int kVK_ANSI_4              = 0x15;
+constexpr int kVK_ANSI_6              = 0x16;
+constexpr int kVK_ANSI_5              = 0x17;
+constexpr int kVK_ANSI_Equal          = 0x18;
+constexpr int kVK_ANSI_9              = 0x19;
+constexpr int kVK_ANSI_7              = 0x1A;
+constexpr int kVK_ANSI_Minus          = 0x1B;
+constexpr int kVK_ANSI_8              = 0x1C;
+constexpr int kVK_ANSI_0              = 0x1D;
+constexpr int kVK_ANSI_RightBracket   = 0x1E;
+constexpr int kVK_ANSI_O              = 0x1F;
+constexpr int kVK_ANSI_U              = 0x20;
+constexpr int kVK_ANSI_LeftBracket    = 0x21;
+constexpr int kVK_ANSI_I              = 0x22;
+constexpr int kVK_ANSI_P              = 0x23;
+constexpr int kVK_Return              = 0x24;
+constexpr int kVK_ANSI_L              = 0x25;
+constexpr int kVK_ANSI_J              = 0x26;
+constexpr int kVK_ANSI_Quote          = 0x27;
+constexpr int kVK_ANSI_K              = 0x28;
+constexpr int kVK_ANSI_Semicolon      = 0x29;
+constexpr int kVK_ANSI_Backslash      = 0x2A;
+constexpr int kVK_ANSI_Comma          = 0x2B;
+constexpr int kVK_ANSI_Slash          = 0x2C;
+constexpr int kVK_ANSI_N              = 0x2D;
+constexpr int kVK_ANSI_M              = 0x2E;
+constexpr int kVK_ANSI_Period         = 0x2F;
+constexpr int kVK_Tab                 = 0x30;
+constexpr int kVK_Space               = 0x31;
+constexpr int kVK_ANSI_Grave          = 0x32;
+constexpr int kVK_Delete              = 0x33;
+constexpr int kVK_Escape              = 0x35;
+constexpr int kVK_RightCommand        = 0x36;
+constexpr int kVK_Command             = 0x37;
+constexpr int kVK_Shift               = 0x38;
+constexpr int kVK_CapsLock            = 0x39;
+constexpr int kVK_Option              = 0x3A;
+constexpr int kVK_Control             = 0x3B;
+constexpr int kVK_RightShift          = 0x3C;
+constexpr int kVK_RightOption         = 0x3D;
+constexpr int kVK_RightControl        = 0x3E;
+constexpr int kVK_ANSI_KeypadDecimal  = 0x41;
+constexpr int kVK_ANSI_KeypadMultiply = 0x43;
+constexpr int kVK_ANSI_KeypadPlus     = 0x45;
+constexpr int kVK_ANSI_KeypadClear    = 0x47;
+constexpr int kVK_ANSI_KeypadDivide   = 0x4B;
+constexpr int kVK_ANSI_KeypadEnter    = 0x4C;
+constexpr int kVK_ANSI_KeypadMinus    = 0x4E;
+constexpr int kVK_ANSI_KeypadEquals   = 0x51;
+constexpr int kVK_ANSI_Keypad0        = 0x52;
+constexpr int kVK_ANSI_Keypad1        = 0x53;
+constexpr int kVK_ANSI_Keypad2        = 0x54;
+constexpr int kVK_ANSI_Keypad3        = 0x55;
+constexpr int kVK_ANSI_Keypad4        = 0x56;
+constexpr int kVK_ANSI_Keypad5        = 0x57;
+constexpr int kVK_ANSI_Keypad6        = 0x58;
+constexpr int kVK_ANSI_Keypad7        = 0x59;
+constexpr int kVK_ANSI_Keypad8        = 0x5B;
+constexpr int kVK_ANSI_Keypad9        = 0x5C;
+constexpr int kVK_F5                  = 0x60;
+constexpr int kVK_F6                  = 0x61;
+constexpr int kVK_F7                  = 0x62;
+constexpr int kVK_F3                  = 0x63;
+constexpr int kVK_F8                  = 0x64;
+constexpr int kVK_F9                  = 0x65;
+constexpr int kVK_F11                 = 0x67;
+constexpr int kVK_F13                 = 0x69;
+constexpr int kVK_F14                 = 0x6B;
+constexpr int kVK_F10                 = 0x6D;
+constexpr int kVK_F12                 = 0x6F;
+constexpr int kVK_F15                 = 0x71;
+constexpr int kVK_Help                = 0x72;
+constexpr int kVK_Home                = 0x73;
+constexpr int kVK_PageUp              = 0x74;
+constexpr int kVK_ForwardDelete       = 0x75;
+constexpr int kVK_F4                  = 0x76;
+constexpr int kVK_End                 = 0x77;
+constexpr int kVK_F2                  = 0x78;
+constexpr int kVK_PageDown            = 0x79;
+constexpr int kVK_F1                  = 0x7A;
+constexpr int kVK_LeftArrow           = 0x7B;
+constexpr int kVK_RightArrow          = 0x7C;
+constexpr int kVK_DownArrow           = 0x7D;
+constexpr int kVK_UpArrow             = 0x7E;
+} // namespace
+#endif
+
+#if defined(XR_PLATFORM_APPLE)
+// Apple HID keyCode -> SDL_Scancode mapping.
+// Static replica of SDL's internal table in SDL_cocoakeyboard.m. Lets us
+// drop SDL from the keyboard event path without changing the engine's
+// scancode-based binding system (xr_level_controller.cpp).
+// Indices match NSEvent.keyCode values (kVK_* constants from
+// <Carbon/HIToolbox/Events.h>). Unmapped entries default to
+// SDL_SCANCODE_UNKNOWN.
+namespace
+{
+constexpr SDL_Scancode kNSKeyCodeToSDLScancode[128] = {
+    [kVK_ANSI_A]              = SDL_SCANCODE_A,
+    [kVK_ANSI_S]              = SDL_SCANCODE_S,
+    [kVK_ANSI_D]              = SDL_SCANCODE_D,
+    [kVK_ANSI_F]              = SDL_SCANCODE_F,
+    [kVK_ANSI_H]              = SDL_SCANCODE_H,
+    [kVK_ANSI_G]              = SDL_SCANCODE_G,
+    [kVK_ANSI_Z]              = SDL_SCANCODE_Z,
+    [kVK_ANSI_X]              = SDL_SCANCODE_X,
+    [kVK_ANSI_C]              = SDL_SCANCODE_C,
+    [kVK_ANSI_V]              = SDL_SCANCODE_V,
+    [kVK_ANSI_B]              = SDL_SCANCODE_B,
+    [kVK_ANSI_Q]              = SDL_SCANCODE_Q,
+    [kVK_ANSI_W]              = SDL_SCANCODE_W,
+    [kVK_ANSI_E]              = SDL_SCANCODE_E,
+    [kVK_ANSI_R]              = SDL_SCANCODE_R,
+    [kVK_ANSI_Y]              = SDL_SCANCODE_Y,
+    [kVK_ANSI_T]              = SDL_SCANCODE_T,
+    [kVK_ANSI_1]              = SDL_SCANCODE_1,
+    [kVK_ANSI_2]              = SDL_SCANCODE_2,
+    [kVK_ANSI_3]              = SDL_SCANCODE_3,
+    [kVK_ANSI_4]              = SDL_SCANCODE_4,
+    [kVK_ANSI_6]              = SDL_SCANCODE_6,
+    [kVK_ANSI_5]              = SDL_SCANCODE_5,
+    [kVK_ANSI_Equal]          = SDL_SCANCODE_EQUALS,
+    [kVK_ANSI_9]              = SDL_SCANCODE_9,
+    [kVK_ANSI_7]              = SDL_SCANCODE_7,
+    [kVK_ANSI_Minus]          = SDL_SCANCODE_MINUS,
+    [kVK_ANSI_8]              = SDL_SCANCODE_8,
+    [kVK_ANSI_0]              = SDL_SCANCODE_0,
+    [kVK_ANSI_RightBracket]   = SDL_SCANCODE_RIGHTBRACKET,
+    [kVK_ANSI_O]              = SDL_SCANCODE_O,
+    [kVK_ANSI_U]              = SDL_SCANCODE_U,
+    [kVK_ANSI_LeftBracket]    = SDL_SCANCODE_LEFTBRACKET,
+    [kVK_ANSI_I]              = SDL_SCANCODE_I,
+    [kVK_ANSI_P]              = SDL_SCANCODE_P,
+    [kVK_Return]              = SDL_SCANCODE_RETURN,
+    [kVK_ANSI_L]              = SDL_SCANCODE_L,
+    [kVK_ANSI_J]              = SDL_SCANCODE_J,
+    [kVK_ANSI_Quote]          = SDL_SCANCODE_APOSTROPHE,
+    [kVK_ANSI_K]              = SDL_SCANCODE_K,
+    [kVK_ANSI_Semicolon]      = SDL_SCANCODE_SEMICOLON,
+    [kVK_ANSI_Backslash]      = SDL_SCANCODE_BACKSLASH,
+    [kVK_ANSI_Comma]          = SDL_SCANCODE_COMMA,
+    [kVK_ANSI_Slash]          = SDL_SCANCODE_SLASH,
+    [kVK_ANSI_N]              = SDL_SCANCODE_N,
+    [kVK_ANSI_M]              = SDL_SCANCODE_M,
+    [kVK_ANSI_Period]         = SDL_SCANCODE_PERIOD,
+    [kVK_Tab]                 = SDL_SCANCODE_TAB,
+    [kVK_Space]               = SDL_SCANCODE_SPACE,
+    [kVK_ANSI_Grave]          = SDL_SCANCODE_GRAVE,
+    // ISO European keyboards (включая Mac MacBook RU/EU layouts) имеют
+    // отдельную клавишу `§/±/ёЁ` между левым Shift и Z/Я с keyCode 0x0A.
+    // SDL на ISO-layout swap'ал её с ANSI_Grave чтобы console-open binding
+    // (SCANCODE_GRAVE) попадал на эту физическую клавишу. Мы не делаем
+    // runtime ISO detection — просто маппим обе клавиши на GRAVE,
+    // обе работают как console-open. Безвредно: ANSI keyboards не
+    // имеют этого keyCode.
+    [kVK_ISO_Section]         = SDL_SCANCODE_GRAVE,
+    [kVK_Delete]              = SDL_SCANCODE_BACKSPACE,
+    [kVK_Escape]              = SDL_SCANCODE_ESCAPE,
+    [kVK_Command]             = SDL_SCANCODE_LGUI,
+    [kVK_Shift]               = SDL_SCANCODE_LSHIFT,
+    [kVK_CapsLock]            = SDL_SCANCODE_CAPSLOCK,
+    [kVK_Option]              = SDL_SCANCODE_LALT,
+    [kVK_Control]             = SDL_SCANCODE_LCTRL,
+    [kVK_RightCommand]        = SDL_SCANCODE_RGUI,
+    [kVK_RightShift]          = SDL_SCANCODE_RSHIFT,
+    [kVK_RightOption]         = SDL_SCANCODE_RALT,
+    [kVK_RightControl]        = SDL_SCANCODE_RCTRL,
+    [kVK_ANSI_KeypadDecimal]  = SDL_SCANCODE_KP_PERIOD,
+    [kVK_ANSI_KeypadMultiply] = SDL_SCANCODE_KP_MULTIPLY,
+    [kVK_ANSI_KeypadPlus]     = SDL_SCANCODE_KP_PLUS,
+    [kVK_ANSI_KeypadClear]    = SDL_SCANCODE_NUMLOCKCLEAR,
+    [kVK_ANSI_KeypadDivide]   = SDL_SCANCODE_KP_DIVIDE,
+    [kVK_ANSI_KeypadEnter]    = SDL_SCANCODE_KP_ENTER,
+    [kVK_ANSI_KeypadMinus]    = SDL_SCANCODE_KP_MINUS,
+    [kVK_ANSI_KeypadEquals]   = SDL_SCANCODE_KP_EQUALS,
+    [kVK_ANSI_Keypad0]        = SDL_SCANCODE_KP_0,
+    [kVK_ANSI_Keypad1]        = SDL_SCANCODE_KP_1,
+    [kVK_ANSI_Keypad2]        = SDL_SCANCODE_KP_2,
+    [kVK_ANSI_Keypad3]        = SDL_SCANCODE_KP_3,
+    [kVK_ANSI_Keypad4]        = SDL_SCANCODE_KP_4,
+    [kVK_ANSI_Keypad5]        = SDL_SCANCODE_KP_5,
+    [kVK_ANSI_Keypad6]        = SDL_SCANCODE_KP_6,
+    [kVK_ANSI_Keypad7]        = SDL_SCANCODE_KP_7,
+    [kVK_ANSI_Keypad8]        = SDL_SCANCODE_KP_8,
+    [kVK_ANSI_Keypad9]        = SDL_SCANCODE_KP_9,
+    [kVK_F5]                  = SDL_SCANCODE_F5,
+    [kVK_F6]                  = SDL_SCANCODE_F6,
+    [kVK_F7]                  = SDL_SCANCODE_F7,
+    [kVK_F3]                  = SDL_SCANCODE_F3,
+    [kVK_F8]                  = SDL_SCANCODE_F8,
+    [kVK_F9]                  = SDL_SCANCODE_F9,
+    [kVK_F11]                 = SDL_SCANCODE_F11,
+    [kVK_F13]                 = SDL_SCANCODE_PRINTSCREEN,
+    [kVK_F14]                 = SDL_SCANCODE_SCROLLLOCK,
+    [kVK_F10]                 = SDL_SCANCODE_F10,
+    [kVK_F12]                 = SDL_SCANCODE_F12,
+    [kVK_F15]                 = SDL_SCANCODE_PAUSE,
+    [kVK_Help]                = SDL_SCANCODE_INSERT,
+    [kVK_Home]                = SDL_SCANCODE_HOME,
+    [kVK_PageUp]              = SDL_SCANCODE_PAGEUP,
+    [kVK_ForwardDelete]       = SDL_SCANCODE_DELETE,
+    [kVK_F4]                  = SDL_SCANCODE_F4,
+    [kVK_End]                 = SDL_SCANCODE_END,
+    [kVK_F2]                  = SDL_SCANCODE_F2,
+    [kVK_PageDown]            = SDL_SCANCODE_PAGEDOWN,
+    [kVK_F1]                  = SDL_SCANCODE_F1,
+    [kVK_LeftArrow]           = SDL_SCANCODE_LEFT,
+    [kVK_RightArrow]          = SDL_SCANCODE_RIGHT,
+    [kVK_DownArrow]           = SDL_SCANCODE_DOWN,
+    [kVK_UpArrow]             = SDL_SCANCODE_UP,
+};
+
+void VerifyInputTable()
+{
+    int total = 0;
+    int matches = 0;
+    int mismatches = 0;
+    int unmapped = 0;
+
+    for (int keyCode = 0; keyCode < 128; ++keyCode)
+    {
+        SDL_Scancode ourScancode = kNSKeyCodeToSDLScancode[keyCode];
+
+        // SDL doesn't expose its NSEvent keyCode table directly. Approximate
+        // check: SDL_GetKeyFromScancode(ourScancode) should return a valid
+        // key (i.e. ourScancode is real). For unmapped entries, ourScancode
+        // is SDL_SCANCODE_UNKNOWN (0).
+        if (ourScancode == SDL_SCANCODE_UNKNOWN)
+        {
+            ++unmapped;
+            continue;
+        }
+
+        SDL_Keycode key = SDL_GetKeyFromScancode(ourScancode);
+        if (key == SDLK_UNKNOWN)
+        {
+            Msg("! verify_input_table: keyCode 0x%02x -> scancode %d -> no SDL key",
+                keyCode, ourScancode);
+            ++mismatches;
+        }
+        else
+        {
+            ++matches;
+        }
+        ++total;
+    }
+
+    Msg("verify_input_table: total=%d matches=%d mismatches=%d unmapped=%d",
+        total + unmapped, matches, mismatches, unmapped);
+}
+} // namespace
+
+extern "C" void OpenXRay_VerifyInputTable()
+{
+    VerifyInputTable();
+}
+#endif // XR_PLATFORM_APPLE
+
+#if defined(XR_PLATFORM_APPLE)
+#include "macos_cocoa_shim.h"
+
+// `g_nsEventInputCvar` has external linkage on purpose: the console
+// command lives in xrRender_console.cpp (different TU) and writes
+// straight into this storage via `extern int g_nsEventInputCvar`.
+// 1 = NSEvent pipeline drives keyboard input (default), 0 = legacy
+// SDL keyboard pipeline.
+int g_nsEventInputCvar = 1;
+
+namespace
+{
+// Last modifierFlags snapshot observed via a FlagsChanged record. Used
+// to diff against the next record so we can derive press/release for the
+// modifier keys (which never produce KeyDown/KeyUp NSEvents).
+uint32_t g_lastShimModifierFlags = 0;
+
+// NSEvent.modifierFlags bit values (from <AppKit/NSEvent.h>). Defined
+// locally because xr_input.cpp is a plain .cpp TU and cannot include
+// Cocoa headers. The bit positions are ABI-stable since 10.12.
+constexpr uint32_t kNSFlagCapsLock = 1u << 16;
+constexpr uint32_t kNSFlagShift    = 1u << 17;
+constexpr uint32_t kNSFlagControl  = 1u << 18;
+constexpr uint32_t kNSFlagOption   = 1u << 19;
+constexpr uint32_t kNSFlagCommand  = 1u << 20;
+
+SDL_Scancode ModifierKeyCodeToScancode(uint16_t keyCode)
+{
+    switch (keyCode)
+    {
+        case kVK_Shift:         return SDL_SCANCODE_LSHIFT;
+        case kVK_RightShift:    return SDL_SCANCODE_RSHIFT;
+        case kVK_Control:       return SDL_SCANCODE_LCTRL;
+        case kVK_RightControl:  return SDL_SCANCODE_RCTRL;
+        case kVK_Option:        return SDL_SCANCODE_LALT;
+        case kVK_RightOption:   return SDL_SCANCODE_RALT;
+        case kVK_Command:       return SDL_SCANCODE_LGUI;
+        case kVK_RightCommand:  return SDL_SCANCODE_RGUI;
+        case kVK_CapsLock:      return SDL_SCANCODE_CAPSLOCK;
+        default:                return SDL_SCANCODE_UNKNOWN;
+    }
+}
+} // namespace
+
+extern "C" void OpenXRay_SyntheticReleaseAllKeys(void)
+{
+    if (pInput)
+        pInput->IR_ReleaseAll();
+}
+
+// Called from applicationDidBecomeActive: in macos_cocoa_shim.mm. Re-aligns
+// the FlagsChanged baseline after a focus-loss window: while the app was
+// backgrounded NSEvent FlagsChanged callbacks didn't fire, so the cached
+// snapshot can be stale. Next FlagsChanged would otherwise XOR against a
+// pre-background state and either resurrect a released modifier or hide
+// a newly-pressed one.
+extern "C" void OpenXRay_SyncModifierFlags(uint32_t flags)
+{
+    g_lastShimModifierFlags = flags;
+}
+
+extern "C" void OpenXRay_OnNSEventInputCvarChanged(int newValue)
+{
+    const int oldValue = g_nsEventInputCvar;
+    g_nsEventInputCvar = newValue;
+    if (oldValue != newValue)
+    {
+        OpenXRay_SyntheticReleaseAllKeys();
+        OpenXRay_SetNSEventInputEnabled(newValue);
+    }
+}
+#endif // XR_PLATFORM_APPLE
+
 CInput* pInput = nullptr;
 
 class DummyReceiver : public IInputReceiver
@@ -188,53 +549,78 @@ void CInput::MouseUpdate()
     static_assert(std::size(RemapIdx) == COUNT_MOUSE_BUTTONS);
     static_assert(std::size(IdxToKey) == COUNT_MOUSE_BUTTONS);
 
-    bool mouseMoved = false;
-    int offs[2]{};
-    float scroll[2]{};
     const auto mousePrev = mouseState;
     mouseAxisState[2] = 0;
     mouseAxisState[3] = 0;
 
-    SDL_Event events[MAX_MOUSE_EVENTS];
-    SDL_PumpEvents();
-    const auto count = SDL_PeepEvents(events, MAX_MOUSE_EVENTS,
-        SDL_GETEVENT, SDL_MOUSEMOTION, SDL_MOUSEWHEEL);
+    // SDL drain block — same Apple-gate split pattern as KeyUpdate. With
+    // nsevent_input=1 the NSEvent local monitor consumes mouse/scroll events
+    // before SDL sees them; the drain in NSEventDrain() maintains mouseState
+    // and emits IR_OnMouse* callbacks. The per-frame hold loop below must run
+    // unconditionally so mouseState (populated by either source) drives the
+    // IR_OnMouseHold callbacks (continuous-fire while LMB held, etc.).
+    bool runSDLDrain = true;
+#if defined(XR_PLATFORM_APPLE)
+    if (g_nsEventInputCvar)
+        runSDLDrain = false;
+#endif
 
-    for (int i = 0; i < count; ++i)
+    if (runSDLDrain)
     {
-        const SDL_Event& event = events[i];
+        bool mouseMoved = false;
+        int offs[2]{};
+        float scroll[2]{};
 
-        switch (event.type)
-        {
-        case SDL_MOUSEMOTION:
-            mouseMoved = true;
-            offs[0] += event.motion.xrel;
-            offs[1] += event.motion.yrel;
-            mouseAxisState[0] = event.motion.x;
-            mouseAxisState[1] = event.motion.y;
-            break;
+        SDL_Event events[MAX_MOUSE_EVENTS];
+        SDL_PumpEvents();
+        const auto count = SDL_PeepEvents(events, MAX_MOUSE_EVENTS,
+            SDL_GETEVENT, SDL_MOUSEMOTION, SDL_MOUSEWHEEL);
 
-        case SDL_MOUSEBUTTONDOWN:
+        for (int i = 0; i < count; ++i)
         {
-            const auto idx = RemapIdx[event.button.button - 1];
-            mouseState[idx] = true;
-            cbStack.back()->IR_OnMousePress(IdxToKey[idx]);
-            break;
+            const SDL_Event& event = events[i];
+
+            switch (event.type)
+            {
+            case SDL_MOUSEMOTION:
+                mouseMoved = true;
+                offs[0] += event.motion.xrel;
+                offs[1] += event.motion.yrel;
+                mouseAxisState[0] = event.motion.x;
+                mouseAxisState[1] = event.motion.y;
+                break;
+
+            case SDL_MOUSEBUTTONDOWN:
+            {
+                const auto idx = RemapIdx[event.button.button - 1];
+                mouseState[idx] = true;
+                cbStack.back()->IR_OnMousePress(IdxToKey[idx]);
+                break;
+            }
+            case SDL_MOUSEBUTTONUP:
+            {
+                const auto idx = RemapIdx[event.button.button - 1];
+                mouseState[idx] = false;
+                cbStack.back()->IR_OnMouseRelease(IdxToKey[idx]);
+                break;
+            }
+            case SDL_MOUSEWHEEL:
+                mouseMoved = true;
+                scroll[0] += event.wheel.preciseX;
+                scroll[1] += event.wheel.preciseY;
+                mouseAxisState[2] += event.wheel.x;
+                mouseAxisState[3] += event.wheel.y;
+                break;
+            }
         }
-        case SDL_MOUSEBUTTONUP:
+
+        if (mouseMoved)
         {
-            const auto idx = RemapIdx[event.button.button - 1];
-            mouseState[idx] = false;
-            cbStack.back()->IR_OnMouseRelease(IdxToKey[idx]);
-            break;
-        }
-        case SDL_MOUSEWHEEL:
-            mouseMoved = true;
-            scroll[0] += event.wheel.preciseX;
-            scroll[1] += event.wheel.preciseY;
-            mouseAxisState[2] += event.wheel.x;
-            mouseAxisState[3] += event.wheel.y;
-            break;
+            if (offs[0] || offs[1])
+                cbStack.back()->IR_OnMouseMove(offs[0], offs[1]);
+
+            if (!fis_zero(scroll[0]) || !fis_zero(scroll[1]))
+                cbStack.back()->IR_OnMouseWheel(scroll[0], scroll[1]);
         }
     }
 
@@ -243,87 +629,95 @@ void CInput::MouseUpdate()
         if (mouseState[i] && mousePrev[i])
             cbStack.back()->IR_OnMouseHold(IdxToKey[i]);
     }
-
-    if (mouseMoved)
-    {
-        if (offs[0] || offs[1])
-            cbStack.back()->IR_OnMouseMove(offs[0], offs[1]);
-
-        if (!fis_zero(scroll[0]) || !fis_zero(scroll[1]))
-            cbStack.back()->IR_OnMouseWheel(scroll[0], scroll[1]);
-    }
 }
 
 void CInput::KeyUpdate()
 {
     ZoneScoped;
 
-    SDL_Event events[MAX_KEYBOARD_EVENTS];
-    const auto count = SDL_PeepEvents(events, MAX_KEYBOARD_EVENTS,
-        SDL_GETEVENT, SDL_KEYDOWN, SDL_KEYMAPCHANGED);
+    // The SDL drain block below pulls keyboard events from SDL's queue and
+    // emits IR_OnKeyboardPress/Release + maintains keyboardState. On Apple
+    // with nsevent_input=1 the NSEvent local monitor consumes keyboard
+    // events before SDL sees them — keyboardState is then maintained by the
+    // NSEvent drain in OnFrame() — so draining SDL is a no-op (count==0) and
+    // we skip it. The per-frame hold loop at the end must run unconditionally:
+    // it reads keyboardState (populated by whichever source is active) and
+    // drives hold-based features (sprint hold, continuous-fire, menu repeat).
+    bool runSDLDrain = true;
+#if defined(XR_PLATFORM_APPLE)
+    if (g_nsEventInputCvar)
+        runSDLDrain = false;
+#endif
 
-    // Let iGetAsyncKeyState work correctly during this frame immediately
-    for (int i = 0; i < count; ++i)
+    if (runSDLDrain)
     {
-        const SDL_Event& event = events[i];
+        SDL_Event events[MAX_KEYBOARD_EVENTS];
+        const auto count = SDL_PeepEvents(events, MAX_KEYBOARD_EVENTS,
+            SDL_GETEVENT, SDL_KEYDOWN, SDL_KEYMAPCHANGED);
 
-        switch (event.type)
+        // Let iGetAsyncKeyState work correctly during this frame immediately
+        for (int i = 0; i < count; ++i)
         {
-        case SDL_KEYDOWN:
-            if (event.key.repeat)
-                continue;
-            keyboardState[event.key.keysym.scancode] = true;
-            break;
+            const SDL_Event& event = events[i];
 
-        case SDL_KEYUP:
-            keyboardState[event.key.keysym.scancode] = false;
-            break;
+            switch (event.type)
+            {
+            case SDL_KEYDOWN:
+                if (event.key.repeat)
+                    continue;
+                keyboardState[event.key.keysym.scancode] = true;
+                break;
+
+            case SDL_KEYUP:
+                keyboardState[event.key.keysym.scancode] = false;
+                break;
+            }
         }
-    }
 
-    if (keyboardState[SDL_SCANCODE_F4] && (keyboardState[SDL_SCANCODE_LALT] || keyboardState[SDL_SCANCODE_RALT]))
-    {
-        AltF4Pressed = true;
-        Engine.Event.Defer("KERNEL:disconnect");
-        Engine.Event.Defer("KERNEL:quit");
-        return;
-    }
-
-    if (count)
-        SetCurrentInputType(KeyboardMouse);
-
-    // If textInputCounter has changed,
-    // we assume that text input target changed.
-    // Theoretically, this is not always true, though.
-    // But we always can change the solution.
-    // If we find out something not work as expected.
-    const auto cnt = textInputCounter;
-
-    for (int i = 0; i < count; ++i)
-    {
-        const SDL_Event& event = events[i];
-
-        switch (event.type)
+        if (keyboardState[SDL_SCANCODE_F4] && (keyboardState[SDL_SCANCODE_LALT] || keyboardState[SDL_SCANCODE_RALT]))
         {
-        case SDL_KEYDOWN:
-            if (event.key.repeat)
-                continue;
-            cbStack.back()->IR_OnKeyboardPress(event.key.keysym.scancode);
-            break;
+            AltF4Pressed = true;
+            Engine.Event.Defer("KERNEL:disconnect");
+            Engine.Event.Defer("KERNEL:quit");
+            return;
+        }
 
-        case SDL_KEYUP:
-            cbStack.back()->IR_OnKeyboardRelease(event.key.keysym.scancode);
-            break;
+        if (count)
+            SetCurrentInputType(KeyboardMouse);
 
-        case SDL_TEXTINPUT:
-            if (cnt != textInputCounter)
-                continue; // if input target changed, skip this frame
-            cbStack.back()->IR_OnTextInput(event.text.text);
-            break;
+        // If textInputCounter has changed,
+        // we assume that text input target changed.
+        // Theoretically, this is not always true, though.
+        // But we always can change the solution.
+        // If we find out something not work as expected.
+        const auto cnt = textInputCounter;
 
-        case SDL_KEYMAPCHANGED:
-            seqKeyMapChanged.Process();
-            break;
+        for (int i = 0; i < count; ++i)
+        {
+            const SDL_Event& event = events[i];
+
+            switch (event.type)
+            {
+            case SDL_KEYDOWN:
+                if (event.key.repeat)
+                    continue;
+                cbStack.back()->IR_OnKeyboardPress(event.key.keysym.scancode);
+                break;
+
+            case SDL_KEYUP:
+                cbStack.back()->IR_OnKeyboardRelease(event.key.keysym.scancode);
+                break;
+
+            case SDL_TEXTINPUT:
+                if (cnt != textInputCounter)
+                    continue; // if input target changed, skip this frame
+                cbStack.back()->IR_OnTextInput(event.text.text);
+                break;
+
+            case SDL_KEYMAPCHANGED:
+                seqKeyMapChanged.Process();
+                break;
+            }
         }
     }
 
@@ -651,7 +1045,17 @@ void CInput::GrabInput(const bool grab)
 
     // Grab the mouse
     if (exclusiveInput)
+    {
         SDL_SetRelativeMouseMode(grab ? SDL_TRUE : SDL_FALSE);
+#if defined(XR_PLATFORM_APPLE)
+        // Mirror capture state into the shim so the NSEvent local monitor's
+        // mouse translator picks the right coordinate source: deltas vs
+        // absolute pixel coords. Без этого NSEvent path в captured режиме
+        // продолжал бы слать locX/Y и менюшный курсор бы прыгал в captured
+        // mode (или look-around игнорировал бы deltas).
+        OpenXRay_SetMouseCaptureMode(grab ? 1 : 0);
+#endif
+    }
 
     // We're done here.
     inputGrabbed = grab;
@@ -752,6 +1156,188 @@ void CInput::iRelease(IInputReceiver* p)
     }
 }
 
+#if defined(XR_PLATFORM_APPLE)
+void CInput::NSEventDrain()
+{
+    OpenXRayNSEventRecord records[64];
+    size_t n;
+    while ((n = OpenXRay_DrainNSEventQueue(records, 64)) > 0)
+    {
+        for (size_t i = 0; i < n; ++i)
+        {
+            const auto& r = records[i];
+            if (cbStack.empty())
+                continue;
+            IInputReceiver* receiver = cbStack.back();
+
+            switch (r.kind)
+            {
+            case OXR_NS_EVENT_KEY_DOWN:
+            {
+                if (r.isARepeat)
+                    break; // auto-repeat не транслируем (SDL фильтрует так же)
+                const SDL_Scancode sc = (r.keyCode<128)
+                    ? kNSKeyCodeToSDLScancode[r.keyCode]
+                    : SDL_SCANCODE_UNKNOWN;
+                if (sc != SDL_SCANCODE_UNKNOWN)
+                {
+                    // Mirror SDL path (line ~632): per-frame hold loop в
+                    // KeyUpdate читает keyboardState[], так что без записи
+                    // hold-based actions (движение WASD, sprint Shift+W)
+                    // не работают — press проходит, но Hold не догоняет.
+                    keyboardState[sc] = true;
+                    receiver->IR_OnKeyboardPress((int)sc);
+                }
+                break;
+            }
+            case OXR_NS_EVENT_KEY_UP:
+            {
+                const SDL_Scancode sc = (r.keyCode<128)
+                    ? kNSKeyCodeToSDLScancode[r.keyCode]
+                    : SDL_SCANCODE_UNKNOWN;
+                if (sc != SDL_SCANCODE_UNKNOWN)
+                {
+                    keyboardState[sc] = false;
+                    receiver->IR_OnKeyboardRelease((int)sc);
+                }
+                break;
+            }
+            case OXR_NS_EVENT_FLAGS_CHANGED:
+            {
+                const uint32_t diff = r.modifierFlags ^ g_lastShimModifierFlags;
+                // CapsLock is a toggle — synthesize down+up to drive bindings.
+                if (diff & kNSFlagCapsLock)
+                {
+                    receiver->IR_OnKeyboardPress((int)SDL_SCANCODE_CAPSLOCK);
+                    receiver->IR_OnKeyboardRelease((int)SDL_SCANCODE_CAPSLOCK);
+                }
+                // For real modifier keys disambiguate L/R via keyCode and
+                // derive direction from the corresponding flag bit's state.
+                if (diff & (kNSFlagShift | kNSFlagControl | kNSFlagOption | kNSFlagCommand))
+                {
+                    const SDL_Scancode sc = ModifierKeyCodeToScancode(r.keyCode);
+                    if (sc != SDL_SCANCODE_UNKNOWN)
+                    {
+                        uint32_t flagBit = 0;
+                        switch (r.keyCode)
+                        {
+                        case kVK_Shift:
+                        case kVK_RightShift:    flagBit = kNSFlagShift;   break;
+                        case kVK_Control:
+                        case kVK_RightControl:  flagBit = kNSFlagControl; break;
+                        case kVK_Option:
+                        case kVK_RightOption:   flagBit = kNSFlagOption;  break;
+                        case kVK_Command:
+                        case kVK_RightCommand:  flagBit = kNSFlagCommand; break;
+                        default: break;
+                        }
+                        if (flagBit && (r.modifierFlags & flagBit))
+                        {
+                            keyboardState[sc] = true;
+                            receiver->IR_OnKeyboardPress((int)sc);
+                        }
+                        else if (flagBit)
+                        {
+                            keyboardState[sc] = false;
+                            receiver->IR_OnKeyboardRelease((int)sc);
+                        }
+                    }
+                }
+                g_lastShimModifierFlags = r.modifierFlags;
+                break;
+            }
+            // Mouse buttons map: NSEvent.mouseButton (0=left, 1=right, 2=other)
+            // -> MOUSE_1 / MOUSE_2 / MOUSE_3 via MOUSE_INVALID+1+idx. mouseState
+            // index follows the same idx (same convention as IR_ReleaseAll in
+            // 2a). Note: NSEvent already maps middle button to "other", so the
+            // SDL-side RemapIdx (which swaps SDL's middle<->right) is NOT
+            // applied here.
+            case OXR_NS_EVENT_MOUSE_MOVE:
+            case OXR_NS_EVENT_MOUSE_DRAGGED:
+            {
+                // record содержит ИЛИ deltaX/Y (captured) ИЛИ locX/Y (absolute).
+                // Shim сам выбирает на основе g_mouseCaptured; здесь просто
+                // передаём что было записано.
+                int dx, dy;
+                if (r.deltaX != 0.0f || r.deltaY != 0.0f)
+                {
+                    dx = (int)r.deltaX;
+                    dy = (int)r.deltaY;
+                }
+                else
+                {
+                    dx = (int)r.locX;
+                    dy = (int)r.locY;
+                    // Non-captured mode delivers absolute pixel coords —
+                    // expose them through mouseAxisState[0..1] so menu code
+                    // pathways which read iGetAsyncMousePos фактически
+                    // получают актуальную позицию.
+                    mouseAxisState[0] = dx;
+                    mouseAxisState[1] = dy;
+                }
+                receiver->IR_OnMouseMove(dx, dy);
+                break;
+            }
+            case OXR_NS_EVENT_MOUSE_DOWN:
+            {
+                if (r.mouseButton < COUNT_MOUSE_BUTTONS)
+                {
+                    const int btn = (int)MOUSE_INVALID + 1 + (int)r.mouseButton;
+                    mouseState[r.mouseButton] = true;
+                    receiver->IR_OnMousePress(btn);
+                }
+                break;
+            }
+            case OXR_NS_EVENT_MOUSE_UP:
+            {
+                if (r.mouseButton < COUNT_MOUSE_BUTTONS)
+                {
+                    const int btn = (int)MOUSE_INVALID + 1 + (int)r.mouseButton;
+                    mouseState[r.mouseButton] = false;
+                    receiver->IR_OnMouseRelease(btn);
+                }
+                break;
+            }
+            case OXR_NS_EVENT_SCROLL_WHEEL:
+                receiver->IR_OnMouseWheel((int)r.deltaX, (int)r.deltaY);
+                break;
+            }
+        }
+    }
+}
+#endif // XR_PLATFORM_APPLE
+
+void CInput::IR_ReleaseAll()
+{
+    if (cbStack.empty())
+        return;
+    IInputReceiver* receiver = cbStack.back();
+
+    // Keyboard: release every scancode currently marked as held.
+    for (u32 sc = 0; sc < COUNT_KB_BUTTONS; ++sc)
+    {
+        if (keyboardState[sc])
+            receiver->IR_OnKeyboardRelease((int)sc);
+    }
+
+    // Mouse buttons: release every button currently marked as held. Indices
+    // match MouseUpdate()'s IdxToKey[] mapping (idx 0..COUNT_MOUSE_BUTTONS-1 →
+    // MOUSE_INVALID+1+idx, i.e. MOUSE_1..MOUSE_5).
+    for (int idx = 0; idx < COUNT_MOUSE_BUTTONS; ++idx)
+    {
+        if (mouseState[idx])
+            receiver->IR_OnMouseRelease(MOUSE_INVALID + 1 + idx);
+    }
+
+    ClearKeyboardState();
+}
+
+void CInput::ClearKeyboardState()
+{
+    keyboardState.reset();
+    mouseState.reset();
+}
+
 void CInput::OnAppActivate(void)
 {
     if (CurrentIR())
@@ -781,6 +1367,11 @@ void CInput::OnFrame(void)
 
     stats.FrameStart();
     stats.FrameTime.Begin();
+
+#if defined(XR_PLATFORM_APPLE)
+    if (g_nsEventInputCvar)
+        NSEventDrain();
+#endif
 
     if (Device.dwPrecacheFrame == 0 && !Device.IsAnselActive)
     {
