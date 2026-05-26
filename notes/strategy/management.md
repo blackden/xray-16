@@ -312,3 +312,81 @@ gitea issue который будет создан для A.1.
   user в это время читает / думает / возвращается с decision. Параллельность
   без блокировки. Это валидирует «foreground = coordinator»
   (memory `[[delegate-to-specialists-via-teamlead]]`).
+
+## Session 2026-05-26 (вечер): A.1 re-scope — когда «откат» это не откат
+
+Шаг A.1 native-shell roadmap'а был написан 2026-05-25 как «engine
+создаёт NSWindow + SDL embed через `SDL_CreateWindowFrom`». В
+plan-mode exploration (3 параллельных Explore + 1 Plan agent)
+вскрылось:
+
+- Главный гейт шага (#99 Cmd-Tab Space stickiness) **уже зелёный**
+  с момента roadmap'а — закрыт PR #102/103 в SDL-слое. PR #104
+  (KVO guard) был reverted в #105 как unnecessary.
+- `SDL_CreateWindowFrom` на macOS имеет hybrid-ownership баги
+  (SDL #2561, #8518) — fullscreen-Space eligibility фиксируется в
+  embed-моменте, NSView/GL ownership становится гибридной.
+- Существующий `OpenXRayCocoaShim` уже владеет NSApplicationDelegate
+  (wrappит SDL'овский). Все три гейта A.1 закрываются без смены
+  ownership — только sleep/wake observers + focus hooks.
+
+Re-scope: A.1 = observers-only extension shim'а, без `SDL_CreateWindowFrom`.
+Engine-owned NSWindow откладывается до A.2/A.3 (когда `[NSApp run]` +
+NSEvent input сделают SDL pump ненужным — тогда сразу native, без
+переходного embed-гибрида).
+
+### Урок: «когда re-scope выглядит как отступление, но не является им»
+
+Распознавание паттерна — senior-level skill. Новичок видит «полный
+A.1 как написан» как correctness, а re-scope — как «backing down».
+На деле наоборот:
+
+- **Throwaway scaffolding = форма tech debt.** Делать `SDL_CreateWindowFrom`,
+  зная что в A.3 SDL pump уйдёт и embed-режим станет бессмысленным —
+  это писать код в мусорку. Tech debt от scaffolding оплачивается
+  не сразу: PR проходит чисто, billable hours потрачены, на видеостриме
+  всё красиво. Боль приходит когда A.3 ломает hybrid window и
+  выясняется что embed-mode SDL'а нестабилен под reset'ом ownership'а.
+
+- **Correctness-over-throughput работает в обе стороны.** Memory
+  `[[correctness-over-throughput]]` обычно срабатывает на «не делай
+  костыль, сделай структурный фикс». Тут зеркальная ситуация: «не
+  делай структурный шаг ради roadmap'а, если структурный фикс ещё
+  не нужен». Иначе сам становишься поставщиком костыля под маской
+  архитектуры.
+
+- **Premise audit на каждом шаге roadmap'а.** Между моментом
+  написания roadmap'а и началом шага может пройти неделя — в которой
+  смежные PR могут случайно закрыть гейты этого шага. Перед dispatch'ем
+  специалиста на любой roadmap-шаг: пересмотреть premise. Какие гейты
+  уже фактически зелёные? Какие предпосылки шага устарели?
+
+- **Team-lead consilium для cross-cutting re-scope.** Re-scope шага
+  roadmap'а — cross-cutting decision (меняет shape всего эпика).
+  По working-agreement (и feedback memory `[[invoke-team-lead]]`) —
+  не принимаем в foreground без adversarial review. В этой сессии
+  team-lead отработал ровно как задумано: APPROVE с условиями,
+  плюс три дополнительных риска которые я бы пропустил в первой
+  итерации (`applicationDidFinishLaunching` ordering, NSWorkspace
+  sync vs render thread race, `didBecomeActive` spurious-on-startup).
+
+- **Зафиксировать решение в gotchas.md.** Когда отклоняешь подход —
+  пиши почему. `notes/playbooks/gotchas.md` создан в этом PR именно
+  для этого: «`SDL_CreateWindowFrom` evaluated and rejected — see
+  links to upstream issues». Без этой записи через полгода кто-то
+  (или я сам) откроет gemini-thread «а давайте embed через
+  `SDL_CreateWindowFrom`», и весь debate начнётся заново.
+
+### Что почувствовал
+
+A.1 проехал по rail'ам ровно как planned: brainstorm → roadmap →
+plan-mode → consilium → issue → branch → apple-platform → PR →
+smoke → merge → codify. Foreground = coordinator, агенты делают
+работу, team-lead валидирует cross-cutting'и. Один PR (#115) за
+~4 часа суммарного wall time с тестированием. Это масштабируемая
+дисциплина — следующие шаги A.2/A.3 пойдут по тому же рельсу.
+
+Manual smoke поймал два vanilla бага (mouse coord mismatch +
+двойной клик title bar → drawable resize fail) — оба A/B
+verified как pre-existing, не регресс A.1. Зафиксировано в
+#116 как отдельный issue, не блокер merge.

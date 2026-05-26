@@ -158,6 +158,44 @@
     minimum (1280x720, AA/sun/DOF off, supersample 0). Used as
     recovery from any hang or crash that happened mid-level-load.
 
+## macOS AppKit lifecycle (sleep/wake/focus)
+
+PR #115 (gitea #114, A.1 native-shell roadmap): own `NSApplicationDelegate`
+ловит NSWorkspace и focus events; AppKit notifications **никогда не**
+вызывают engine pause/activate напрямую — race с render thread.
+
+- Delegate wrapper class: `src/xrEngine/macos_cocoa_shim.mm`
+  (`OpenXRayCocoaShim`). Wrappит SDL'овский delegate через
+  `forwardingTargetForSelector:`; наши собственные методы Obj-C runtime
+  находит первыми, остальное форвардится в SDL.
+- Observers regsubscribe: `OpenXRay_ArmLifecycleObservers()` —
+  вызывается из финала `CRenderDevice::Create()`
+  (`src/xrEngine/Device_create.cpp`), **не** из install hook'а. Иначе
+  spurious sleep firing до boot complete.
+- NSWorkspace subscriptions: `NSWorkspaceWillSleepNotification` +
+  `NSWorkspaceDidWakeNotification`. NSApplicationDelegate methods:
+  `applicationDidBecomeActive:` + `applicationWillResignActive:` (с
+  `[sdlDelegate performSelector:_cmd]` форвардом — без него ломается
+  SDL focus tracking).
+
+**Three-stage decoupling** (AppKit main thread vs render thread race):
+
+1. Observer fires → `extern "C" OpenXRay_On{SystemWillSleep,SystemDidWake,AppDidBecomeActive,AppWillResignActive}()`
+   в `src/xrEngine/Engine.cpp` — атомарно ставит `PendingLifecycleEvent`
+   enum (`std::atomic<PendingLifecycleEvent>`, файловая статика).
+2. Drainer `OpenXRay_ApplyPendingLifecycleEvent()` (`Engine.cpp`)
+   вызывается **первой строкой** `CRenderDevice::ProcessFrame`
+   (`device.cpp`). Под `XR_PLATFORM_APPLE` only.
+3. Drainer переводит event → `Device.Pause(TRUE/FALSE, TRUE, TRUE, "system will sleep")`
+   или `Device.OnWindowActivate(m_sdlWnd, true/false)` — через
+   существующие paths. Idempotency guard: `if (!Device.b_is_Active)` /
+   `if (Device.b_is_Active)` — collapse'ит SDL-originated focus event
+   и наш Cocoa-originated в одну транзицию.
+
+**Pattern для добавления новых AppKit observers:** копируй pipeline.
+Не зови `Device.*` синхронно из ObjC — только atomic flag + apply at
+frame boundary.
+
 ## Shutdown / quit sequence
 
 Three entry points all converge on the same deferred-event sequence:
