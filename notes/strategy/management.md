@@ -203,3 +203,112 @@ runtime-feedback. Больше поваров на кухне не разогр�
 - Когда мы наступаем на одну и ту же грабли третий раз за сессию —
   это сигнал что нужно либо tooling (test rig), либо durable doc
   (memory + engine-map), а не «ну ещё раз попробую».
+
+---
+
+## Сессия 2026-05-25/26: brainstorm под #87 + meta-обсуждение workflow
+
+Длинная meta-сессия. Что произошло:
+
+### Закрыто: roadmap native shell + manifesto-страта
+
+Три merged PR'а — все docs-only, не блокируют main line:
+
+- **#107** (closes #106) — roadmap `docs/superpowers/specs/2026-05-25-native-shell-roadmap.md`:
+  A/B/C decomposition эпика #87, A3 — полное выбрасывание SDL с macOS,
+  инкрементальный подход через 7 issue+PR, гейты между направлениями,
+  explicit non-goals. Структурное обоснование через hang-taxonomy
+  Family 1.
+- **#109** (closes #108) — strategic notes bundle: `mentor-principles.md`
+  (новый, manifesto работы между ragnar↔claude), `content-system.md`
+  (untracked → tracked + Yookassa monetization + timeline fix),
+  `roadmap-4year.md` (Boosty/Patreon parking → Yookassa direction),
+  `notes/README.md`.
+- **#111** (closes #110) — video #1 manifesto skeleton в OTUS-стиле
+  ragnar'а (скопирован формат `~/fedorov_tech/otus/linux-basic/docker/lesson/00-skeleton.md`).
+
+Контент-трек **paused** 2026-05-26 явным решением ragnar'а — main line
+возвращается к native rewrite. См. issue #110 comment + memory
+`[[content-track-paused]]`.
+
+### Что окристаллизовалось
+
+1. **«Не yes-man'ом» — extension of `feedback_invoke_team_lead`.**
+   ragnar явно попросил занимать экспертскую позицию по cross-cutting
+   решениям, не загружать выбором там где у меня есть экспертное мнение.
+   Memory `[[no-yes-man-expert-stance]]`. Plus — само правило симметрично:
+   на cross-cutting/process решениях я (foreground claude) тоже не
+   доверяю первому instinct'у, вызываю team-lead для adversarial review
+   собственного мнения. Это сработало в этой сессии — team-lead surface'нул
+   что я зафиксировал roadmap без challenging самого fixation'а.
+
+2. **Mentor-режим = другой жанр от working-agreement.** working-agreement
+   = процессы для агентов (when delegate, anti-patterns, etc.).
+   mentor-principles = принципы общения с user'ом (controllable vs
+   uncontrollable цели, что значит «команда», push на дисциплину).
+   Два разных документа, не сливать.
+
+3. **Сессии не идемпотентны на длинной дистанции** (3-6 месяцев native
+   rewrite). Team-lead suggested три механизма которые я частично
+   применил в этой сессии:
+   - **«Rejected alternatives»** в каждый PR description — применил в PR #107
+   - **Entry brief** в issue body перед startом шага — пока не применил
+     (применю в первой A.N session)
+   - **Roadmap changelog** после каждого merged шага — пока не применил
+     (применю после A.1 merge)
+
+   Эти три практики — кандидаты для formal'ной записи в
+   `working-agreement.md` после реального применения 1-2 раза, не
+   theoretical.
+
+4. **«Один шаг A.N = одна fresh session, не /compact».** /compact
+   накапливает drift; fresh sessions нет. Каждый шаг A.N открывается
+   через skill (auto) + roadmap-документ + предшествующий PR. Это
+   следующий test — A.1 будет первой такой сессией.
+
+5. **Skill `long-epic-step` — преждевременно.** ragnar предложил создать
+   skill для discipline эпика. Я (correctly) отказал: нет ни одного
+   executed шага, skill написанный сейчас будет theoretical bloat. После
+   A.1 — base experience есть, после A.1+A.2 — паттерн. Тогда skill.
+   Memory `[[tooling-real-not-shelf]]` подтверждает.
+
+6. **Documentation assistant agent — не нужен.** ragnar предложил
+   delegated «бумажную работу». Я отказал: объём слишком мал (~10 правок
+   за meta-сессию, в обычной работе меньше), документы контекстно-зависимые
+   (брифинг agent'а > экономия), general-purpose agent уже доступен если
+   нужно bulk replace. Правильный путь — скрипты для деterministic
+   bookkeeping (sync-memory-index.sh, check-stale-refs.sh), не agent.
+
+### Что обнаружили факт-чек'ом
+
+- **Timeline проекта:** не «год работы», а **2 недели sprint mode** —
+  первый ragnar-коммит 2026-05-14, 272 коммита за 12 дней (по 10-14ч
+  в день). Поправлено в roadmap и content-system. Это **более compelling**
+  для будущего видео — sprint mode впечатляет больше чем «парень год пилит».
+
+- **Документ `notes/strategy/management.md` накапливает retrospectives**,
+  а не процессы. Процессы — в working-agreement.md. Эта запись — пример.
+
+### Куда идём
+
+Главное — fresh session next: `superpowers:writing-plans` для A.1
+(NSWindow + NSApplicationDelegate). НЕ продолжать в этой сессии
+(контекст загружен meta-обсуждением, разный фокус). Entry brief — в
+gitea issue который будет создан для A.1.
+
+### Что я почувствовал
+
+- **OTUS-стиль скелета впечатляющий.** ragnar'ов skeleton-шаблон
+  («предполагаем известным», «3 неудобных вопроса», «слабые места»,
+  «back-test») — это zrелая педагогическая дисциплина. Перенесённая на
+  видео-skeleton работает «из коробки» — поймал 4 gap'а (канал не
+  создан, Telegram пустой, Yookassa нет, существующий мак-порт 2025).
+  Это паттерн на будущее: при любом content-проекте сначала skeleton в
+  его формате, потом scenario, потом demos. Не «придумывать формат
+  каждый раз».
+
+- **«Сделай PR'ы пока я читаю» — рабочий pattern для длинных meta-сессий.**
+  Foreground делает workflow ceremony автоматически (3 PR за минуты),
+  user в это время читает / думает / возвращается с decision. Параллельность
+  без блокировки. Это валидирует «foreground = coordinator»
+  (memory `[[delegate-to-specialists-via-teamlead]]`).
