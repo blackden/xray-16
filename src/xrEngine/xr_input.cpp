@@ -28,6 +28,7 @@ constexpr int kVK_ANSI_Z              = 0x06;
 constexpr int kVK_ANSI_X              = 0x07;
 constexpr int kVK_ANSI_C              = 0x08;
 constexpr int kVK_ANSI_V              = 0x09;
+constexpr int kVK_ISO_Section         = 0x0A;
 constexpr int kVK_ANSI_B              = 0x0B;
 constexpr int kVK_ANSI_Q              = 0x0C;
 constexpr int kVK_ANSI_W              = 0x0D;
@@ -186,6 +187,14 @@ constexpr SDL_Scancode kNSKeyCodeToSDLScancode[128] = {
     [kVK_Tab]                 = SDL_SCANCODE_TAB,
     [kVK_Space]               = SDL_SCANCODE_SPACE,
     [kVK_ANSI_Grave]          = SDL_SCANCODE_GRAVE,
+    // ISO European keyboards (включая Mac MacBook RU/EU layouts) имеют
+    // отдельную клавишу `§/±/ёЁ` между левым Shift и Z/Я с keyCode 0x0A.
+    // SDL на ISO-layout swap'ал её с ANSI_Grave чтобы console-open binding
+    // (SCANCODE_GRAVE) попадал на эту физическую клавишу. Мы не делаем
+    // runtime ISO detection — просто маппим обе клавиши на GRAVE,
+    // обе работают как console-open. Безвредно: ANSI keyboards не
+    // имеют этого keyCode.
+    [kVK_ISO_Section]         = SDL_SCANCODE_GRAVE,
     [kVK_Delete]              = SDL_SCANCODE_BACKSPACE,
     [kVK_Escape]              = SDL_SCANCODE_ESCAPE,
     [kVK_Command]             = SDL_SCANCODE_LGUI,
@@ -599,82 +608,89 @@ void CInput::KeyUpdate()
 {
     ZoneScoped;
 
+    // The SDL drain block below pulls keyboard events from SDL's queue and
+    // emits IR_OnKeyboardPress/Release + maintains keyboardState. On Apple
+    // with nsevent_input=1 the NSEvent local monitor consumes keyboard
+    // events before SDL sees them — keyboardState is then maintained by the
+    // NSEvent drain in OnFrame() — so draining SDL is a no-op (count==0) and
+    // we skip it. The per-frame hold loop at the end must run unconditionally:
+    // it reads keyboardState (populated by whichever source is active) and
+    // drives hold-based features (sprint hold, continuous-fire, menu repeat).
+    bool runSDLDrain = true;
 #if defined(XR_PLATFORM_APPLE)
-    // NSEvent path consumes keyboard events before SDL sees them, so the
-    // SDL drain below would always be empty. Skip outright to avoid the
-    // SDL_PeepEvents syscall and the IR_OnKeyboardHold loop driving stale
-    // keyboardState bits (the NSEvent drain produces explicit press/release;
-    // hold semantics will be wired in phase 3 if required).
     if (g_nsEventInputCvar)
-        return;
+        runSDLDrain = false;
 #endif
 
-    SDL_Event events[MAX_KEYBOARD_EVENTS];
-    const auto count = SDL_PeepEvents(events, MAX_KEYBOARD_EVENTS,
-        SDL_GETEVENT, SDL_KEYDOWN, SDL_KEYMAPCHANGED);
-
-    // Let iGetAsyncKeyState work correctly during this frame immediately
-    for (int i = 0; i < count; ++i)
+    if (runSDLDrain)
     {
-        const SDL_Event& event = events[i];
+        SDL_Event events[MAX_KEYBOARD_EVENTS];
+        const auto count = SDL_PeepEvents(events, MAX_KEYBOARD_EVENTS,
+            SDL_GETEVENT, SDL_KEYDOWN, SDL_KEYMAPCHANGED);
 
-        switch (event.type)
+        // Let iGetAsyncKeyState work correctly during this frame immediately
+        for (int i = 0; i < count; ++i)
         {
-        case SDL_KEYDOWN:
-            if (event.key.repeat)
-                continue;
-            keyboardState[event.key.keysym.scancode] = true;
-            break;
+            const SDL_Event& event = events[i];
 
-        case SDL_KEYUP:
-            keyboardState[event.key.keysym.scancode] = false;
-            break;
+            switch (event.type)
+            {
+            case SDL_KEYDOWN:
+                if (event.key.repeat)
+                    continue;
+                keyboardState[event.key.keysym.scancode] = true;
+                break;
+
+            case SDL_KEYUP:
+                keyboardState[event.key.keysym.scancode] = false;
+                break;
+            }
         }
-    }
 
-    if (keyboardState[SDL_SCANCODE_F4] && (keyboardState[SDL_SCANCODE_LALT] || keyboardState[SDL_SCANCODE_RALT]))
-    {
-        AltF4Pressed = true;
-        Engine.Event.Defer("KERNEL:disconnect");
-        Engine.Event.Defer("KERNEL:quit");
-        return;
-    }
-
-    if (count)
-        SetCurrentInputType(KeyboardMouse);
-
-    // If textInputCounter has changed,
-    // we assume that text input target changed.
-    // Theoretically, this is not always true, though.
-    // But we always can change the solution.
-    // If we find out something not work as expected.
-    const auto cnt = textInputCounter;
-
-    for (int i = 0; i < count; ++i)
-    {
-        const SDL_Event& event = events[i];
-
-        switch (event.type)
+        if (keyboardState[SDL_SCANCODE_F4] && (keyboardState[SDL_SCANCODE_LALT] || keyboardState[SDL_SCANCODE_RALT]))
         {
-        case SDL_KEYDOWN:
-            if (event.key.repeat)
-                continue;
-            cbStack.back()->IR_OnKeyboardPress(event.key.keysym.scancode);
-            break;
+            AltF4Pressed = true;
+            Engine.Event.Defer("KERNEL:disconnect");
+            Engine.Event.Defer("KERNEL:quit");
+            return;
+        }
 
-        case SDL_KEYUP:
-            cbStack.back()->IR_OnKeyboardRelease(event.key.keysym.scancode);
-            break;
+        if (count)
+            SetCurrentInputType(KeyboardMouse);
 
-        case SDL_TEXTINPUT:
-            if (cnt != textInputCounter)
-                continue; // if input target changed, skip this frame
-            cbStack.back()->IR_OnTextInput(event.text.text);
-            break;
+        // If textInputCounter has changed,
+        // we assume that text input target changed.
+        // Theoretically, this is not always true, though.
+        // But we always can change the solution.
+        // If we find out something not work as expected.
+        const auto cnt = textInputCounter;
 
-        case SDL_KEYMAPCHANGED:
-            seqKeyMapChanged.Process();
-            break;
+        for (int i = 0; i < count; ++i)
+        {
+            const SDL_Event& event = events[i];
+
+            switch (event.type)
+            {
+            case SDL_KEYDOWN:
+                if (event.key.repeat)
+                    continue;
+                cbStack.back()->IR_OnKeyboardPress(event.key.keysym.scancode);
+                break;
+
+            case SDL_KEYUP:
+                cbStack.back()->IR_OnKeyboardRelease(event.key.keysym.scancode);
+                break;
+
+            case SDL_TEXTINPUT:
+                if (cnt != textInputCounter)
+                    continue; // if input target changed, skip this frame
+                cbStack.back()->IR_OnTextInput(event.text.text);
+                break;
+
+            case SDL_KEYMAPCHANGED:
+                seqKeyMapChanged.Process();
+                break;
+            }
         }
     }
 
@@ -1127,7 +1143,14 @@ void CInput::NSEventDrain()
                     ? kNSKeyCodeToSDLScancode[r.keyCode]
                     : SDL_SCANCODE_UNKNOWN;
                 if (sc != SDL_SCANCODE_UNKNOWN)
+                {
+                    // Mirror SDL path (line ~632): per-frame hold loop в
+                    // KeyUpdate читает keyboardState[], так что без записи
+                    // hold-based actions (движение WASD, sprint Shift+W)
+                    // не работают — press проходит, но Hold не догоняет.
+                    keyboardState[sc] = true;
                     receiver->IR_OnKeyboardPress((int)sc);
+                }
                 break;
             }
             case OXR_NS_EVENT_KEY_UP:
@@ -1136,7 +1159,10 @@ void CInput::NSEventDrain()
                     ? kNSKeyCodeToSDLScancode[r.keyCode]
                     : SDL_SCANCODE_UNKNOWN;
                 if (sc != SDL_SCANCODE_UNKNOWN)
+                {
+                    keyboardState[sc] = false;
                     receiver->IR_OnKeyboardRelease((int)sc);
+                }
                 break;
             }
             case OXR_NS_EVENT_FLAGS_CHANGED:
@@ -1169,9 +1195,15 @@ void CInput::NSEventDrain()
                         default: break;
                         }
                         if (flagBit && (r.modifierFlags & flagBit))
+                        {
+                            keyboardState[sc] = true;
                             receiver->IR_OnKeyboardPress((int)sc);
+                        }
                         else if (flagBit)
+                        {
+                            keyboardState[sc] = false;
                             receiver->IR_OnKeyboardRelease((int)sc);
+                        }
                     }
                 }
                 g_lastShimModifierFlags = r.modifierFlags;

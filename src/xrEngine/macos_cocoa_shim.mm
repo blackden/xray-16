@@ -100,7 +100,7 @@ bool         g_mouseCaptured       = false;
 float        g_backingScaleFactor  = 1.0f;
 id           g_nsEventMonitor      = nil;
 
-[[maybe_unused]] void QueuePush(const OpenXRayNSEventRecord &rec)
+void QueuePush(const OpenXRayNSEventRecord &rec)
 {
     if (g_nsEventQueue.count == kQueueCapacity)
     {
@@ -122,10 +122,9 @@ id           g_nsEventMonitor      = nil;
     ++g_nsEventQueue.count;
 }
 
-// Translator helpers — used in step 2c when handler начинает push'ить в queue.
-// В 2a определены но никем не вызываются; [[maybe_unused]] душит warning.
+// Translator helpers — called from the local-monitor handler below.
 
-[[maybe_unused]] OpenXRayNSEventRecord MakeRecordFromKey(NSEvent *event, int kind)
+OpenXRayNSEventRecord MakeRecordFromKey(NSEvent *event, int kind)
 {
     OpenXRayNSEventRecord rec = {};
     rec.kind = kind;
@@ -136,7 +135,7 @@ id           g_nsEventMonitor      = nil;
     return rec;
 }
 
-[[maybe_unused]] OpenXRayNSEventRecord MakeRecordFromFlags(NSEvent *event)
+OpenXRayNSEventRecord MakeRecordFromFlags(NSEvent *event)
 {
     OpenXRayNSEventRecord rec = {};
     rec.kind = OXR_NS_EVENT_FLAGS_CHANGED;
@@ -146,7 +145,7 @@ id           g_nsEventMonitor      = nil;
     return rec;
 }
 
-[[maybe_unused]] OpenXRayNSEventRecord MakeRecordFromMouse(NSEvent *event, int kind, NSWindow *window)
+OpenXRayNSEventRecord MakeRecordFromMouse(NSEvent *event, int kind, NSWindow *window)
 {
     OpenXRayNSEventRecord rec = {};
     rec.kind = kind;
@@ -184,7 +183,7 @@ id           g_nsEventMonitor      = nil;
     return rec;
 }
 
-[[maybe_unused]] OpenXRayNSEventRecord MakeRecordFromScroll(NSEvent *event)
+OpenXRayNSEventRecord MakeRecordFromScroll(NSEvent *event)
 {
     OpenXRayNSEventRecord rec = {};
     rec.kind = OXR_NS_EVENT_SCROLL_WHEEL;
@@ -412,11 +411,13 @@ extern "C" void OpenXRay_ArmLifecycleObservers(void)
 }
 
 // ---------------------------------------------------------------------------
-// NSEvent input pipeline C entries (issue #120, step 2a/4).
+// NSEvent input pipeline C entries (issue #120, step 2c/4).
 //
-// In commit 2a the local-monitor handler is a STUB: returns `event`
-// unconditionally so SDL_PollEvent continues to receive every keyboard /
-// mouse / scroll event. Queue stays empty. Step 2c flips the switch.
+// Keyboard / FlagsChanged events are consumed (handler returns nil), so SDL's
+// NSApp pump never sees them — engine drains via OpenXRay_DrainNSEventQueue
+// from CInput::OnFrame(). Mouse / scroll events are queued but passed through
+// (handler returns event); SDL continues to receive them while engine ignores
+// the queued copies. Phase 3 flips mouse/scroll to nil-return too.
 // ---------------------------------------------------------------------------
 
 extern "C" void OpenXRay_InstallNSEventMonitor(void)
@@ -434,12 +435,61 @@ extern "C" void OpenXRay_InstallNSEventMonitor(void)
             NSEventMaskOtherMouseDown | NSEventMaskOtherMouseUp | NSEventMaskOtherMouseDragged |
             NSEventMaskScrollWheel;
 
-        // STUB handler — passes every event through to the next responder
-        // (including SDL's NSApp pump). No consume, no queue writes. Full
-        // switch + QueuePush lives in commit 2c.
         g_nsEventMonitor = [NSEvent addLocalMonitorForEventsMatchingMask:mask
             handler:^NSEvent *(NSEvent *event) {
-                return event;
+                NSEventType t = [event type];
+
+                // Cmd+Q sanity. The Cmd+Q monitor installed earlier in
+                // OpenXRay_InstallCocoaShim() should fire first and consume,
+                // but defend against ordering changes: pass Cmd+Q through
+                // untouched so the dedicated monitor (or, fallback, the menu
+                // dispatch) handles graceful quit.
+                if (t == NSEventTypeKeyDown && [event keyCode] == 0x0C /* kVK_ANSI_Q */ &&
+                    ([event modifierFlags] & NSEventModifierFlagCommand))
+                {
+                    return event;
+                }
+
+                if (!g_nsEventInputEnabled)
+                    return event; // rollback path (cvar=0)
+
+                NSWindow *window = [event window];
+
+                switch (t)
+                {
+                    case NSEventTypeKeyDown:
+                        QueuePush(MakeRecordFromKey(event, OXR_NS_EVENT_KEY_DOWN));
+                        return nil;
+                    case NSEventTypeKeyUp:
+                        QueuePush(MakeRecordFromKey(event, OXR_NS_EVENT_KEY_UP));
+                        return nil;
+                    case NSEventTypeFlagsChanged:
+                        QueuePush(MakeRecordFromFlags(event));
+                        return nil;
+                    case NSEventTypeMouseMoved:
+                        QueuePush(MakeRecordFromMouse(event, OXR_NS_EVENT_MOUSE_MOVE, window));
+                        return event; // mouse/scroll НЕ consume в 2c — Phase 3 переключит на nil
+                    case NSEventTypeLeftMouseDown:
+                    case NSEventTypeRightMouseDown:
+                    case NSEventTypeOtherMouseDown:
+                        QueuePush(MakeRecordFromMouse(event, OXR_NS_EVENT_MOUSE_DOWN, window));
+                        return event;
+                    case NSEventTypeLeftMouseUp:
+                    case NSEventTypeRightMouseUp:
+                    case NSEventTypeOtherMouseUp:
+                        QueuePush(MakeRecordFromMouse(event, OXR_NS_EVENT_MOUSE_UP, window));
+                        return event;
+                    case NSEventTypeLeftMouseDragged:
+                    case NSEventTypeRightMouseDragged:
+                    case NSEventTypeOtherMouseDragged:
+                        QueuePush(MakeRecordFromMouse(event, OXR_NS_EVENT_MOUSE_DRAGGED, window));
+                        return event;
+                    case NSEventTypeScrollWheel:
+                        QueuePush(MakeRecordFromScroll(event));
+                        return event;
+                    default:
+                        return event;
+                }
             }];
 
         char buf[160];
