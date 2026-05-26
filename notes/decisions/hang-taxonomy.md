@@ -48,7 +48,7 @@ update от нас → Force Quit signal приходит но handler в runloo
 
 | Surface | Где конкретно залип main | Известные примеры | Текущий статус |
 |---|---|---|---|
-| **1.A — blocking I/O** | sync syscall в main loop (sendto, ghttpThink poll, file I/O без async) | #71 (ghttp `sendto`), PR #76 reproducer (`ghttpThink()` poll) | Partial mitigation: #74 pre-flight TCP probe. **Structural fix** = #72 async updater (backlog) |
+| **1.A — blocking I/O** | sync syscall в main loop (sendto, ghttpThink poll, file I/O без async) | #71 (ghttp `sendto`), PR #76 reproducer (`ghttpThink()` poll) | **Closed / mitigated** (#117 A.2, commit `9f2232d21` + teardown safety): ghttp polling вынесен на serial dispatch_queue worker, completion records маршалятся на main через atomic-flag drain. #74 pre-flight probe retained как UX (быстрый «нет соединения», 200ms). Residual: shutdown-path DNS-stall edge case still relies on 10s watchdog (#75) — A.2.1 follow-up: patch vendored ghttp `gethostbyname` → `getaddrinfo` with bounded timeout. |
 | **1.C — GPU/IOKit hold** | GPU command wait, blocking occlusion query, driver-side stall (compressed 3D textures, MSAA на edge configs) | #63 (Dock Force Quit на max settings), GPU TX от render edge cases | Symptom mitigation идёт постепенно (см. process-supervision.md); structural fix общий с 1.A |
 
 **Это НЕ Apple-side bug.** STAT=TX это process в uninterruptible
@@ -145,8 +145,13 @@ queues / async ghttp callback chain. Main thread занимается **толь
 даёт ему concrete technical justification поверх «нативный UX
 красивее». До #87 — incremental fixes того же направления:
 
-- **#72** — async updater (Family 1.A specifically)
-- **#74** — pre-flight TCP probe (workaround для 1.A, не structural)
+- **#72** — async updater (Family 1.A specifically). **Subsumed** в #117 A.2
+  (ghttp dispatch_queue worker — структурно решает 1.A для всех ghttp poll
+  paths, не только updater).
+- **#74** — pre-flight TCP probe (workaround для 1.A, не structural). Retained
+  как UX-only (200ms feedback) после A.2.
+- **#117 A.2** — ghttp/gsCore polling offload (closed 2026-05-26, PR на
+  `macos/blackden/master`).
 - Main-thread stall detector instrumentation (team-lead suggestion
   2026-05-25, ещё не открыт issue)
 

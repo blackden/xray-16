@@ -24,8 +24,13 @@
 //     been deprecated since macOS 10.9 and is unsafe under queue
 //     targeting.
 //   - Idempotent install + explicit shutdown so the worker can be torn
-//     down deterministically at engine exit (cpp-engineer teardown
-//     audit ahead of PR will verify ordering against ~CApplication).
+//     down deterministically at engine exit. Install lifetime is bounded
+//     by the StartUp→CleanUp pair on CGameSpy_HTTP: Shutdown clears the
+//     install flag so a future re-StartUp (test harness, defensive re-init)
+//     re-creates the queue cleanly. cpp-engineer audit (post-A.2 commits
+//     1-3) verified ordering: drain hook unregistered first, ghttpCleanup
+//     synchronous on worker, stranded completions discarded, then worker
+//     shutdown — no UAF window.
 //
 // Deliberately does NOT include "stdafx.h" / xrCore headers — those drag
 // in src/Common/PlatformApple.inl which typedefs BOOL as int32_t and
@@ -103,8 +108,19 @@ extern "C" void OpenXRay_GhttpInstallWorker(void)
         const_cast<void*>(kWorkerQueueKey), nullptr);
 }
 
+extern "C" void OpenXRay_RegisterGhttpDrainHook(void (*hook)(void));
+
 extern "C" void OpenXRay_GhttpShutdownWorker(void)
 {
+    // Defensive null-hook before anything else. CGameSpy_HTTP::CleanUp already
+    // does this as step 1 of its teardown sequence, but if a future caller
+    // invokes Shutdown without going through CleanUp (test harness, partial
+    // init failure path), an in-flight main-thread drain would still race
+    // against queue release. Idempotent with CleanUp's earlier call —
+    // OpenXRay_RegisterGhttpDrainHook is a single atomic store. Per
+    // cpp-engineer audit Bug 7.
+    OpenXRay_RegisterGhttpDrainHook(nullptr);
+
     if (!g_workerInstalled.load(std::memory_order_acquire))
         return;
 
@@ -115,9 +131,31 @@ extern "C" void OpenXRay_GhttpShutdownWorker(void)
         dispatch_sync(g_workerQueue, ^{});
 
     // Under ARC dispatch objects are reference-counted automatically; nilling
-    // our strong ref releases the queue. We never re-install in the same
-    // process (idempotent flag stays set) so this is a one-shot teardown.
+    // our strong ref releases the queue. Clear the install flag so a future
+    // StartUp can re-create the worker; install lifetime is bounded by the
+    // StartUp→CleanUp pair, not process-wide. Per cpp-engineer audit Bug 3.
     g_workerQueue = nullptr;
+    g_workerInstalled.store(false, std::memory_order_release);
+}
+
+// Discard any completion records the worker enqueued but the main thread has
+// not yet drained. Called by CGameSpy_HTTP::CleanUp between ghttpCleanup and
+// worker shutdown. After the drain hook is unregistered (CleanUp step 1) the
+// main-thread per-frame drain stops firing, so any records the worker pushed
+// just before ghttpCleanup ran would otherwise sit in g_completionQueue with
+// dangling FastDelegate `this`-pointers (typically CMainMenu*) after the
+// owning object's destructor runs. The std::function destructors free the
+// captures cleanly without invoking them — no UAF, no surprise UI callback
+// firing into freed memory. Per cpp-engineer audit Bug 1.
+extern "C" void OpenXRay_GhttpDiscardPendingCompletions(void)
+{
+    std::deque<GhttpCompletion> drop;
+    {
+        std::lock_guard<std::mutex> lock(g_completionMutex);
+        drop.swap(g_completionQueue);
+    }
+    // drop destructed here without invoke() — stranded FastDelegate-captured
+    // `this` pointers must NOT be called after the owner is being torn down.
 }
 
 extern "C" bool OpenXRay_GhttpAssertOnWorkerQueue(void)

@@ -283,6 +283,40 @@ copy завершится сам по себе. То же для некотор�
 *Применение:* SIGUSR1 wake в watchdog (issue #75) помогает для
 большинства hang-паттернов но не для глубокого sendto. Не серебряная пуля.
 
+**Static `std::deque<std::function<...>>` с FastDelegate-captured `this` живёт дольше owner'а.**
+*Где:* `src/xrGameSpy/ghttp_worker_apple.mm` `g_completionQueue` (file-static
+deque, drained by main thread on frame boundary).
+*Симптом, если нарвался:* worker thread пушит completion record в deque,
+main thread не успевает дренить ДО того как owner (`CMainMenu`) деструктируется
+(typical race: Cmd+Q после initiated download). Когда деструктор drain'a
+наконец-то срабатывает (or static destruction reaches the deque) — `invoke()`
+дёргает FastDelegate с уже-dead `this` → UAF.
+*Lesson:* в teardown path'е (`CGameSpy_HTTP::CleanUp`) **ОБЯЗАТЕЛЬНО**
+discard pending records без invoke'а — `OpenXRay_GhttpDiscardPendingCompletions()`
+swap'ит deque локально и destructed его без вызова `invoke`. `std::function`
+destructors освобождают captures чисто (sizeof, ABI-compatible) — это safe;
+проблема **именно** в `invoke()`, не в самом cleanup'е. Любой будущий
+producer→consumer queue с FastDelegate/lambda-captured pointers нужен
+parallel discard surface, не только drain.
+*Контекст:* gitea #117 A.2, cpp-engineer audit Bug 1.
+
+**Vendored ghttp `gethostbyname` блочит worker → `dispatch_sync(ghttpCleanup)` блочит main.**
+*Где:* `src/utils/mp_gpprof_server/libraries/gamespy/ghttp/ghttpProcess.c:232`
+(actual linked copy lives in `Externals/GameSpy/src/GameSpy/ghttp/`).
+*Симптом, если нарвался:* пользователь жмёт Cmd+Q пока ghttp request
+в середине DNS resolution. Worker thread в blocking `gethostbyname` (до ~30с
+default libc timeout на Darwin). `CGameSpy_HTTP::CleanUp` делает
+`dispatch_sync(g_workerQueue, ^{ ghttpCleanup(); })` — main thread ждёт
+пока worker освободится → graceful Cmd+Q вместо <1s занимает до ~30s. 10s
+graceful watchdog (`macos_cocoa_shim.mm:108-114`) SIGKILL'ает раньше —
+process умирает, но без чистого teardown.
+*Lesson:* любая блокирующая sync функция в vendored library, которую ты
+обернул в dispatch worker, всё равно блочит main path при teardown через
+`dispatch_sync` barrier. Real fix — submodule patch (`gethostbyname` →
+`getaddrinfo` with bounded timeout). Без него watchdog SIGKILL — fallback,
+который сейчас работает но скрывает proper shutdown.
+*Контекст:* gitea #117 A.2, cpp-engineer audit Bug 6 (P2 deferred to A.2.1).
+
 **`_exit()` поверх stuck kernel syscall → STAT=TX zombie.**
 *Где:* `xrDebug::StartWatchdog` (`src/xrCore/xrDebug.cpp:752-787`).
 *Симптом:* `ps -o stat` показывает `TX` (stopped during exit). `kill -9`
