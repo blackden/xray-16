@@ -316,6 +316,23 @@ STAT=TX, wchan=`-`, pcpu=0. Даже Activity Monitor → Force Quit не
 
 ---
 
+## Rejected approaches (чтобы не reconsider через полгода)
+
+**`SDL_CreateWindowFrom` для engine-owned NSWindow на macOS — rejected 2026-05-26 (gitea #114).**
+*Где:* был кандидат в roadmap A.1 (`docs/superpowers/specs/2026-05-25-native-shell-roadmap.md`).
+*Симптом, если попробуешь:* fullscreen-Space eligibility фиксируется в момент `SDL_CreateWindowFrom` —
+это struct-level property, не hint-able post-factum. SDL2 после embed всё равно зовёт
+`setCollectionBehavior:` на attached NSWindow (конфликт с pre-set bits). NSView/GL context ownership
+становится гибридным — SDL не создаёт NSView внутри custom NSWindow корректно, resize/move event
+routing неполный. Cmd-Tab → Space stickiness ломается даже сильнее чем сейчас.
+*Почему rejected:* throwaway scaffolding — ту же работу придётся переделать в A.2/A.3 когда
+`[NSApp run]` + NSEvent input сделают SDL pump ненужным. Engine-owned NSWindow создаётся напрямую,
+без хрупкого embed-гибрида. A.1 redesigned как «observers-only extension `OpenXRayCocoaShim`».
+*Подтверждения сообщества:* SDL bug #2561 (window ownership), SDL bug #8518 (collectionBehavior race),
+discourse.libsdl.org/t/27142.
+
+---
+
 ## Что НЕ покрыто но возможно стоит добавить
 
 - Как разрезать DMG на 2GB chunks для распространения (текущий 3.5GB).
