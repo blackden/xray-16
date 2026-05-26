@@ -13,6 +13,7 @@
 extern "C" void OpenXRay_GhttpInstallWorker(void);
 extern "C" void OpenXRay_GhttpShutdownWorker(void);
 extern "C" void OpenXRay_GhttpDrainCompletions(void);
+extern "C" void OpenXRay_GhttpDiscardPendingCompletions(void);
 // Defined in src/xrEngine/Engine.cpp under XR_PLATFORM_APPLE. In
 // BUILD_SHARED_LIBS=ON each library is linked standalone, so the
 // xrGameSpy CMakeLists.txt explicitly links xrEngine under APPLE to
@@ -72,13 +73,21 @@ void CGameSpy_HTTP::CleanUp()
     //      ahead of it (serial queue ordering) and tears down ghttp's
     //      C-global state on the same thread that's been touching it. Main
     //      blocks until cleanup returns.
-    //   3. Shutdown the worker queue. dispatch_sync inside Shutdown is a
+    //   3. Discard any completion records the worker enqueued between step 1
+    //      (hook unregister) and step 2 (ghttpCleanup return). The drain hook
+    //      is gone — those records would never reach main, and they hold
+    //      FastDelegate copies whose `this` pointer (e.g. CMainMenu*) is
+    //      about to be destructed. Drop them without invoking, so no
+    //      delegate fires into freed memory. Per cpp-engineer audit Bug 1.
+    //   4. Shutdown the worker queue. dispatch_sync inside Shutdown is a
     //      second drain barrier (cheap — queue is already idle) plus the
     //      queue release.
     // Net effect: no in-flight worker block dereferences ghttp internals
-    // after ghttpCleanup, and no main-thread drain races with worker teardown.
+    // after ghttpCleanup, no stranded completions hold dangling delegate
+    // targets, and no main-thread drain races with worker teardown.
     OpenXRay_RegisterGhttpDrainHook(nullptr);
     OpenXRay_GhttpDispatchSync([] { ghttpCleanup(); });
+    OpenXRay_GhttpDiscardPendingCompletions();
     OpenXRay_GhttpShutdownWorker();
 #else
     ghttpCleanup();
