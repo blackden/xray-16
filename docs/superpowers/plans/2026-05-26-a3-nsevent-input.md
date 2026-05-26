@@ -73,11 +73,11 @@ smoke план.
 
 Заголовок: `A.3: NSEvent input pipeline — keyboard/mouse/scroll через NSEvent`
 
-Запомнить номер issue → `<ISSUE_NUM>`.
+Запомнить номер issue → `120`.
 
 - [ ] **Step 2: Зафиксировать номер issue в плане**
 
-Заменить `<ISSUE_NUM>` в этом документе на фактический номер (через Edit tool).
+Заменить `120` в этом документе на фактический номер (через Edit tool).
 
 ### Task 0.2: Создать feature-ветку
 
@@ -89,7 +89,7 @@ smoke план.
 git fetch
 git checkout macos/blackden/master
 git pull --ff-only
-git checkout -b issue-<ISSUE_NUM>-a3-nsevent-input
+git checkout -b issue-120-a3-nsevent-input
 ```
 
 - [ ] **Step 2: Verify branch state**
@@ -432,7 +432,7 @@ verify_input_table: total=N matches=M mismatches=0 unmapped=K
 ```bash
 git add src/xrEngine/xr_input.cpp src/xrEngine/Console_Commands.cpp
 # (или фактические затронутые файлы)
-git commit -m "xrEngine: add Apple keyCode→SDL_Scancode static table (#<ISSUE_NUM> A.3 step 1/4)
+git commit -m "xrEngine: add Apple keyCode→SDL_Scancode static table (#120 A.3 step 1/4)
 
 Static replica of SDL's internal NSEvent keyCode → SDL_Scancode
 mapping (SDL_cocoakeyboard.m). Indexed by NSEvent.keyCode from
@@ -444,7 +444,7 @@ Adds dev-only console command 'verify_input_table' (gated by
 dev_tools 1) that walks the table and confirms every mapped
 entry round-trips through SDL_GetKeyFromScancode.
 
-Step 1 of 4 toward issue #<ISSUE_NUM>: A.3 NSEvent input pipeline.
+Step 1 of 4 toward issue #120: A.3 NSEvent input pipeline.
 Spec: docs/superpowers/specs/2026-05-26-a3-nsevent-input-design.md
 Plan: docs/superpowers/plans/2026-05-26-a3-nsevent-input.md"
 ```
@@ -1176,7 +1176,7 @@ Expected: в обеих позициях персонаж реагирует н�
 git add src/xrEngine/macos_cocoa_shim.h src/xrEngine/macos_cocoa_shim.mm \
         src/xrEngine/xr_input.h src/xrEngine/xr_input.cpp \
         src/Layers/xrRender/xrRender_console.cpp
-git commit -m "xrEngine: NSEvent local monitor + queue + drain для клавиатуры (#<ISSUE_NUM> A.3 step 2/4)
+git commit -m "xrEngine: NSEvent local monitor + queue + drain для клавиатуры (#120 A.3 step 2/4)
 
 Расширяет OpenXRayCocoaShim local monitor с Cmd+Q mask на полную
 input mask (keyboard + flags + mouse + scroll). Фиксированный ring
@@ -1194,7 +1194,7 @@ scroll records пушатся в очередь но игнорируются в
 будут подключены в step 3/4. SDL KeyUpdate под Apple-gate'ом
 становится no-op (нет events — consumed handler'ом).
 
-Step 2 of 4 toward issue #<ISSUE_NUM>: A.3 NSEvent input pipeline.
+Step 2 of 4 toward issue #120: A.3 NSEvent input pipeline.
 Spec: docs/superpowers/specs/2026-05-26-a3-nsevent-input-design.md
 Plan: docs/superpowers/plans/2026-05-26-a3-nsevent-input.md"
 ```
@@ -1315,7 +1315,7 @@ New Game → Cordon. Проверить:
 
 ```bash
 git add src/xrEngine/xr_input.cpp
-git commit -m "xrEngine: подключить NSEvent mouse + scroll к IR_On* callbacks (#<ISSUE_NUM> A.3 step 3/4)
+git commit -m "xrEngine: подключить NSEvent mouse + scroll к IR_On* callbacks (#120 A.3 step 3/4)
 
 Расширяет CInput::NSEventDrain мышь и скролл к существующим
 IR_OnMouseMove/Press/Release/Wheel callbacks. Capture-mode bridge
@@ -1329,7 +1329,7 @@ locationInWindow × backingScaleFactor, с flip Y из Cocoa bottom-left
 SDL MouseUpdate под Apple-gate'ом становится no-op — mouse events
 consumed handler'ом раньше.
 
-Step 3 of 4 toward issue #<ISSUE_NUM>: A.3 NSEvent input pipeline.
+Step 3 of 4 toward issue #120: A.3 NSEvent input pipeline.
 Spec: docs/superpowers/specs/2026-05-26-a3-nsevent-input-design.md
 Plan: docs/superpowers/plans/2026-05-26-a3-nsevent-input.md"
 ```
@@ -1462,7 +1462,7 @@ New Game → Cordon. Зажать W (персонаж бежит). Cmd-Tab → �
 
 ```bash
 git add src/xrEngine/macos_cocoa_shim.mm
-git commit -m "xrEngine: focus/sleep recovery + backing scale tracking для NSEvent input (#<ISSUE_NUM> A.3 step 4/4)
+git commit -m "xrEngine: focus/sleep recovery + backing scale tracking для NSEvent input (#120 A.3 step 4/4)
 
 Подключает stuck-key recovery: applicationWillResignActive,
 workspaceWillSleep дёргают OpenXRay_SyntheticReleaseAllKeys.
@@ -1473,8 +1473,8 @@ applicationDidBecomeActive синхронизирует g_lastModifierFlags
 backingScaleFactor оставался свежим при переезде окна между
 мониторами с разным scale (1x/2x).
 
-Step 4 of 4 toward issue #<ISSUE_NUM>: A.3 NSEvent input pipeline.
-Closes #<ISSUE_NUM>.
+Step 4 of 4 toward issue #120: A.3 NSEvent input pipeline.
+Closes #120.
 
 Spec: docs/superpowers/specs/2026-05-26-a3-nsevent-input-design.md
 Plan: docs/superpowers/plans/2026-05-26-a3-nsevent-input.md"
@@ -1491,14 +1491,14 @@ Plan: docs/superpowers/plans/2026-05-26-a3-nsevent-input.md"
 - [ ] **Step 1: Push branch**
 
 ```bash
-git push -u origin issue-<ISSUE_NUM>-a3-nsevent-input
+git push -u origin issue-120-a3-nsevent-input
 ```
 
 - [ ] **Step 2: Создать PR в gitea**
 
 Use `mcp__gitea__pull_request_write` (POST):
 
-Title: `A.3: NSEvent input pipeline (closes #<ISSUE_NUM>)`
+Title: `A.3: NSEvent input pipeline (closes #120)`
 
 Body:
 
@@ -1536,7 +1536,7 @@ works. RU layout: WASD по физическому keyCode'у — независ
 - A.2.1 follow-up: #119 (отдельный, не блокировал A.3)
 ```
 
-Base: `macos/blackden/master`. Head: `issue-<ISSUE_NUM>-a3-nsevent-input`.
+Base: `macos/blackden/master`. Head: `issue-120-a3-nsevent-input`.
 
 - [ ] **Step 3: Self-merge (personal fork, no review nazi)**
 
@@ -1544,7 +1544,7 @@ Base: `macos/blackden/master`. Head: `issue-<ISSUE_NUM>-a3-nsevent-input`.
 
 - [ ] **Step 4: Закрыть issue**
 
-Auto-closes by PR body `Closes #<ISSUE_NUM>`.
+Auto-closes by PR body `Closes #120`.
 
 ### Task 5.2: Codify findings (memory + engine-map + notes)
 
@@ -1618,6 +1618,6 @@ git push
 
 Type consistency: `OpenXRayNSEventRecord` (Task 2.1) и его поля используются в Task 2.2 (записи), Task 2.3 (drain читает), Task 3.1 (mouse/scroll). `OpenXRay_SyntheticReleaseAllKeys` определена в Task 2.3 Step 4, вызывается в Task 2.3 Step 9 (cvar callback) и Task 4.1 Step 2 (focus loss).
 
-Placeholder scan: `<ISSUE_NUM>` — единственный placeholder, заполняется в Phase 0 Task 0.1 Step 2. `<PR_NUM>` в Task 5.2 — заполняется после Phase 5 Task 5.1.
+Placeholder scan: `120` — единственный placeholder, заполняется в Phase 0 Task 0.1 Step 2. `<PR_NUM>` в Task 5.2 — заполняется после Phase 5 Task 5.1.
 
 Risk concentration: Task 2.2 (handler + queue + observers) — самый big-bang шаг. Если что-то ломается, rollback через `git revert` целого A.3.2 коммита.
