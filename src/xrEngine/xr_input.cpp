@@ -288,6 +288,68 @@ extern "C" void OpenXRay_VerifyInputTable()
 }
 #endif // XR_PLATFORM_APPLE
 
+#if defined(XR_PLATFORM_APPLE)
+#include "macos_cocoa_shim.h"
+
+// `g_nsEventInputCvar` has external linkage on purpose: the console
+// command lives in xrRender_console.cpp (different TU) and writes
+// straight into this storage via `extern int g_nsEventInputCvar`.
+// 1 = NSEvent pipeline drives keyboard input (default), 0 = legacy
+// SDL keyboard pipeline.
+int g_nsEventInputCvar = 1;
+
+namespace
+{
+// Last modifierFlags snapshot observed via a FlagsChanged record. Used
+// to diff against the next record so we can derive press/release for the
+// modifier keys (which never produce KeyDown/KeyUp NSEvents).
+uint32_t g_lastShimModifierFlags = 0;
+
+// NSEvent.modifierFlags bit values (from <AppKit/NSEvent.h>). Defined
+// locally because xr_input.cpp is a plain .cpp TU and cannot include
+// Cocoa headers. The bit positions are ABI-stable since 10.12.
+constexpr uint32_t kNSFlagCapsLock = 1u << 16;
+constexpr uint32_t kNSFlagShift    = 1u << 17;
+constexpr uint32_t kNSFlagControl  = 1u << 18;
+constexpr uint32_t kNSFlagOption   = 1u << 19;
+constexpr uint32_t kNSFlagCommand  = 1u << 20;
+
+SDL_Scancode ModifierKeyCodeToScancode(uint16_t keyCode)
+{
+    switch (keyCode)
+    {
+        case kVK_Shift:         return SDL_SCANCODE_LSHIFT;
+        case kVK_RightShift:    return SDL_SCANCODE_RSHIFT;
+        case kVK_Control:       return SDL_SCANCODE_LCTRL;
+        case kVK_RightControl:  return SDL_SCANCODE_RCTRL;
+        case kVK_Option:        return SDL_SCANCODE_LALT;
+        case kVK_RightOption:   return SDL_SCANCODE_RALT;
+        case kVK_Command:       return SDL_SCANCODE_LGUI;
+        case kVK_RightCommand:  return SDL_SCANCODE_RGUI;
+        case kVK_CapsLock:      return SDL_SCANCODE_CAPSLOCK;
+        default:                return SDL_SCANCODE_UNKNOWN;
+    }
+}
+} // namespace
+
+extern "C" void OpenXRay_SyntheticReleaseAllKeys(void)
+{
+    if (pInput)
+        pInput->IR_ReleaseAll();
+}
+
+extern "C" void OpenXRay_OnNSEventInputCvarChanged(int newValue)
+{
+    const int oldValue = g_nsEventInputCvar;
+    g_nsEventInputCvar = newValue;
+    if (oldValue != newValue)
+    {
+        OpenXRay_SyntheticReleaseAllKeys();
+        OpenXRay_SetNSEventInputEnabled(newValue);
+    }
+}
+#endif // XR_PLATFORM_APPLE
+
 CInput* pInput = nullptr;
 
 class DummyReceiver : public IInputReceiver
@@ -536,6 +598,16 @@ void CInput::MouseUpdate()
 void CInput::KeyUpdate()
 {
     ZoneScoped;
+
+#if defined(XR_PLATFORM_APPLE)
+    // NSEvent path consumes keyboard events before SDL sees them, so the
+    // SDL drain below would always be empty. Skip outright to avoid the
+    // SDL_PeepEvents syscall and the IR_OnKeyboardHold loop driving stale
+    // keyboardState bits (the NSEvent drain produces explicit press/release;
+    // hold semantics will be wired in phase 3 if required).
+    if (g_nsEventInputCvar)
+        return;
+#endif
 
     SDL_Event events[MAX_KEYBOARD_EVENTS];
     const auto count = SDL_PeepEvents(events, MAX_KEYBOARD_EVENTS,
@@ -1031,6 +1103,96 @@ void CInput::iRelease(IInputReceiver* p)
     }
 }
 
+#if defined(XR_PLATFORM_APPLE)
+void CInput::NSEventDrain()
+{
+    OpenXRayNSEventRecord records[64];
+    size_t n;
+    while ((n = OpenXRay_DrainNSEventQueue(records, 64)) > 0)
+    {
+        for (size_t i = 0; i < n; ++i)
+        {
+            const auto& r = records[i];
+            if (cbStack.empty())
+                continue;
+            IInputReceiver* receiver = cbStack.back();
+
+            switch (r.kind)
+            {
+            case OXR_NS_EVENT_KEY_DOWN:
+            {
+                if (r.isARepeat)
+                    break; // auto-repeat не транслируем (SDL фильтрует так же)
+                const SDL_Scancode sc = (r.keyCode<128)
+                    ? kNSKeyCodeToSDLScancode[r.keyCode]
+                    : SDL_SCANCODE_UNKNOWN;
+                if (sc != SDL_SCANCODE_UNKNOWN)
+                    receiver->IR_OnKeyboardPress((int)sc);
+                break;
+            }
+            case OXR_NS_EVENT_KEY_UP:
+            {
+                const SDL_Scancode sc = (r.keyCode<128)
+                    ? kNSKeyCodeToSDLScancode[r.keyCode]
+                    : SDL_SCANCODE_UNKNOWN;
+                if (sc != SDL_SCANCODE_UNKNOWN)
+                    receiver->IR_OnKeyboardRelease((int)sc);
+                break;
+            }
+            case OXR_NS_EVENT_FLAGS_CHANGED:
+            {
+                const uint32_t diff = r.modifierFlags ^ g_lastShimModifierFlags;
+                // CapsLock is a toggle — synthesize down+up to drive bindings.
+                if (diff & kNSFlagCapsLock)
+                {
+                    receiver->IR_OnKeyboardPress((int)SDL_SCANCODE_CAPSLOCK);
+                    receiver->IR_OnKeyboardRelease((int)SDL_SCANCODE_CAPSLOCK);
+                }
+                // For real modifier keys disambiguate L/R via keyCode and
+                // derive direction from the corresponding flag bit's state.
+                if (diff & (kNSFlagShift | kNSFlagControl | kNSFlagOption | kNSFlagCommand))
+                {
+                    const SDL_Scancode sc = ModifierKeyCodeToScancode(r.keyCode);
+                    if (sc != SDL_SCANCODE_UNKNOWN)
+                    {
+                        uint32_t flagBit = 0;
+                        switch (r.keyCode)
+                        {
+                        case kVK_Shift:
+                        case kVK_RightShift:    flagBit = kNSFlagShift;   break;
+                        case kVK_Control:
+                        case kVK_RightControl:  flagBit = kNSFlagControl; break;
+                        case kVK_Option:
+                        case kVK_RightOption:   flagBit = kNSFlagOption;  break;
+                        case kVK_Command:
+                        case kVK_RightCommand:  flagBit = kNSFlagCommand; break;
+                        default: break;
+                        }
+                        if (flagBit && (r.modifierFlags & flagBit))
+                            receiver->IR_OnKeyboardPress((int)sc);
+                        else if (flagBit)
+                            receiver->IR_OnKeyboardRelease((int)sc);
+                    }
+                }
+                g_lastShimModifierFlags = r.modifierFlags;
+                break;
+            }
+            // Mouse + scroll plumbing arrives in phase 3 (A.3.3). Records
+            // currently still enter the queue (handler writes them in 2c)
+            // but the engine ignores them here so SDL stays authoritative
+            // for mouse until then.
+            case OXR_NS_EVENT_MOUSE_MOVE:
+            case OXR_NS_EVENT_MOUSE_DOWN:
+            case OXR_NS_EVENT_MOUSE_UP:
+            case OXR_NS_EVENT_MOUSE_DRAGGED:
+            case OXR_NS_EVENT_SCROLL_WHEEL:
+                break;
+            }
+        }
+    }
+}
+#endif // XR_PLATFORM_APPLE
+
 void CInput::IR_ReleaseAll()
 {
     if (cbStack.empty())
@@ -1091,6 +1253,11 @@ void CInput::OnFrame(void)
 
     stats.FrameStart();
     stats.FrameTime.Begin();
+
+#if defined(XR_PLATFORM_APPLE)
+    if (g_nsEventInputCvar)
+        NSEventDrain();
+#endif
 
     if (Device.dwPrecacheFrame == 0 && !Device.IsAnselActive)
     {
