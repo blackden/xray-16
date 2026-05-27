@@ -166,6 +166,11 @@ enum class PendingLifecycleEvent : u32
     AppDeactivated,
 };
 std::atomic<PendingLifecycleEvent> g_pendingLifecycleEvent{PendingLifecycleEvent::None};
+
+// Independent of the lifecycle enum because release-all may need to coexist
+// with a same-frame AppDeactivated (Cmd-Tab fires both) or SystemWillSleep —
+// folding it into the enum would let one overwrite the other on exchange().
+std::atomic<bool> g_pendingReleaseAllKeys{false};
 } // namespace
 
 extern "C" void OpenXRay_OnSystemWillSleep(void)
@@ -187,6 +192,30 @@ extern "C" void OpenXRay_OnAppWillResignActive(void)
 {
     g_pendingLifecycleEvent.store(PendingLifecycleEvent::AppDeactivated, std::memory_order_release);
 }
+
+// Request deferred IR_ReleaseAll() at the next frame boundary (gitea #134).
+// Replaces direct AppKit-thread invocation of OpenXRay_SyntheticReleaseAllKeys
+// from focus-loss / sleep observers: pInput->IR_ReleaseAll() writes the
+// keyboardState bitset AND fires IR_OnKeyboard{Release} into game receivers
+// (UI / level / actor) that assume render-thread ownership of input — running
+// the synchronous variant from the AppKit thread races KeyUpdate() reading
+// the same bitset on the render thread. Setter is fire-and-forget: a second
+// store before the first is drained is a no-op (idempotent).
+extern "C" void OpenXRay_RequestReleaseAllKeys(void)
+{
+    g_pendingReleaseAllKeys.store(true, std::memory_order_release);
+}
+
+// Defined out-of-line in xr_input.cpp under XR_PLATFORM_APPLE. Both halves of
+// the release-all sequence: pInput->IR_ReleaseAll() (drops every pressed
+// scancode + mouse button) AND resets the NSEvent FlagsChanged baseline
+// (g_lastShimModifierFlags = 0). The baseline reset is critical for the
+// nsevent_input=1 pipeline: applicationDidBecomeActive: re-syncs the baseline
+// to the current NSEvent.modifierFlags on return, but if we don't zero it
+// here a stale value persists if focus return happens before any other
+// pipeline event drains, producing a wrong XOR on the first post-return
+// FlagsChanged.
+extern "C" void OpenXRay_ApplyReleaseAllKeys(void);
 
 void OpenXRay_ApplyPendingLifecycleEvent()
 {
@@ -255,8 +284,24 @@ extern "C" void OpenXRay_RegisterGhttpDrainHook(void (*hook)(void))
     g_ghttpDrainHook.store(hook, std::memory_order_release);
 }
 
+// Drain the pending release-all flag (gitea #134). Runs BEFORE the lifecycle
+// apply on purpose: AppDeactivated triggers seqAppDeactivate which calls
+// CInput::OnAppDeactivate(), and that already zeroes keyboardState/mouseState
+// without firing IR_OnKeyboard{Release} callbacks. If we ran release-all after
+// the bitset reset, IR_ReleaseAll() would iterate over an all-zero bitset and
+// emit nothing — game receivers (UI, level, actor) would never learn that the
+// keys went up. Running release-all first lets it fire callbacks AND clear
+// the bitset; the subsequent OnAppDeactivate reset becomes a no-op.
+void OpenXRay_DrainPendingReleaseAllKeys()
+{
+    if (!g_pendingReleaseAllKeys.exchange(false, std::memory_order_acq_rel))
+        return;
+    OpenXRay_ApplyReleaseAllKeys();
+}
+
 void OpenXRay_RunPerFrameMacOSHooks()
 {
+    OpenXRay_DrainPendingReleaseAllKeys();
     OpenXRay_ApplyPendingLifecycleEvent();
     if (auto* hook = g_ghttpDrainHook.load(std::memory_order_acquire))
         hook();

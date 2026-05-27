@@ -354,6 +354,30 @@ extern "C" void OpenXRay_SyntheticReleaseAllKeys(void)
         pInput->IR_ReleaseAll();
 }
 
+// Frame-boundary applier for the focus-loss release-all flag (gitea #134).
+// Called from OpenXRay_RunPerFrameMacOSHooks (Engine.cpp) on the render thread,
+// after the AppKit shim has set g_pendingReleaseAllKeys via
+// OpenXRay_RequestReleaseAllKeys(). Two responsibilities:
+//   1. pInput->IR_ReleaseAll() — fires IR_OnKeyboard{Release}/IR_OnMouseRelease
+//      to the top receiver for every held scancode + mouse button, then clears
+//      keyboardState/mouseState. Both pipelines (SDL + NSEvent) share this
+//      bitset, so a single release-all unsticks both.
+//   2. g_lastShimModifierFlags = 0 — resets the NSEvent FlagsChanged diff
+//      baseline. While the app was backgrounded, NSEvent FlagsChanged callbacks
+//      did not fire, so the cached snapshot is stale by definition. Zeroing it
+//      here means the next FlagsChanged after focus return (or the explicit
+//      sync via OpenXRay_SyncModifierFlags in applicationDidBecomeActive:) XORs
+//      against a known-clean baseline; otherwise a Cmd held at the moment of
+//      Cmd-Tab would leave kNSFlagCommand pinned in the cache, and the first
+//      post-return FlagsChanged would either resurrect the released modifier
+//      or silently swallow a new press.
+extern "C" void OpenXRay_ApplyReleaseAllKeys(void)
+{
+    if (pInput)
+        pInput->IR_ReleaseAll();
+    g_lastShimModifierFlags = 0;
+}
+
 // Called from applicationDidBecomeActive: in macos_cocoa_shim.mm. Re-aligns
 // the FlagsChanged baseline after a focus-loss window: while the app was
 // backgrounded NSEvent FlagsChanged callbacks didn't fire, so the cached
