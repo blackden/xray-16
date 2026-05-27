@@ -6,6 +6,14 @@
 
 #include <imgui_internal.h>
 
+#if defined(XR_PLATFORM_APPLE)
+// A.6.1 — ImGui clipboard goes through NSPasteboard via the shim symbols
+// exported from xrCore (see os_clipboard_mac.mm). Declared locally to avoid
+// pulling AppKit into this TU or introducing an xrEngine->xrCore header.
+extern "C" const char *OpenXRay_PasteboardGetString(void);
+extern "C" bool        OpenXRay_PasteboardSetString(const char *utf8);
+#endif
+
 void CRenderDevice::InitializeImGui()
 {
     if (m_imgui_context)
@@ -87,11 +95,23 @@ void CRenderDevice::InitializeImGui()
     // Clipboard functionality
     platform_io.Platform_SetClipboardTextFn = [](ImGuiContext*, const char* text)
     {
+#if defined(XR_PLATFORM_APPLE)
+        OpenXRay_PasteboardSetString(text);
+#else
         SDL_SetClipboardText(text);
+#endif
     };
 
     platform_io.Platform_GetClipboardTextFn = [](ImGuiContext* ctx) -> const char*
     {
+#if defined(XR_PLATFORM_APPLE)
+        // NSPasteboard shim returns a pointer to a file-static xr_string that
+        // stays valid until the next OpenXRay_PasteboardGetString call — which
+        // matches ImGui's Platform_GetClipboardTextFn lifetime contract. No
+        // caller-side free needed (and Platform_ClipboardUserData is unused).
+        (void)ctx;
+        return OpenXRay_PasteboardGetString();
+#else
         ImGuiPlatformIO& platform_io = ImGui::GetPlatformIO(ctx);
         auto clipboard_text_data = static_cast<char*>(platform_io.Platform_ClipboardUserData);
 
@@ -101,6 +121,7 @@ void CRenderDevice::InitializeImGui()
         clipboard_text_data = SDL_GetClipboardText();
 
         return clipboard_text_data;
+#endif
     };
 
     platform_io.Platform_SetImeDataFn = [](ImGuiContext* ctx, ImGuiViewport* viewport, ImGuiPlatformImeData* data)

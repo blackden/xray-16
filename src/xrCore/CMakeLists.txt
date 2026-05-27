@@ -353,6 +353,30 @@ target_sources_grouped(
     os_clipboard.h
 )
 
+if (APPLE)
+    # NSPasteboard backend for os_clipboard (A.6.1). Replaces SDL clipboard
+    # API on Apple platforms; see header comment in os_clipboard_mac.mm.
+    target_sources_grouped(
+        TARGET xrCore
+        NAME "OS"
+        FILES
+        os_clipboard_mac.mm
+    )
+    # Match xrEngine .mm settings: skip PCH (stdafx.h is plain C++,
+    # Foundation headers conflict inside the cxx PCH) and unity build
+    # (Foundation/AppKit headers can't survive concatenation with .cpp
+    # TUs in unity_*_cxx.cxx). -fobjc-arc enables automatic reference
+    # counting so NSPasteboard / NSString objects don't need manual
+    # retain/release — consistent with src/xrEngine/macos_cocoa_shim.mm.
+    set_source_files_properties(
+        os_clipboard_mac.mm
+        PROPERTIES
+        SKIP_PRECOMPILE_HEADERS ON
+        SKIP_UNITY_BUILD_INCLUSION ON
+        COMPILE_FLAGS "-fobjc-arc"
+    )
+endif()
+
 target_sources_grouped(
     TARGET xrCore
     NAME "PCH"
@@ -497,6 +521,14 @@ if (APPLE)
     # uses iconv to bridge POSIX-native UTF-8 strings into the engine's cp1251
     # font tables (save notification, etc).
     target_link_libraries(xrCore PRIVATE iconv)
+
+    # NSPasteboard backend (os_clipboard_mac.mm) needs AppKit + Foundation.
+    # A.6.1 — clipboard moves off SDL on macOS.
+    target_link_libraries(xrCore
+        PRIVATE
+        "-framework AppKit"
+        "-framework Foundation"
+    )
 endif()
 
 
