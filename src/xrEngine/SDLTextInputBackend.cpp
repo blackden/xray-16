@@ -50,11 +50,6 @@ void CSDLTextInputBackend::Stop()
     SDL_FlushEvent(SDL_TEXTEDITING);
 }
 
-bool CSDLTextInputBackend::IsActive() const
-{
-    return SDL_IsTextInputActive() == SDL_TRUE;
-}
-
 xr_unique_ptr<ITextInputBackend> CreateSDLTextInputBackend()
 {
     // Note: xr_unique_ptr uses xr_custom_deleter<T> which is invariant

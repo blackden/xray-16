@@ -3,7 +3,7 @@
 #include "ITextInputBackend.h"
 
 // SDL2-backed ITextInputBackend. Wraps SDL_StartTextInput /
-// SDL_StopTextInput / SDL_IsTextInputActive.
+// SDL_StopTextInput.
 //
 // Post-T2 (gitea #143): SDL_PumpEvents removed from Start/Stop — the
 // engine-owned g_textInputActive flag (#141) is now the source of truth
@@ -21,5 +21,4 @@ public:
 
     void Start() override;
     void Stop() override;
-    bool IsActive() const override;
 };
