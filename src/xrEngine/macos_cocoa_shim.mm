@@ -589,12 +589,46 @@ extern "C" void OpenXRay_InstallNSEventMonitor(void)
 
                 NSWindow *window = [event window];
 
+                // SDL_IsTextInputActive() gate (gitea #124). When SDL text
+                // input is active (console open, save-name dialog, MP chat
+                // entry), AppKit must see keyDown so SDL can translate it
+                // into SDL_TEXTINPUT via the IME / interpretKeyEvents:
+                // pipeline. Swallowing the keyDown here (the A.3 default
+                // path) blocks SDL_TEXTINPUT entirely and breaks every
+                // text entry surface in the engine.
+                //
+                // When text input is inactive (gameplay, menus driven by
+                // discrete key bindings) we still want the A.3 NSEvent
+                // pipeline: queue the record and consume so SDL never
+                // sees the keyDown — that is the whole reason A.3 exists
+                // (deterministic keyCode ordering, no SDL scancode races).
+                //
+                // CAVEAT — race risk on mid-frame toggle. EnableTextInput
+                // and DisableTextInput in xr_input.cpp call SDL_PumpEvents
+                // + SDL_FlushEvents, which re-enter the NSApp event loop
+                // mid-frame. If a UI handler toggles text input from inside
+                // the iteration, SDL_IsTextInputActive() can flip between
+                // adjacent NSEvents in the same drain, producing mixed
+                // routing (one keyDown queued, the next passed through).
+                // We accept this for #124 — the symptom would be one lost
+                // or duplicated keystroke at the exact frame the console
+                // is opened/closed, and is recoverable by the user. If
+                // smoke surfaces a regression (e.g. console grave key
+                // bouncing as in PR #125), the follow-up is a private
+                // g_textInputActive flag toggled around EnableTextInput /
+                // DisableTextInput plus dropping the SDL_PumpEvents calls
+                // there. cpp-engineer consilium 2026-05-27 verdict: pump
+                // removal is hygiene, not load-bearing for this fix.
                 switch (t)
                 {
                     case NSEventTypeKeyDown:
+                        if (SDL_IsTextInputActive())
+                            return event; // let SDL produce SDL_TEXTINPUT
                         QueuePush(MakeRecordFromKey(event, OXR_NS_EVENT_KEY_DOWN));
                         return nil;
                     case NSEventTypeKeyUp:
+                        if (SDL_IsTextInputActive())
+                            return event;
                         QueuePush(MakeRecordFromKey(event, OXR_NS_EVENT_KEY_UP));
                         return nil;
                     case NSEventTypeFlagsChanged:
