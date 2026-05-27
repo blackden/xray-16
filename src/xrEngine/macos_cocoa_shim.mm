@@ -46,6 +46,7 @@
 #include <unistd.h>
 #include <string.h>
 
+#include <atomic>
 #include <os/lock.h>
 
 #import <AppKit/AppKit.h>
@@ -152,6 +153,19 @@ bool         g_nsEventInputEnabled = true;
 bool         g_mouseCaptured       = false;
 float        g_backingScaleFactor  = 1.0f;
 id           g_nsEventMonitor      = nil;
+
+// Engine-owned text-input gate. Written by CSDLTextInputBackend::Start/Stop
+// from CInput::EnableTextInput/DisableTextInput; read by the NSEvent local
+// monitor's keyDown/keyUp gate below. Decouples the gate from
+// SDL_IsTextInputActive(), which only updates after a pumped SDL event
+// loop iteration — the same pump SDL_Start/StopTextInput invokes,
+// creating a mid-frame race where the monitor reads stale state during
+// [NSTextInputContext activate/deactivate] re-entry.
+//
+// memory_order_release on write / memory_order_acquire on read is
+// required NOT for thread safety (both sides may be main thread today),
+// but for proper publication ordering inside the NSApp re-entry window.
+std::atomic<bool> g_textInputActive{false};
 
 void QueuePush(const OpenXRayNSEventRecord &rec)
 {
@@ -589,45 +603,49 @@ extern "C" void OpenXRay_InstallNSEventMonitor(void)
 
                 NSWindow *window = [event window];
 
-                // SDL_IsTextInputActive() gate (gitea #124). When SDL text
-                // input is active (console open, save-name dialog, MP chat
-                // entry), AppKit must see keyDown so SDL can translate it
-                // into SDL_TEXTINPUT via the IME / interpretKeyEvents:
+                // Text-input gate (gitea #124, hardened in #141). When SDL
+                // text input is active (console open, save-name dialog, MP
+                // chat entry), AppKit must see keyDown so SDL can translate
+                // it into SDL_TEXTINPUT via the IME / interpretKeyEvents:
                 // pipeline. Swallowing the keyDown here (the A.3 default
-                // path) blocks SDL_TEXTINPUT entirely and breaks every
-                // text entry surface in the engine.
+                // path) blocks SDL_TEXTINPUT entirely and breaks every text
+                // entry surface in the engine.
                 //
                 // When text input is inactive (gameplay, menus driven by
                 // discrete key bindings) we still want the A.3 NSEvent
-                // pipeline: queue the record and consume so SDL never
-                // sees the keyDown — that is the whole reason A.3 exists
+                // pipeline: queue the record and consume so SDL never sees
+                // the keyDown — that is the whole reason A.3 exists
                 // (deterministic keyCode ordering, no SDL scancode races).
                 //
-                // CAVEAT — race risk on mid-frame toggle. EnableTextInput
-                // and DisableTextInput in xr_input.cpp call SDL_PumpEvents
-                // + SDL_FlushEvents, which re-enter the NSApp event loop
-                // mid-frame. If a UI handler toggles text input from inside
-                // the iteration, SDL_IsTextInputActive() can flip between
-                // adjacent NSEvents in the same drain, producing mixed
-                // routing (one keyDown queued, the next passed through).
-                // We accept this for #124 — the symptom would be one lost
-                // or duplicated keystroke at the exact frame the console
-                // is opened/closed, and is recoverable by the user. If
-                // smoke surfaces a regression (e.g. console grave key
-                // bouncing as in PR #125), the follow-up is a private
-                // g_textInputActive flag toggled around EnableTextInput /
-                // DisableTextInput plus dropping the SDL_PumpEvents calls
-                // there. cpp-engineer consilium 2026-05-27 verdict: pump
-                // removal is hygiene, not load-bearing for this fix.
+                // The gate reads an engine-owned std::atomic<bool>
+                // (g_textInputActive above) published by
+                // CSDLTextInputBackend::Start/Stop in SDLTextInputBackend.cpp
+                // synchronously with CInput::EnableTextInput/DisableTextInput.
+                // The previous SDL_IsTextInputActive() read races
+                // [NSTextInputContext activate/deactivate] re-entry inside
+                // SDL_Start/StopTextInput (the same pump path drives this
+                // monitor), producing stale-state windows that broke console
+                // and save-dialog input after the A.6 backend extraction.
+                //
+                // KeyUp asymmetry — known limitation. If the user holds key
+                // X while text input is ACTIVE, then text input toggles off
+                // (e.g. console closes) while X is still physically held,
+                // the eventual KeyUp arrives with g_textInputActive == false
+                // and lands in the A.3 ring queue without a paired KeyDown
+                // there — meanwhile SDL keyboardState still sees X as down.
+                // Symptom is the stuck-key class; trigger is narrow (modal
+                // toggle while key physically held). Deferred to A.7 where
+                // the entire keyboard pipeline is unified under native
+                // AppKit and the dual-pipeline asymmetry disappears.
                 switch (t)
                 {
                     case NSEventTypeKeyDown:
-                        if (SDL_IsTextInputActive())
+                        if (g_textInputActive.load(std::memory_order_acquire))
                             return event; // let SDL produce SDL_TEXTINPUT
                         QueuePush(MakeRecordFromKey(event, OXR_NS_EVENT_KEY_DOWN));
                         return nil;
                     case NSEventTypeKeyUp:
-                        if (SDL_IsTextInputActive())
+                        if (g_textInputActive.load(std::memory_order_acquire))
                             return event;
                         QueuePush(MakeRecordFromKey(event, OXR_NS_EVENT_KEY_UP));
                         return nil;
@@ -681,6 +699,11 @@ extern "C" void OpenXRay_InstallNSEventMonitor(void)
 extern "C" void OpenXRay_SetNSEventInputEnabled(int enabled)
 {
     g_nsEventInputEnabled = (enabled != 0);
+}
+
+extern "C" void OpenXRay_NotifyTextInputActive(int active)
+{
+    g_textInputActive.store(active != 0, std::memory_order_release);
 }
 
 extern "C" void OpenXRay_SetMouseCaptureMode(int captured)
