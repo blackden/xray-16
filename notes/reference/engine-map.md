@@ -589,7 +589,36 @@ window events продолжают идти через SDL.
   имеет `kVK_ISO_Section` (0x0A), не `kVK_ANSI_Grave` (0x32). SDL
   свопал их runtime для совместимости с US ANSI bindings. Мы маппим
   обе на SCANCODE_GRAVE (без runtime detection) — обе работают как
-  console-open, безвредно.
+  console-open, безвредно. (Asymmetry на close замечена 2026-05-28 —
+  `~` open, `§` close; ` после открытия консоли просто печатается.
+  Follow-up task #19.)
+- **Text-input двойной gate (post-A.6 #142/#147)**: `g_textInputActive`
+  (наш atomic в шиме) И `SDL_IsTextInputActive()` (downstream внутри
+  SDL `Cocoa_HandleKeyEvent`) — оба должны быть true для `SDL_TEXTINPUT`
+  delivery. Ordering в `CSDLTextInputBackend::Start/Stop` критичен:
+  notify(1) ДО `SDL_StartTextInput()`, notify(0) ДО `SDL_StopTextInput()`
+  (asymmetric — Stop'ы re-enter run loop через `[NSTextInputContext
+  deactivate]`, gate должен быть закрыт ДО tear-down иначе orphan key).
+  См. `SDLTextInputBackend.cpp` + `macos_cocoa_shim.mm:643/648` гейт.
+- **SDL drain должен бежать всегда на Apple (post-A.6 #147)**: при
+  `nsevent_input=1` когда gate=false, NSEvent monitor swallow'ит keyDown
+  → SDL queue empty → drain no-op. Но когда gate=true (text input on),
+  keyDown'ы doходят до SDL queue. Если drain skipается на Apple
+  (как было pre-#147), `SDL_KEYDOWN`/`SDL_TEXTINPUT` orphan'ятся в
+  queue, `IR_OnKeyboardPress(DIK_GRAVE)` не firится → консоль не
+  закрывается, текст не доходит до ImGui InputText.
+  `CInput::KeyUpdate` (xr_input.cpp ~681) теперь drain'ит безусловно.
+- **ImGui's `WantTextInput` реактивный**: становится `true` ТОЛЬКО
+  после того как `InputText` widget получил первый keyDown. Любой
+  gating layer что swallow'ит keyDown ДО ImGui — deadlock для
+  ImGui-driven text consumers. `ide::UpdateTextInput()` через
+  `WantTextInput` это secondary refinement; primary активация должна
+  быть **proactive** в Show/open path. Mirror'ить
+  `line_edit_control::on_ir_capture/release` — explicit
+  `EnableTextInput`/`DisableTextInput`. См. fix `CConsole::Show/Hide`
+  в #145. Кандидаты для аналогичного фикса: F11/F12 dev panels с
+  ImGui InputText (если когда-нибудь добавим), любые ImGui-driven
+  dialog'и с input.
 
 ## Audio (xrSound + OpenAL)
 
