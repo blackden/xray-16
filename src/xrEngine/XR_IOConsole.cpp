@@ -513,6 +513,13 @@ void CConsole::Show()
 
     if (!Device.editor().IsActiveState())
         IR_Capture();
+    // Explicit EnableTextInput because console uses ImGui InputText
+    // (reactive WantTextInput), not the line_edit_control pattern.
+    // After T1 (#141) the NSEvent gate swallows keyDown unless we
+    // proactively flip the engine-owned g_textInputActive; ImGui
+    // can't activate InputText without the first keyDown reaching it,
+    // creating a deadlock without this explicit call. See #144.
+    pInput->EnableTextInput();
     Device.seqFrame.Add(this);
 }
 
@@ -532,6 +539,8 @@ void CConsole::Hide()
 
     Device.seqFrame.Remove(this);
     IR_Release();
+    // Symmetric to Show(); see #144 / EnableTextInput rationale.
+    pInput->DisableTextInput();
     if (!Device.editor().IsActiveState())
         Device.editor().UpdateTextInput(true);
 }
