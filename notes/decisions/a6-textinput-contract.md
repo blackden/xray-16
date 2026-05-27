@@ -189,3 +189,72 @@ consume-keyDown pipeline без arbitration flag (= #124 trap class).
 - **No yes-man** ([feedback_no_yes_man]) — пользователь redirected
   с throughput-логики обратно к correctness принципу; foreground
   изменил рекомендацию.
+
+## Постмортем: T1 не закрыл симптом, T1.1+T1.2 закрыли (2026-05-28)
+
+A.6 закрыт **финальным stack'ом 5 PR'ов**, не единичным T1. Первый
+закрытый T1 (#142) не починил user-visible симптом несмотря на passing
+adversarial review apple-platform + cpp-engineer. Это потребовало 2
+follow-up'а:
+
+### T1.1 (#144/#145) — ImGui reactive deadlock
+
+`CConsole::Show()` не вызывает `EnableTextInput` явно. Console — ImGui
+based (`InputText` widget), относится на `ide::UpdateTextInput()` (читает
+`ImGui::GetIO().WantTextInput`). `WantTextInput` — **реактивный** флаг:
+становится `true` ТОЛЬКО после того как `InputText` widget получил первый
+keyDown. Pre-T1 это работало пассивно (SDL всегда пампил keyDowns).
+Post-T1 gate swallow'ит keyDown до того как SDL/ImGui видит → `InputText`
+не активируется → `WantTextInput` навсегда `false` → `EnableTextInput`
+никогда не вызывается → deadlock.
+
+**Fix:** `CConsole::Show()` явно вызывает `pInput->EnableTextInput()`,
+`Hide()` — `DisableTextInput()`. Mirror'ит `line_edit_control::on_ir_capture/release`
+паттерн для legacy CUICustomEdit.
+
+### T1.2 (#146/#147) — SDL drain skip orphaned events
+
+`xr_input.cpp:681-685` (pre-#147) unconditionally skip'ил SDL drain на
+Apple когда `nsevent_input=1`. Логика была: «keyDown'ы потребляются
+NSEvent monitor'ом перед SDL, drain — no-op». **Это верно только когда
+gate=false.** Когда `g_textInputActive=true` (text input active), NSEvent
+monitor возвращает event → AppKit forwards → SDL queues `SDL_KEYDOWN` +
+`SDL_TEXTINPUT`, но `runSDLDrain=false` → события orphan'ятся в SDL
+queue. `IR_OnKeyboardPress(DIK_GRAVE)` не firится → `Hide()` не вызывается
+(консоль не закрывается); `SDL_TEXTINPUT` не доходит до ImGui InputText
+(не пишет).
+
+**Fix:** убран Apple-conditional skip. Когда gate closed — SDL queue пуст
+естественно (monitor swallow'ит), drain автоматически no-op. Когда gate
+open — drain критичен. Unconditional drain функционально эквивалентен
+«drain when gate open», просто без Apple-branch.
+
+### Уроки для playbook
+
+1. **Adversarial review can miss the obvious if the question framing is wrong.**
+   apple-platform и cpp-engineer оба ВИДЕЛИ `runSDLDrain` skip и `WantTextInput`
+   реактивность, но не связали их с симптомом потому что мой брифинг
+   сфокусировал на гейте, не на orphan'е events post-gate.
+2. **2 fail подряд = stop, ask for user symptom details before next fix.**
+   Симптом «открывается, не закрывается» от ragnar'а — buzz-killer, дал
+   прямой указатель на T1.2 за минуты. Я этого симптома не спрашивал
+   между T1 и T1.1 — потратил цикл на blind fix.
+3. **ImGui reactive `WantTextInput` это landmine pattern.** Любой gating
+   layer на keyDown deadlock'ит ImGui-driven text consumers. Future
+   ImGui-driven UI с InputText требует proactive `EnableTextInput` в
+   open path.
+
+Codified в memory: `project_sdl_double_gate_macos`,
+`project_imgui_wanttextinput_reactive`, `feedback_two_fails_call_team_lead`.
+
+## Финальный stack PR'ов
+
+| PR | Issue | Что закрыл |
+|----|-------|------------|
+| #142 | #141 | T1: engine-owned `std::atomic<bool> g_textInputActive` flag, NSEvent gate переведён с `SDL_IsTextInputActive()` |
+| #145 | #144 | T1.1 hotfix: explicit `EnableTextInput`/`DisableTextInput` в `CConsole::Show/Hide` (ImGui reactive deadlock) |
+| #147 | #146 | T1.2 critical: убран Apple-conditional SDL drain skip в `CInput::KeyUpdate` (orphan events когда gate open) |
+| #148 | #143 | T2 hygiene: убран `SDL_PumpEvents` из `CSDLTextInputBackend::Start/Stop`, сохранён `SDL_FlushEvent(SDL_TEXTEDITING)` в Stop |
+| #150 | #149 | T3 cleanup: удалён dead `IsActive()` surface из `ITextInputBackend` (нет consumers; counter — authoritative) |
+
+A.6 техдолг закрыт. Ready for A.7 (SDL2 removed из macOS-билда).
