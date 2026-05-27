@@ -670,19 +670,20 @@ void CInput::KeyUpdate()
 {
     ZoneScoped;
 
-    // The SDL drain block below pulls keyboard events from SDL's queue and
-    // emits IR_OnKeyboardPress/Release + maintains keyboardState. On Apple
-    // with nsevent_input=1 the NSEvent local monitor consumes keyboard
-    // events before SDL sees them — keyboardState is then maintained by the
-    // NSEvent drain in OnFrame() — so draining SDL is a no-op (count==0) and
-    // we skip it. The per-frame hold loop at the end must run unconditionally:
-    // it reads keyboardState (populated by whichever source is active) and
-    // drives hold-based features (sprint hold, continuous-fire, menu repeat).
+    // Drain SDL keyboard events. On Apple with nsevent_input=1, gameplay
+    // keyDowns are consumed by the NSEvent local monitor before SDL sees
+    // them, so the SDL queue is empty and this drain is a no-op. However,
+    // when text input is active (g_textInputActive flag opens the monitor
+    // gate — console open, save dialog, MP chat), keyDowns pass through to
+    // SDL via [NSWindow keyDown:] and produce SDL_KEYDOWN / SDL_TEXTINPUT
+    // events here. Those must be drained the same way as on Linux/Windows
+    // so console toggles (DIK_GRAVE), text input (SDL_TEXTINPUT → ImGui),
+    // and save-name typing work. The pre-#146 unconditional skip orphaned
+    // those events and broke text input post-A.6 (#142/#145 closes #146).
+    // The per-frame hold loop at the end must run unconditionally: it reads
+    // keyboardState (populated by whichever source is active) and drives
+    // hold-based features (sprint hold, continuous-fire, menu repeat).
     bool runSDLDrain = true;
-#if defined(XR_PLATFORM_APPLE)
-    if (g_nsEventInputCvar)
-        runSDLDrain = false;
-#endif
 
     if (runSDLDrain)
     {
