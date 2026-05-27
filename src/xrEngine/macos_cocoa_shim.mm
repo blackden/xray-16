@@ -46,6 +46,8 @@
 #include <unistd.h>
 #include <string.h>
 
+#include <os/lock.h>
+
 #import <AppKit/AppKit.h>
 #import <Foundation/Foundation.h>
 
@@ -83,15 +85,43 @@ extern "C" void OpenXRay_OnAppWillResignActive(void);
 // NSEvent input pipeline (issue #120, A.3 step 2a/4) — infrastructure-only.
 //
 // Fixed-size ring queue + local-monitor scaffolding for keyboard / mouse /
-// scroll / modifier events. Producer is the local-monitor block (main thread);
-// consumer is CInput::OnFrame() via OpenXRay_DrainNSEventQueue (also main
-// thread, разнесён во времени в пределах кадра — без atomics).
+// scroll / modifier events.
 //
-// In commit 2a/4 the handler is a STUB: it returns every event unconditionally
-// (никаких QueuePush, никаких return nil). SDL pipeline продолжает рулить.
-// Activation (consume + nil-return for keyboard) lands in commit 2c.
-// Translator helpers (MakeRecordFrom*) тоже определены но не вызываются —
-// помечены [[maybe_unused]] чтобы compiler не ругался.
+// Threading & ordering (issue #132):
+//   Producer: NSEvent local-monitor block. Runs on the AppKit main thread
+//             during -[NSApplication run] / -[NSApplication sendEvent:],
+//             which is also what SDL_PumpEvents drives. Producer touches:
+//             buf, head, tail, overflowed.
+//   Consumer: OpenXRay_DrainNSEventQueue, called from CInput::OnFrame()
+//             (see src/xrEngine/xr_input.cpp:1171). Today the consumer also
+//             runs on the main thread (SDL polls events from the same loop
+//             that pumps the engine frame), so producer and consumer are
+//             temporally — not actually — concurrent. They cannot interleave
+//             on the current code path.
+//
+// Why bother with locking, then? Two reasons:
+//   1. Forward compatibility. The native-rewrite endgame (own NSApp +
+//      NSWindow + GCController, drop SDL window/input) splits these two
+//      onto separate threads. With `nsevent_input=1` becoming default in
+//      PR-A (issue #121-family), every keystroke flows through this queue;
+//      a partial-write window on Apple Silicon's weak memory model would
+//      be hit immediately once the consumer moves off-thread.
+//   2. Defence in depth even on single-thread. SDL_PumpEvents can re-enter
+//      AppKit during EnableTextInput / DisableTextInput, draining queued
+//      events mid-frame (see project memory: SDL_PumpEvents re-entry trap).
+//      Treating push/drain as atomic critical sections rules out a
+//      half-written record being read by a re-entrant drain.
+//
+// Implementation: os_unfair_lock around the whole {check-full, write-slot,
+// advance-tail} and {read-slot, advance-head} sequences. Chosen over a
+// lock-free SPSC ring because the overflow policy is "drop oldest", which
+// requires the producer to advance `head` — that violates classic SPSC
+// (head is consumer-only). Switching policy to "drop newest" would lose
+// release events (key-up, mouse-up), which is the worst possible class to
+// drop: a missing release leaves a stuck key. os_unfair_lock is the
+// lowest-overhead primitive on Apple platforms for short critical sections
+// of this shape and is safe to take from the main thread; it does NOT spin
+// in userspace forever, it yields to the kernel after a brief spin.
 // ---------------------------------------------------------------------------
 
 namespace
@@ -101,10 +131,12 @@ constexpr size_t kQueueCapacity = 256;
 struct NSEventQueue
 {
     OpenXRayNSEventRecord buf[kQueueCapacity];
-    size_t head       = 0; // next read
-    size_t tail       = 0; // next write
-    size_t count      = 0;
-    bool   overflowed = false;
+    size_t        head       = 0; // next read; advanced by consumer, also by
+                                  // producer on overflow (drop-oldest policy)
+    size_t        tail       = 0; // next write; advanced by producer only
+    size_t        count      = 0; // live record count; guarded by lock
+    bool          overflowed = false;
+    os_unfair_lock lock      = OS_UNFAIR_LOCK_INIT;
 };
 
 NSEventQueue g_nsEventQueue;
@@ -115,24 +147,36 @@ id           g_nsEventMonitor      = nil;
 
 void QueuePush(const OpenXRayNSEventRecord &rec)
 {
-    if (g_nsEventQueue.count == kQueueCapacity)
+    bool justOverflowed = false;
+    os_unfair_lock_lock(&g_nsEventQueue.lock);
     {
-        // Drop oldest — preserve newer state (release events more critical
-        // than stale presses).
-        g_nsEventQueue.head = (g_nsEventQueue.head + 1) % kQueueCapacity;
-        --g_nsEventQueue.count;
-
-        if (!g_nsEventQueue.overflowed)
+        if (g_nsEventQueue.count == kQueueCapacity)
         {
-            static const char msg[] =
-                "==> OpenXRay NSEvent queue overflow — dropping oldest\n";
-            ::write(STDERR_FILENO, msg, sizeof(msg) - 1);
-            g_nsEventQueue.overflowed = true;
+            // Drop oldest — preserve newer state (release events more critical
+            // than stale presses; losing a key-up leaves a stuck key forever).
+            g_nsEventQueue.head = (g_nsEventQueue.head + 1) % kQueueCapacity;
+            --g_nsEventQueue.count;
+
+            if (!g_nsEventQueue.overflowed)
+            {
+                g_nsEventQueue.overflowed = true;
+                justOverflowed            = true;
+            }
         }
+        g_nsEventQueue.buf[g_nsEventQueue.tail] = rec;
+        g_nsEventQueue.tail                     = (g_nsEventQueue.tail + 1) % kQueueCapacity;
+        ++g_nsEventQueue.count;
     }
-    g_nsEventQueue.buf[g_nsEventQueue.tail] = rec;
-    g_nsEventQueue.tail = (g_nsEventQueue.tail + 1) % kQueueCapacity;
-    ++g_nsEventQueue.count;
+    os_unfair_lock_unlock(&g_nsEventQueue.lock);
+
+    // Diagnostic write outside the critical section — ::write can block on a
+    // pipe consumer and we don't want a stalled stderr to extend lock hold.
+    if (justOverflowed)
+    {
+        static const char msg[] =
+            "==> OpenXRay NSEvent queue overflow — dropping oldest\n";
+        ::write(STDERR_FILENO, msg, sizeof(msg) - 1);
+    }
 }
 
 // Translator helpers — called from the local-monitor handler below.
@@ -592,11 +636,15 @@ extern "C" size_t OpenXRay_DrainNSEventQueue(struct OpenXRayNSEventRecord *out, 
         return 0;
 
     size_t n = 0;
-    while (g_nsEventQueue.count > 0 && n < maxCount)
+    os_unfair_lock_lock(&g_nsEventQueue.lock);
     {
-        out[n++] = g_nsEventQueue.buf[g_nsEventQueue.head];
-        g_nsEventQueue.head = (g_nsEventQueue.head + 1) % kQueueCapacity;
-        --g_nsEventQueue.count;
+        while (g_nsEventQueue.count > 0 && n < maxCount)
+        {
+            out[n++]            = g_nsEventQueue.buf[g_nsEventQueue.head];
+            g_nsEventQueue.head = (g_nsEventQueue.head + 1) % kQueueCapacity;
+            --g_nsEventQueue.count;
+        }
     }
+    os_unfair_lock_unlock(&g_nsEventQueue.lock);
     return n;
 }
