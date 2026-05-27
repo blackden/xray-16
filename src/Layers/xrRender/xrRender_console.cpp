@@ -780,10 +780,9 @@ void xrRender_initconsole()
     // keyboard drain in CInput::KeyUpdate(). See issue #120.
     CMD4(CCC_NSEventInput, "nsevent_input", &::g_nsEventInputCvar, 0, 1);
 
-    // Toggle Apple-native timing in CPU::QPC()/GetTicks(). Default 0 in
-    // this build (A.4.1) — legacy SDL2 path stays active until A.4.2
-    // flips the default to 1 after microbench parity is confirmed. See
-    // issue #123.
+    // Toggle Apple-native timing in CPU::QPC()/GetTicks(). Default 1 on
+    // macOS after A.4.1 microbench confirmed gameplay parity with the
+    // legacy SDL pipeline (A.4.2). Set to 0 for diagnostics. See #123.
     CMD4(CCC_Integer, "native_timing", &::g_native_timing, 0, 1);
 #endif
 
