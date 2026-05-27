@@ -98,6 +98,14 @@ void CSoundRender_CoreA::_initialize()
         }
     }
 #endif
+
+#if !defined(XR_HAS_EAX)
+    Msg("* SOUND: EFX backend not built (no <eax/eax.h>) - snd_efx cvar has no effect");
+#else
+    if (!m_effects)
+        Msg("* SOUND: EFX backend present but device lacks ALC_EXT_EFX - snd_efx cvar has no effect");
+#endif
+
     inherited::_initialize();
 
     // Pre-create targets
