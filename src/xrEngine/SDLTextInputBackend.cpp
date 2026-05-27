@@ -6,9 +6,10 @@
 #include <SDL.h>
 
 #if defined(XR_PLATFORM_APPLE)
-// Inline forward-decl — see SDLTextInputBackend.h XXX block. Header for
-// macos_cocoa_shim.h deliberately scopes itself to the A.3 NSEvent
-// pipeline; this notify symbol piggybacks on the same TU as the gate.
+// Inline forward-decl — see SDLTextInputBackend.h header comment. The
+// macos_cocoa_shim.h header deliberately scopes itself to the A.3
+// NSEvent pipeline; this notify symbol piggybacks on the same TU as
+// the gate.
 extern "C" void OpenXRay_NotifyTextInputActive(int active);
 #endif
 
@@ -21,7 +22,9 @@ void CSDLTextInputBackend::Start()
     OpenXRay_NotifyTextInputActive(1);
 #endif
     SDL_StartTextInput();
-    SDL_PumpEvents();
+    // Drop the whole TEXTEDITING..TEXTINPUT range so a fresh receiver
+    // does not see stale composition or final-text from the previous
+    // surface.
     SDL_FlushEvents(SDL_TEXTEDITING, SDL_TEXTINPUT);
 }
 
@@ -40,8 +43,11 @@ void CSDLTextInputBackend::Stop()
     OpenXRay_NotifyTextInputActive(0);
 #endif
     SDL_StopTextInput();
-    SDL_PumpEvents();
-    SDL_FlushEvents(SDL_TEXTEDITING, SDL_TEXTINPUT);
+    // Narrower than Start: drop in-flight composition only. Final
+    // SDL_TEXTINPUT characters already committed by the user must
+    // reach the outgoing receiver, since they represent deliberate
+    // typing up to the moment the surface closed.
+    SDL_FlushEvent(SDL_TEXTEDITING);
 }
 
 bool CSDLTextInputBackend::IsActive() const
