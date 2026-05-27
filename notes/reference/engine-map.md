@@ -591,6 +591,54 @@ window events продолжают идти через SDL.
   обе на SCANCODE_GRAVE (без runtime detection) — обе работают как
   console-open, безвредно.
 
+## Audio (xrSound + OpenAL)
+
+- **Backend на macOS — Apple OpenAL.framework, не openal-soft.**
+  `cmake/XRay.Compiler.GNULike.cmake:160` использует
+  `find_package(OpenAL REQUIRED)` без hint'ов — CMake's `FindOpenAL`
+  ищет `/System/Library/Frameworks` первым и попадает в Apple's
+  framework (deprecated с macOS 10.15). Brewfile установил
+  `openal-soft`, но формула `keg_only :provided_by_macos` → не
+  симлинкуется в `/opt/homebrew/lib`, CMake его не видит. Результат:
+  **нет EFX/EAX, нет HRTF**, spatial audio = простой amplitude panning.
+  Любой fix требует `OPENAL_ROOT=/opt/homebrew/opt/openal-soft`
+  injection в `if(APPLE)` блок + EFX backend C-side + dylib packaging
+  в `scripts/mac/package_app.sh`. Детали в
+  [`notes/decisions/a5-audio-audit.md`](../decisions/a5-audio-audit.md).
+- **`alcCreateContext(pDevice, nullptr)`** в `src/xrSound/SoundRender_CoreA.cpp:60`
+  — нет attribute list, нет HRTF hint, нет frequency/sources control.
+  Даже если бы линковался openal-soft, HRTF был бы выключен по умолчанию
+  (нужен `ALC_HRTF_SOFT, ALC_TRUE`).
+- **EFX backend существует только как EAX wrapper.** `CSoundRender_Effects`
+  pure-virtual base + единственная имплементация
+  `SoundRender_EffectsA_EAX.cpp`, gated `__has_include(<eax/eax.h>)`.
+  На macOS header отсутствует → `m_effects == nullptr` навсегда.
+  `OpenALDeviceList.cpp:71` собирает `addedDevice.props.efx`, но
+  никогда не используется чтобы инстанциировать backend — non-EAX EFX
+  пути нет в codebase.
+- **`snd_efx 1` silently no-ops на macOS.** Cvar `CCC_Mask` flip'ает
+  `ss_EFX` бит, runtime gate `Sound.cpp:195`
+  `if (!psSoundFlags.test(ss_EFX) || !m_effects) return;` — на macOS
+  `m_effects` всегда nullptr → toggle не пишет в лог, не warning'ит,
+  user не понимает почему «нет EFX». Open issue для one-time
+  init-time Msg.
+- **xrSound имеет ноль Apple-conditional кода.** Грепни
+  `XR_PLATFORM_APPLE`/`__APPLE__`/`TARGET_OS_MAC` в `src/xrSound/` —
+  zero hits. Единственное упоминание — comment про lowercase
+  `AL_EXT_float32` (`SoundRender_CoreA.cpp:85`). Divergence Apple
+  framework vs openal-soft surface'ится без grep'абельного маркера.
+- **Sound shutdown order:** `Engine.Sound.Destroy()` в `x_ray.cpp:361`
+  идёт **до** `Device.Destroy()` (`:363`) — инверсия spatial-DB hazard'а.
+  Sound не держит spatial-DB ref'ов, safe.
+  `~CSoundRender_Scene` skip-on-shutdown patch (`SoundRender_Scene.cpp:14-26`,
+  commit `16cffe997`) гейтится `g_bShuttingDown` и работает корректно.
+- **Latent fragility:** `GEnv.Sound = nullptr` precedes `_clear` и
+  `xr_delete` в `Sound.cpp:41-44` — любой post-`Destroy` доступ →
+  null deref. Также `CSoundRender_EffectsA_EAX` member'ы
+  `m_is_supported`/`m_is_deferred` не value-initialised в header
+  (`:13-17`), ctor early-return'ит до их assign — vanilla upstream PR
+  candidate, masked текущим `initialized()` short-circuit.
+
 ## Recurring patterns (look here before inventing)
 
 - Apple-platform code gates: `#if defined(XR_PLATFORM_APPLE)` in
