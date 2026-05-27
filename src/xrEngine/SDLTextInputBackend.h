@@ -17,15 +17,16 @@
 //     SDL_IsTextInputActive(); without the pump the gate races with
 //     the toggle for one frame (gitea #124 follow-up territory).
 //
-// XXX [ragnar] A6-PUMP-REMOVAL: the cpp-engineer consilium
-// (2026-05-27) called the pump pair "hygiene, not load-bearing".
-// Dropping it requires either (a) deferring Start/Stop to the next
-// frame boundary so the NSEvent monitor never observes a mid-frame
-// flip, or (b) maintaining a private g_textInputActive flag in the
-// shim that's toggled around CInput::Enable/DisableTextInput
-// directly. Out of A.6.3 scope — revisit when the native macOS
-// text-input backend lands and the shim's flag is the source of
-// truth anyway.
+// XXX [ragnar] A6-PUMP-REMOVAL: T1 (gitea #141) replaced the
+// SDL_IsTextInputActive() gate in macos_cocoa_shim.mm with an
+// engine-owned std::atomic<bool> toggled directly by Start/Stop
+// here via OpenXRay_NotifyTextInputActive — the re-entry race that
+// motivated the pump pair is gone, so dropping SDL_PumpEvents from
+// both Start and Stop is the next step (PR T2). Keep
+// SDL_FlushEvent(SDL_TEXTEDITING) in Stop when T2 lands: KeyUpdate's
+// SDL_PeepEvents range is SDL_KEYDOWN..SDL_KEYMAPCHANGED and does
+// NOT cover TEXTEDITING, so half-composed IME events would leak
+// between sessions without an explicit flush.
 class CSDLTextInputBackend final : public ITextInputBackend
 {
 public:
