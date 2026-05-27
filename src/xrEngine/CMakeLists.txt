@@ -272,6 +272,10 @@ target_sources_grouped(
     FILES
     IInputReceiver.cpp
     IInputReceiver.h
+    ITextInputBackend.cpp
+    ITextInputBackend.h
+    SDLTextInputBackend.cpp
+    SDLTextInputBackend.h
     xr_input.cpp
     xr_input.h
 )
