@@ -303,9 +303,16 @@ extern "C" void OpenXRay_VerifyInputTable()
 // `g_nsEventInputCvar` has external linkage on purpose: the console
 // command lives in xrRender_console.cpp (different TU) and writes
 // straight into this storage via `extern int g_nsEventInputCvar`.
-// 1 = NSEvent pipeline drives keyboard input (default), 0 = legacy
-// SDL keyboard pipeline.
-int g_nsEventInputCvar = 1;
+// 1 = NSEvent pipeline drives keyboard input, 0 = legacy SDL keyboard
+// pipeline.
+//
+// HOT-FIX (issue #124): default temporarily flipped to 0 because the
+// NSEvent local monitor in macos_cocoa_shim.mm swallows every keyDown,
+// which breaks SDL_TEXTINPUT (console text input, save dialog name,
+// MP chat). Proper fix in `issue-124-text-input-fix` branch will gate
+// the swallow on `SDL_IsTextInputActive()`; when that lands, default
+// returns to 1 in the same PR.
+int g_nsEventInputCvar = 0;
 
 namespace
 {
