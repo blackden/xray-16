@@ -2,6 +2,7 @@
 #pragma hdrstop
 
 #include "xr_input.h"
+#include "ITextInputBackend.h"
 #include "IInputReceiver.h"
 #include "GameFont.h"
 #include "XR_IOConsole.h"
@@ -468,6 +469,8 @@ CInput::CInput(const bool exclusive)
     exclusiveInput = exclusive;
 
     Log("Starting INPUT device...");
+
+    textInputBackend = CreateSDLTextInputBackend();
 
     mouseState.reset();
     keyboardState.reset();
@@ -1118,10 +1121,7 @@ void CInput::EnableTextInput()
     ++textInputCounter;
 
     if (textInputCounter == 1)
-        SDL_StartTextInput();
-
-    SDL_PumpEvents();
-    SDL_FlushEvents(SDL_TEXTEDITING, SDL_TEXTINPUT);
+        textInputBackend->Start();
 }
 
 void CInput::DisableTextInput()
@@ -1131,10 +1131,7 @@ void CInput::DisableTextInput()
         textInputCounter = 0;
 
     if (textInputCounter == 0)
-        SDL_StopTextInput();
-
-    SDL_PumpEvents();
-    SDL_FlushEvents(SDL_TEXTEDITING, SDL_TEXTINPUT);
+        textInputBackend->Stop();
 }
 
 bool CInput::IsTextInputEnabled() const
