@@ -1128,7 +1128,10 @@ void CInput::DisableTextInput()
 {
     --textInputCounter;
     if (textInputCounter < 0)
+    {
+        Msg("! [text-input] DisableTextInput underflow — counter clamped");
         textInputCounter = 0;
+    }
 
     if (textInputCounter == 0)
         textInputBackend->Stop();
