@@ -362,14 +362,24 @@ if (APPLE)
         FILES
         os_clipboard_mac.mm
     )
+    # NSAlert backend for xrDebug fatal dialogs (A.6.2). Replaces SDL
+    # SDL_ShowSimpleMessageBox / SDL_ShowMessageBox on Apple; see header
+    # comment in xrDebug_mac.mm.
+    target_sources_grouped(
+        TARGET xrCore
+        NAME "Debug core"
+        FILES
+        xrDebug_mac.mm
+    )
     # Match xrEngine .mm settings: skip PCH (stdafx.h is plain C++,
     # Foundation headers conflict inside the cxx PCH) and unity build
     # (Foundation/AppKit headers can't survive concatenation with .cpp
     # TUs in unity_*_cxx.cxx). -fobjc-arc enables automatic reference
-    # counting so NSPasteboard / NSString objects don't need manual
-    # retain/release — consistent with src/xrEngine/macos_cocoa_shim.mm.
+    # counting so NSPasteboard / NSString / NSAlert objects don't need
+    # manual retain/release — consistent with src/xrEngine/macos_cocoa_shim.mm.
     set_source_files_properties(
         os_clipboard_mac.mm
+        xrDebug_mac.mm
         PROPERTIES
         SKIP_PRECOMPILE_HEADERS ON
         SKIP_UNITY_BUILD_INCLUSION ON
