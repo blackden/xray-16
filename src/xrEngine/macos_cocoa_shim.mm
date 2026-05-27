@@ -64,6 +64,14 @@ extern "C" void OpenXRay_RequestGracefulQuit(void);
 // после возврата (NSEvent для button-up в фоновом приложении не приходит).
 extern "C" void OpenXRay_SyntheticReleaseAllKeys(void);
 
+// Deferred variant of the above (gitea #134). Sets an atomic pending flag
+// drained at the next frame boundary by the render thread (see
+// OpenXRay_RunPerFrameMacOSHooks in Engine.cpp). Use this — not the synchronous
+// SyntheticReleaseAllKeys — from any AppKit-thread observer: IR_ReleaseAll()
+// races KeyUpdate() reading keyboardState on the render thread, and fires
+// IR_OnKeyboard{Release} into game receivers that are not thread-safe.
+extern "C" void OpenXRay_RequestReleaseAllKeys(void);
+
 // Defined in xr_input.cpp under XR_PLATFORM_APPLE — записывает переданные
 // NSEvent.modifierFlags в file-static g_lastShimModifierFlags, чтобы следующий
 // FlagsChanged record в NSEventDrain считал diff от актуального состояния.
@@ -321,8 +329,9 @@ static OpenXRayCocoaShim *sInstalledShim = nil;
     // зажатые клавиши и mouse buttons. NSEvent для key-up / mouse-up между
     // sleep и wake не приходят, поэтому держимые на момент засыпания биты
     // останутся залипшими. После wake пользователь начинает с чистого
-    // состояния.
-    OpenXRay_SyntheticReleaseAllKeys();
+    // состояния. Defer to frame boundary (gitea #134): IR_ReleaseAll() must
+    // not run on the AppKit thread — races KeyUpdate() on the render thread.
+    OpenXRay_RequestReleaseAllKeys();
 }
 
 - (void)workspaceDidWake:(NSNotification *)note
@@ -393,7 +402,22 @@ static OpenXRayCocoaShim *sInstalledShim = nil;
     // от Cmd-Tab выпадают — без этого LMB-зажатие + Cmd-Tab оставляет stuck
     // fire после возврата. IR_ReleaseAll правит и keyboardState и mouseState
     // и эмитит IR_OnKeyboardRelease / IR_OnMouseRelease для всех держимых.
-    OpenXRay_SyntheticReleaseAllKeys();
+    //
+    // Cmd-Tab specifically: macOS delivers the Cmd-down FlagsChanged to us
+    // while we are still frontmost, then switches focus before delivering
+    // Cmd-up to the new frontmost app — we never see the Cmd-up, so the
+    // modifier remains "pressed" in both pipelines (SDL keyboardState and
+    // NSEvent g_lastShimModifierFlags). Without release-all on focus loss,
+    // returning to the app via Cmd-Tab leaves a phantom Cmd held: the very
+    // next bind-capture dialog (Settings -> Key bindings -> any action) snaps
+    // the keybind to right Cmd because IR_OnKeyboardHold for RGUI fires from
+    // the per-frame hold loop the moment the capture receiver activates.
+    //
+    // Deferred to frame boundary (gitea #134): IR_ReleaseAll() writes
+    // keyboardState/mouseState and dispatches IR_OnKeyboard{Release} into
+    // game receivers — both unsafe to do from the AppKit main thread while
+    // the render thread is mid-KeyUpdate.
+    OpenXRay_RequestReleaseAllKeys();
 }
 
 // Transparent forwarding to SDL's delegate for everything we don't override.
