@@ -30,6 +30,12 @@
 // when the pipeline is flipped under held keys.
 extern "C" int  g_nsEventInputCvar;
 extern "C" void OpenXRay_OnNSEventInputCvarChanged(int newValue);
+
+// Defined in xrCore/_math.cpp. 1 = CPU::QPC()/GetTicks() route through
+// Apple-native `mach_absolute_time`; 0 = legacy SDL2 path. Plain
+// CCC_Integer registration — flipping is a pure read-path swap, no
+// held-state to flush. See issue #123.
+extern "C" int  g_native_timing;
 #endif
 
 namespace xray::render::RENDER_NAMESPACE
@@ -773,6 +779,11 @@ void xrRender_initconsole()
     // (NSEvent path active). Flipping to 0 fails over to the legacy SDL
     // keyboard drain in CInput::KeyUpdate(). See issue #120.
     CMD4(CCC_NSEventInput, "nsevent_input", &::g_nsEventInputCvar, 0, 1);
+
+    // Toggle Apple-native timing in CPU::QPC()/GetTicks(). Default 1 on
+    // macOS after A.4.1 microbench confirmed gameplay parity with the
+    // legacy SDL pipeline (A.4.2). Set to 0 for diagnostics. See #123.
+    CMD4(CCC_Integer, "native_timing", &::g_native_timing, 0, 1);
 #endif
 
     CMD3(CCC_Preset, "_preset", &ps_Preset, qpreset_token);
