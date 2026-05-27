@@ -4,6 +4,7 @@
 
 #include <SDL.h>
 
+#include "ITextInputBackend.h"
 #include "xrCore/_vector2.h"
 
 #if !defined(__EMSCRIPTEN__) && !defined(__ANDROID__) && !(defined(__APPLE__) && TARGET_OS_IOS) && !defined(__amigaos4__)
@@ -200,6 +201,7 @@ private:
     MessageRegistry<pureKeyMapChanged> seqKeyMapChanged;
 
     int textInputCounter{};
+    xr_unique_ptr<ITextInputBackend> textInputBackend;
 
     InputType currentInputType{ KeyboardMouse };
 
