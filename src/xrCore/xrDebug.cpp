@@ -55,6 +55,15 @@ constexpr SDL_MessageBoxButtonData buttons[] =
          (int)AssertionResult::abort, "Cancel" }
 };
 
+#if defined(XR_PLATFORM_APPLE)
+// A.6.2: NSAlert backend, implemented in xrDebug_mac.mm. Declared here
+// rather than via a header to avoid pulling AppKit types into engine
+// translation units (same pattern as os_clipboard_mac.mm from A.6.1).
+extern "C" int OpenXRay_ShowSimpleAlert(int flags, const char* title, const char* message);
+extern "C" int OpenXRay_ShowAlertWithButtons(int flags, const char* title, const char* message,
+    const char* const* buttons, int* outPressedIndex);
+#endif
+
 AssertionResult xrDebug::ShowMessage(pcstr title, pcstr message, bool simpleMode)
 {
 #ifdef XR_PLATFORM_WINDOWS // because Windows default Message box is fancy
@@ -78,6 +87,29 @@ AssertionResult xrDebug::ShowMessage(pcstr title, pcstr message, bool simpleMode
     case IDCONTINUE: return AssertionResult::ignore;
     default: return AssertionResult::undefined;
     }
+#elif defined(XR_PLATFORM_APPLE)
+    // A.6.2 — NSAlert path. Keeps fatal dialogs off SDL on macOS so the
+    // assertion path can't re-enter SDL's event pump (mirrors A.6.1's
+    // clipboard move). The `buttons` array above is reused for label /
+    // buttonid mapping so Windows and SDL paths stay in sync.
+    if (simpleMode)
+    {
+        OpenXRay_ShowSimpleAlert(SDL_MESSAGEBOX_ERROR, title, message);
+        return AssertionResult::ok;
+    }
+
+    const char* labels[SDL_arraysize(buttons) + 1] = { nullptr };
+    for (size_t i = 0; i < SDL_arraysize(buttons); ++i)
+        labels[i] = buttons[i].text;
+    labels[SDL_arraysize(buttons)] = nullptr;
+
+    int pressed = -1;
+    const int rc = OpenXRay_ShowAlertWithButtons(SDL_MESSAGEBOX_ERROR, title, message,
+        labels, &pressed);
+    if (rc != 0 || pressed < 0 || pressed >= (int)SDL_arraysize(buttons))
+        return AssertionResult::undefined;
+
+    return (AssertionResult)buttons[pressed].buttonid;
 #else
     if (simpleMode)
     {
