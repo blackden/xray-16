@@ -16,12 +16,14 @@ XRCORE_API CRandom Random;
 // through Apple-native `mach_absolute_time`; 0 = legacy SDL2 timing path.
 // External linkage on purpose: the console command lives in a different TU
 // (`Layers/xrRender/xrRender_console.cpp`) and writes straight into this
-// storage via `extern "C" int g_native_timing`. Default 0 in this commit
-// (A.4.1) — A.4.2 flips it to 1 after microbench parity is confirmed.
+// storage via `extern "C" int g_native_timing`. Default 1 (A.4.2): native
+// path is the macOS shipping default after A.4.1 microbench confirmed
+// gameplay parity with the legacy SDL pipeline. Set `native_timing 0` to
+// fall back to SDL timing for diagnostics.
 // Definition without `extern "C"` mirrors the A.3 `g_nsEventInputCvar`
 // pattern (declared C-linkage in the console TU, defined as plain C++
 // global here — the symbol resolves either way for a POD int).
-int g_native_timing = 0;
+int g_native_timing = 1;
 
 namespace
 {
