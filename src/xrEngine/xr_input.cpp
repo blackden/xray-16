@@ -155,16 +155,6 @@ constexpr int kVK_JIS_Kana            = 0x68;
 // mid-frame text-input toggles.
 int g_nsEventInputCvar = 1;
 
-// Behaviour of the console toggle key (backtick on ANSI, § on ISO)
-// while text input is already active. 0 (default) — toggle key bypasses
-// the native NSTextInputContext handler and falls through to the A.3
-// ring; this lets CConsole::IR_OnKeyboardPress close the console with
-// the same key that opened it (the X-Ray standard behaviour). 1 —
-// toggle key passes through to native text input and inserts as a
-// printable character; only ESC closes the console. Personal preference
-// cvar — survives in user.ltx. Apple-only.
-int g_consoleTogglePassthrough = 0;
-
 // Apple HID keyCode -> SDL_Scancode mapping.
 // Static replica of SDL's internal table in SDL_cocoakeyboard.m. Lets us
 // drop SDL from the keyboard event path without changing the engine's
@@ -706,14 +696,15 @@ void CInput::KeyUpdate()
     // Drain SDL keyboard events.
     //
     // On Apple (A.7.2, gitea #165) the SDL queue drain is disabled
-    // entirely: keyDown has one ingest path now — the A.3 NSEvent
+    // entirely: keyDown has one ingest source now — the A.3 NSEvent
     // local monitor in macos_cocoa_shim.mm. In gameplay mode the
     // monitor swallows the event and pushes a ring-queue record
     // (drained by NSEventDrain in OnFrame -> IR_OnKeyboardPress); in
-    // text-input mode the monitor hands the event to
-    // [NSTextInputContext handleEvent:] (NativeTextInputBackend.mm),
-    // which lands committed UTF-8 in IR_OnTextInput on the top
-    // receiver. SDL still receives keyDowns in parallel via the
+    // text-input mode the monitor pushes a ring-queue record for nav
+    // keys (ESC / arrows / Enter) while AppKit's activated
+    // NSTextInputContext auto-dispatches printable keystrokes to
+    // insertText: on our NativeTextInputBackend view via the responder
+    // chain. SDL still receives keyDowns in parallel via the
     // [NSWindow keyDown:] responder chain (parallel ingest, see
     // notes/decisions/a6-textinput-contract.md), but with no consumer
     // here the SDL queue is inert: events accumulate harmlessly and

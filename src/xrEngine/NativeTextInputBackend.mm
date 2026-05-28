@@ -17,23 +17,24 @@
 // Architecture:
 //
 //   Singleton NSView subclass (OpenXRayTextInputView) that conforms
-//   to <NSTextInputClient>. Never installed in any window — we drive
-//   the input pipeline manually by feeding NSEvents into our own
-//   NSTextInputContext via [context handleEvent:]. NSTextInputContext
-//   then invokes interpretKeyEvents:-style dispatch which lands in
-//   our insertText:replacementRange: implementation, where we forward
-//   committed UTF-8 bytes to the engine via
-//   OpenXRay_DispatchTextInputUTF8.
+//   to <NSTextInputClient>. Acts as the NSTextInputClient for a
+//   process-wide NSTextInputContext. On Activate we call
+//   `[context activate]` — this makes the context AppKit's current
+//   input context, and AppKit's responder chain auto-dispatches
+//   keyDown events into interpretKeyEvents: which lands in our
+//   insertText:replacementRange:. Committed UTF-8 bytes are forwarded
+//   to the engine via OpenXRay_DispatchTextInputUTF8.
 //
-//   The view is detached (no superview / no firstResponder) because
-//   our A.3 NSEvent local monitor swallows keyDown before it can
-//   reach the responder chain (see
-//   notes/decisions/a6-textinput-contract.md "NSEvent local monitor
-//   returning nil ... blocks responder chain полностью"). Detached
-//   is fine: NSTextInputContext does not require the client view to
-//   be hosted in a window in order to translate keystrokes via
-//   [context handleEvent:] — it only needs the client to respond to
-//   the NSTextInputClient protocol.
+//   AppKit owns dispatch — the NSEvent local monitor does not call
+//   any handleEvent: itself. Iteration history: an earlier driver-style
+//   variant called [context handleEvent:] from the monitor while the
+//   context was also activated, producing two insertText: per keystroke
+//   (parallel ingest via [NSWindow keyDown:] + manual driver). Dropping
+//   `[activate]` killed text input entirely (DIAG7-F observed delta=0
+//   on a detached context). The current split — activate, no manual
+//   handleEvent: — yields exactly one AppKit-owned dispatch per
+//   keystroke. See notes/decisions/a7-2-native-text-input.md
+//   "Final architecture — AppKit-owned text dispatch".
 //
 //   Threading: all NSTextInputContext interaction happens on the
 //   AppKit main thread (which is also the engine main thread today —
@@ -63,14 +64,11 @@ extern "C" void OpenXRay_NotifyTextInputActive(int active);
 // stdafx (BOOL typedef collision with objc.h).
 extern "C" void OpenXRay_DispatchTextInputUTF8(const char* utf8);
 
-// Counter bumped by every successful insertText: invocation. Lets
-// OpenXRay_HandleNativeTextInputKeyDown tell whether
-// [context handleEvent:] produced committed text in this call
-// (counter delta > 0) or was absorbed mid-composition / no-op
-// (delta == 0). NSTextInputContext's BOOL return from handleEvent:
-// is over-broad (YES for any observed key even when no text was
-// committed), so we measure the only signal that matters to the
-// engine: did the bridge fire.
+// Counter bumped by every successful insertText: invocation. Parked
+// next to the DIAG7-B probe in insertText: so a future regression
+// (double-dispatch returning, or insertText: stalling) can be
+// observed via fprintf + counter delta without re-deriving the
+// instrumentation from scratch.
 namespace
 {
 std::atomic<int> g_insertTextDepth{0};
@@ -84,11 +82,12 @@ std::atomic<int> g_insertTextDepth{0};
 // ---------------------------------------------------------------------
 // NSTextInputClient — the only callback that does real work.
 //
-// AppKit calls this when interpretKeyEvents: (driven via
-// [sTextInputContext handleEvent:]) decides a keystroke has produced
-// committed text. For ASCII / Cyrillic precomposed input this fires
-// synchronously inside [context handleEvent:]; for dead-key
-// compositions it fires when the user completes the sequence.
+// AppKit calls this from interpretKeyEvents: (auto-dispatched when
+// our activated NSTextInputContext is the process-wide current input
+// context) once a keystroke has produced committed text. For ASCII /
+// Cyrillic precomposed input this fires synchronously inside AppKit's
+// keyDown handling; for dead-key compositions it fires when the user
+// completes the sequence.
 //
 // `insertString` is either NSString (plain) or NSAttributedString
 // (with attribute runs we don't care about). Strip attributes via
@@ -122,9 +121,9 @@ std::atomic<int> g_insertTextDepth{0};
 
     OpenXRay_DispatchTextInputUTF8(utf8);
 
-    // Signal to OpenXRay_HandleNativeTextInputKeyDown below that this
-    // [context handleEvent:] produced committed text. Release pairs
-    // with acquire on the read side.
+    // Counter parked alongside DIAG7-B probe — see declaration. Not
+    // read by any production code; available for future regression
+    // diagnosis.
     g_insertTextDepth.fetch_add(1, std::memory_order_release);
 }
 
@@ -228,22 +227,21 @@ extern "C" void OpenXRay_NativeTextInput_Activate(void)
         EnsureContextInitialized();
 
         // Publish gate flag — NSEvent local monitor reads
-        // g_textInputActive to decide whether to route KeyDown into
-        // the native text-input path ([context handleEvent:]) or the
-        // A.3 ring.
-        //
-        // NOTE: must NOT call [sTextInputContext activate]. Activate
-        // installs the context process-wide as the current input
-        // context, after which AppKit auto-routes every keyDown that
-        // reaches the responder chain (via [NSWindow keyDown:]
-        // parallel ingest path that our local NSEvent monitor cannot
-        // intercept) to our singleton view's insertText:. Combined
-        // with our manual [context handleEvent:] driver from the
-        // local monitor this fires insertText: TWICE per keystroke
-        // and doubles every character in the ImGui InputText field.
-        // handleEvent: works on detached/un-activated contexts —
-        // driver-style usage stays here.
+        // g_textInputActive to decide whether to consume KeyDown for
+        // text input or route into the A.3 ring.
         OpenXRay_NotifyTextInputActive(1);
+
+        // Activate makes the context process-wide current. AppKit
+        // then auto-dispatches keyDown events to insertText: on our
+        // client view via the responder chain — that single path
+        // (AppKit-owned) is the only producer of insertText: now.
+        // See OpenXRay_HandleNativeTextInputKeyDown below: the
+        // NSEvent local monitor does NOT manually call
+        // [context handleEvent:] anymore; doing so on top of AppKit's
+        // own dispatch double-fires insertText:. A detached context
+        // (no [activate]) doesn't dispatch at all (DIAG7-F observed
+        // delta=0), so activate is required.
+        [sTextInputContext activate];
     }
 }
 
@@ -251,8 +249,12 @@ extern "C" void OpenXRay_NativeTextInput_Deactivate(void)
 {
     @autoreleasepool
     {
-        // Symmetric — see Activate. No deactivate either: context was
-        // never activated, so nothing to undo besides the gate flag.
+        // Symmetric — drop process-wide current-context status so
+        // AppKit stops dispatching keyDown to our insertText: when
+        // the engine flips out of text-input mode.
+        if (sTextInputContext != nil)
+            [sTextInputContext deactivate];
+
         OpenXRay_NotifyTextInputActive(0);
     }
 }
@@ -260,47 +262,26 @@ extern "C" void OpenXRay_NativeTextInput_Deactivate(void)
 // ---------------------------------------------------------------------
 // C entry — called from the NSEvent local monitor in
 // macos_cocoa_shim.mm when KeyDown arrives while g_textInputActive
-// is set. Hands the event to NSTextInputContext via handleEvent:; the
-// context invokes insertText: synchronously for committed characters.
+// is set.
 //
-// Returns 1 if the event produced committed text (insertText: fired
-// during this call), 0 otherwise. The caller (cocoa shim) uses the
-// return to decide whether to fall back to the A.3 ring path so
-// non-printable keys (Enter, Escape, Backspace, arrows) still reach
-// gameplay receivers via IR_OnKeyboardPress.
+// AppKit's activated NSTextInputContext auto-dispatches keyDown to
+// insertText: on our client view via the responder chain. The local
+// monitor calls this entry only to ask «should I push the event into
+// the A.3 ring as well?». Return value is the gate: 0 → monitor
+// pushes scancode into A.3 ring (needed so ESC / arrows / Enter still
+// reach IR_OnKeyboardPress for nav inside the console / ImGui
+// surface); 1 would suppress A.3 entirely.
+//
+// We always return 0. AppKit fires insertText: for printable keys
+// (handled by the consumer via IR_OnTextInput); for control keys
+// AppKit calls doCommandBySelector: on our view stub (no-op) so
+// insertText: never fires for ESC / arrows / Enter, leaving the A.3
+// ring path as the sole receiver of those events. No double-dispatch
+// because the two paths cover disjoint key classes — printable goes
+// to insertText: only, control goes to A.3 ring only.
 // ---------------------------------------------------------------------
-// Defined in xrEngine/xr_input.cpp. 0 (default) — toggle key (backtick
-// / §) bypasses native text-input handling so the same key that opened
-// the console can also close it. 1 — toggle key passes through and
-// inserts as a printable character; only ESC closes. User preference
-// cvar `console_toggle_passthrough`, persisted in user.ltx.
-extern "C" int g_consoleTogglePassthrough;
-
 extern "C" int OpenXRay_HandleNativeTextInputKeyDown(void* nsevent)
 {
-    if (nsevent == NULL || sTextInputContext == nil)
-        return 0;
-
-    @autoreleasepool
-    {
-        NSEvent* event = (__bridge NSEvent*)nsevent;
-
-        // Toggle-key bypass — default behaviour. kVK_ANSI_Grave (0x32)
-        // is backtick on ANSI; kVK_ISO_Section (0x0A) is § on Apple
-        // ISO keyboards (the physical key bound to console toggle via
-        // the A.7.1 keyCode table + #162 alias work). Returning 0 here
-        // lets the local monitor push the event into the A.3 ring so
-        // CConsole::IR_OnKeyboardPress can run the close action.
-        if (g_consoleTogglePassthrough == 0)
-        {
-            const unsigned short keyCode = [event keyCode];
-            if (keyCode == 0x32 || keyCode == 0x0A)
-                return 0;
-        }
-
-        const int before = g_insertTextDepth.load(std::memory_order_acquire);
-        [sTextInputContext handleEvent:event];
-        const int after = g_insertTextDepth.load(std::memory_order_acquire);
-        return (after > before) ? 1 : 0;
-    }
+    (void)nsevent;
+    return 0;
 }
