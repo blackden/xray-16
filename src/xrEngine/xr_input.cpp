@@ -9,7 +9,6 @@
 #include "xrCore/Text/StringConversion.hpp"
 
 #include <locale>
-#include <typeinfo> // XXX [smoke][DIAG6-INPUT]: for typeid(...).name() in caller identification probes
 
 #if defined(XR_PLATFORM_APPLE)
 // Apple HID virtual key codes (from <Carbon/HIToolbox/Events.h>).
@@ -125,10 +124,34 @@ constexpr int kVK_LeftArrow           = 0x7B;
 constexpr int kVK_RightArrow          = 0x7C;
 constexpr int kVK_DownArrow           = 0x7D;
 constexpr int kVK_UpArrow             = 0x7E;
+// JIS-specific keys (Japanese physical layout). Tokens from
+// <Carbon/HIToolbox/Events.h>; values frozen since the Apple Extended
+// Keyboard II. Defined here for the same .cpp-TU header-access reason
+// as the kVK_ANSI_* / kVK_ISO_Section block above.
+constexpr int kVK_JIS_Yen             = 0x5D;
+constexpr int kVK_JIS_Underscore      = 0x5E;
+constexpr int kVK_JIS_KeypadComma     = 0x5F;
+constexpr int kVK_JIS_Eisu            = 0x66;
+constexpr int kVK_JIS_Kana            = 0x68;
 } // namespace
 #endif
 
 #if defined(XR_PLATFORM_APPLE)
+// `g_nsEventInputCvar` has external linkage on purpose: the console
+// command lives in xrRender_console.cpp (different TU) and writes
+// straight into this storage via `extern int g_nsEventInputCvar`.
+// 1 = NSEvent pipeline drives keyboard input, 0 = legacy SDL keyboard
+// pipeline.
+//
+// Default returned to 1 in gitea #124 root fix: the NSEvent local
+// monitor in macos_cocoa_shim.mm now gates its keyDown/keyUp swallow
+// on SDL_IsTextInputActive(), so text input (console, save-name
+// dialog, MP chat) flows through SDL as expected while the A.3
+// keyCode pipeline still owns gameplay/menu input. See the gate
+// comment block in macos_cocoa_shim.mm for the caveat about
+// mid-frame text-input toggles.
+int g_nsEventInputCvar = 1;
+
 // Apple HID keyCode -> SDL_Scancode mapping.
 // Static replica of SDL's internal table in SDL_cocoakeyboard.m. Lets us
 // drop SDL from the keyboard event path without changing the engine's
@@ -251,45 +274,52 @@ constexpr SDL_Scancode kNSKeyCodeToSDLScancode[128] = {
     [kVK_RightArrow]          = SDL_SCANCODE_RIGHT,
     [kVK_DownArrow]           = SDL_SCANCODE_DOWN,
     [kVK_UpArrow]             = SDL_SCANCODE_UP,
+    // JIS-only keys (Japanese physical layout). No effect on ANSI/ISO
+    // keyboards since these keyCodes are never emitted there. Closes
+    // the parity gap with SDL2's src/video/cocoa/SDL_cocoakeyboard.m
+    // mapping table so VerifyInputTable() reports a clean Apple-side
+    // surface.
+    [kVK_JIS_Yen]             = SDL_SCANCODE_INTERNATIONAL3,
+    [kVK_JIS_Underscore]      = SDL_SCANCODE_INTERNATIONAL1,
+    [kVK_JIS_KeypadComma]     = SDL_SCANCODE_KP_COMMA,
+    [kVK_JIS_Eisu]            = SDL_SCANCODE_LANG2,
+    [kVK_JIS_Kana]            = SDL_SCANCODE_LANG1,
 };
 
 void VerifyInputTable()
 {
-    int total = 0;
-    int matches = 0;
-    int mismatches = 0;
-    int unmapped = 0;
-
-    for (int keyCode = 0; keyCode < 128; ++keyCode)
+    // Skip in release builds when NSEvent path is off — pointless cost.
+    if (!g_nsEventInputCvar)
     {
-        SDL_Scancode ourScancode = kNSKeyCodeToSDLScancode[keyCode];
-
-        // SDL doesn't expose its NSEvent keyCode table directly. Approximate
-        // check: SDL_GetKeyFromScancode(ourScancode) should return a valid
-        // key (i.e. ourScancode is real). For unmapped entries, ourScancode
-        // is SDL_SCANCODE_UNKNOWN (0).
-        if (ourScancode == SDL_SCANCODE_UNKNOWN)
-        {
-            ++unmapped;
-            continue;
-        }
-
-        SDL_Keycode key = SDL_GetKeyFromScancode(ourScancode);
-        if (key == SDLK_UNKNOWN)
-        {
-            Msg("! verify_input_table: keyCode 0x%02x -> scancode %d -> no SDL key",
-                keyCode, ourScancode);
-            ++mismatches;
-        }
-        else
-        {
-            ++matches;
-        }
-        ++total;
+#ifndef _DEBUG
+        return;
+#endif
     }
 
-    Msg("verify_input_table: total=%d matches=%d mismatches=%d unmapped=%d",
-        total + unmapped, matches, mismatches, unmapped);
+    u32 mapped = 0, unmapped = 0, deadKeysym = 0;
+    for (int keyCode = 0; keyCode < 128; ++keyCode)
+    {
+        const SDL_Scancode our = kNSKeyCodeToSDLScancode[keyCode];
+        if (our == SDL_SCANCODE_UNKNOWN)
+        {
+            ++unmapped;
+            // Only warn on keyCodes inside the regions Apple actually
+            // emits — i.e. anything below 0x80. Designated-initializer
+            // gaps in unused ranges (Apple reserves swathes for future
+            // use) silently default to SCANCODE_UNKNOWN; that's expected.
+            Msg("! input: Apple keyCode 0x%02X (%d) unmapped — emits SDL_SCANCODE_UNKNOWN", keyCode, keyCode);
+            continue;
+        }
+        const SDL_Keycode ksym = SDL_GetKeyFromScancode(our);
+        if (ksym == SDLK_UNKNOWN)
+        {
+            ++deadKeysym;
+            Msg("! input: Apple keyCode 0x%02X (%d) → SDL_Scancode %d → SDLK_UNKNOWN (dead mapping)", keyCode, keyCode, int(our));
+            continue;
+        }
+        ++mapped;
+    }
+    Msg("* input: Apple keyCode→SDL_Scancode parity scan: mapped=%u unmapped=%u dead=%u", mapped, unmapped, deadKeysym);
 }
 } // namespace
 
@@ -301,21 +331,6 @@ extern "C" void OpenXRay_VerifyInputTable()
 
 #if defined(XR_PLATFORM_APPLE)
 #include "macos_cocoa_shim.h"
-
-// `g_nsEventInputCvar` has external linkage on purpose: the console
-// command lives in xrRender_console.cpp (different TU) and writes
-// straight into this storage via `extern int g_nsEventInputCvar`.
-// 1 = NSEvent pipeline drives keyboard input, 0 = legacy SDL keyboard
-// pipeline.
-//
-// Default returned to 1 in gitea #124 root fix: the NSEvent local
-// monitor in macos_cocoa_shim.mm now gates its keyDown/keyUp swallow
-// on SDL_IsTextInputActive(), so text input (console, save-name
-// dialog, MP chat) flows through SDL as expected while the A.3
-// keyCode pipeline still owns gameplay/menu input. See the gate
-// comment block in macos_cocoa_shim.mm for the caveat about
-// mid-frame text-input toggles.
-int g_nsEventInputCvar = 1;
 
 namespace
 {
@@ -722,28 +737,6 @@ void CInput::KeyUpdate()
         const auto count = SDL_PeepEvents(events, MAX_KEYBOARD_EVENTS,
             SDL_GETEVENT, SDL_KEYDOWN, SDL_KEYMAPCHANGED);
 
-        // XXX [smoke][DIAG6-INPUT]: SDL drain volume + type distribution.
-        // Park after Bug 7 verified; recurring input family per
-        // feedback_instrumentation_strategy. Only logs non-empty drains so
-        // idle frames don't flood the log.
-        if (count > 0)
-        {
-            u32 kd = 0, ku = 0, ti = 0, te = 0, other = 0;
-            for (int i = 0; i < count; ++i)
-            {
-                switch (events[i].type)
-                {
-                case SDL_KEYDOWN: ++kd; break;
-                case SDL_KEYUP: ++ku; break;
-                case SDL_TEXTINPUT: ++ti; break;
-                case SDL_TEXTEDITING: ++te; break;
-                default: ++other; break;
-                }
-            }
-            Msg("# DIAG6-A SDL_drain count=%d kd=%u ku=%u ti=%u te=%u other=%u",
-                count, kd, ku, ti, te, other);
-        }
-
         // Let iGetAsyncKeyState work correctly during this frame immediately
         for (int i = 0; i < count; ++i)
         {
@@ -812,9 +805,6 @@ void CInput::KeyUpdate()
             case SDL_KEYDOWN:
                 if (event.key.repeat)
                     continue;
-                // XXX [smoke][DIAG6-INPUT]: caller identification follow-up to PR #156
-                Msg("# DIAG6-D IR_OnKeyboardPress scancode=%d receiver=%s stack_depth=%zu",
-                    (int)event.key.keysym.scancode, typeid(*cbStack.back()).name(), cbStack.size());
                 cbStack.back()->IR_OnKeyboardPress(event.key.keysym.scancode);
                 break;
 
@@ -823,14 +813,6 @@ void CInput::KeyUpdate()
                 break;
 
             case SDL_TEXTINPUT:
-#if defined(XR_PLATFORM_APPLE)
-                // XXX [smoke][DIAG6-E]: log every SDL_TEXTINPUT reaching
-                // dispatch with its text content — identifies SDL parallel
-                // ingest path delivering '`' for gitea #162. Park, don't
-                // strip (recurring input bug family).
-                Msg("# DIAG6-E xr_input.dispatch TEXTINPUT text='%s' cnt=%u counter=%u receiver=%s",
-                    event.text.text, cnt, textInputCounter, typeid(*cbStack.back()).name());
-#endif
                 if (cnt != textInputCounter)
                     continue; // if input target changed, skip this frame
                 cbStack.back()->IR_OnTextInput(event.text.text);
@@ -1305,9 +1287,6 @@ void CInput::NSEventDrain()
                     // hold-based actions (движение WASD, sprint Shift+W)
                     // не работают — press проходит, но Hold не догоняет.
                     keyboardState[sc] = true;
-                    // XXX [smoke][DIAG6-INPUT]: caller identification follow-up to PR #156
-                    Msg("# DIAG6-D A3_IR_OnKeyboardPress scancode=%d receiver=%s stack_depth=%zu",
-                        (int)sc, typeid(*receiver).name(), cbStack.size());
                     receiver->IR_OnKeyboardPress((int)sc);
                 }
                 break;
