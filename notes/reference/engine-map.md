@@ -600,6 +600,28 @@ window events продолжают идти через SDL.
   (asymmetric — Stop'ы re-enter run loop через `[NSTextInputContext
   deactivate]`, gate должен быть закрыт ДО tear-down иначе orphan key).
   См. `SDLTextInputBackend.cpp` + `macos_cocoa_shim.mm:643/648` гейт.
+- **SDL parallel ingest через `[NSWindow keyDown:]` (BIG landmine,
+  proven by DIAG6-D probe PR #157)**. Наш NSEvent local monitor
+  возвращающий `nil` (swallow) НЕ блокирует SDL от получения keyDown.
+  SDL2 macOS video driver получает keyDowns через `[NSWindow keyDown:]`
+  responder chain, который AppKit вызывает **параллельно** monitor
+  invocation. Когда наш monitor swallow'ит → A.3 ring дispatch'ит;
+  одновременно SDL queue наполняется через responder chain → SDL drain
+  тоже дispatch'ит. **Double dispatch** на каждый physical keypress.
+  Mitigation (`xr_input.cpp:687-718`, PR #159+#160): skip SDL drain
+  когда `textInputCounter==0` на Apple + flush accumulated SDL queue
+  на drain skip→resume transition. SDL2 source НЕ vendored
+  (`Externals/` пуст для SDL) — Homebrew install only; static-analysis
+  предположения от canonical SDL2 architecture must быть DATA-verified
+  через runtime probe.
+- **SDL_GetKeyboardState phantom-held key (Bug 7, PR #156)**. KeyDown
+  для `~`/console-toggle swallow'ится monitor'ом (gate=false → A.3 ring
+  → Show fires gate=true). KeyUp arrives с gate=true → SDL получает
+  unpaired SDL_KEYUP. SDL внутреннее state остаётся `~` held →
+  OS autorepeat → `SDL_TEXTINPUT(\`)` спам. Mitigation:
+  `SDL_ResetKeyboard()` в `OpenXRay_NotifyTextInputActive(0)`. Cmd-Tab
+  away+back лечит потому что `applicationDidBecomeActive` тоже зовёт
+  `SDL_ResetKeyboard()`.
 - **SDL drain должен бежать всегда на Apple (post-A.6 #147)**: при
   `nsevent_input=1` когда gate=false, NSEvent monitor swallow'ит keyDown
   → SDL queue empty → drain no-op. Но когда gate=true (text input on),
