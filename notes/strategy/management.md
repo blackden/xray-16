@@ -7,6 +7,8 @@ reorg 2026-05-24.
 
 Связано: [`creator-voice.md`](creator-voice.md) (мысли о движке),
 [`roadmap-4year.md`](roadmap-4year.md) (стратегические направления),
+[`code-craft.md`](code-craft.md) (8 принципов изящного кода — чек-лист
+для tech-решений),
 `notes/conventions/working-agreement.md` (formal rules вытекающие
 отсюда).
 
