@@ -266,19 +266,56 @@ target_sources_grouped(
     ILoadingScreen.h
 )
 
-target_sources_grouped(
-    TARGET xrEngine
-    NAME "Interfaces\\Input"
-    FILES
-    IInputReceiver.cpp
-    IInputReceiver.h
-    ITextInputBackend.cpp
-    ITextInputBackend.h
-    SDLTextInputBackend.cpp
-    SDLTextInputBackend.h
-    xr_input.cpp
-    xr_input.h
-)
+if(APPLE)
+    # macOS-only fork (A.7.2, gitea #165): native NSTextInputContext
+    # replaces the SDL text-input pathway. The SDL backend translation
+    # unit is excluded from the build entirely on Apple — see
+    # notes/decisions/a7-2-native-text-input.md.
+    #
+    # The native backend is split across two TUs:
+    #   - NativeTextInputBackend.cpp — plain C++, owns the
+    #     ITextInputBackend implementation + factory. Built with PCH
+    #     and unity (default).
+    #   - NativeTextInputBackend.mm — Objective-C++, owns
+    #     NSTextInputContext. Built WITHOUT PCH and WITHOUT unity
+    #     because <AppKit/AppKit.h>'s objc.h defines BOOL=bool while
+    #     Common/PlatformBSD.inl typedefs it int32_t.
+    target_sources_grouped(
+        TARGET xrEngine
+        NAME "Interfaces\\Input"
+        FILES
+        IInputReceiver.cpp
+        IInputReceiver.h
+        ITextInputBackend.cpp
+        ITextInputBackend.h
+        NativeTextInputBackend.cpp
+        NativeTextInputBackend.mm
+        NativeTextInputBackend.h
+        xr_input.cpp
+        xr_input.h
+    )
+    set_source_files_properties(
+        NativeTextInputBackend.mm
+        PROPERTIES
+        SKIP_PRECOMPILE_HEADERS ON
+        SKIP_UNITY_BUILD_INCLUSION ON
+        COMPILE_FLAGS "-fobjc-arc"
+    )
+else()
+    target_sources_grouped(
+        TARGET xrEngine
+        NAME "Interfaces\\Input"
+        FILES
+        IInputReceiver.cpp
+        IInputReceiver.h
+        ITextInputBackend.cpp
+        ITextInputBackend.h
+        SDLTextInputBackend.cpp
+        SDLTextInputBackend.h
+        xr_input.cpp
+        xr_input.h
+    )
+endif()
 
 target_sources_grouped(
     TARGET xrEngine
