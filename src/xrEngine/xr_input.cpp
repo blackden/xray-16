@@ -801,6 +801,14 @@ void CInput::KeyUpdate()
                 break;
 
             case SDL_TEXTINPUT:
+#if defined(XR_PLATFORM_APPLE)
+                // XXX [smoke][DIAG6-E]: log every SDL_TEXTINPUT reaching
+                // dispatch with its text content — identifies SDL parallel
+                // ingest path delivering '`' for gitea #162. Park, don't
+                // strip (recurring input bug family).
+                Msg("# DIAG6-E xr_input.dispatch TEXTINPUT text='%s' cnt=%u counter=%u receiver=%s",
+                    event.text.text, cnt, textInputCounter, typeid(*cbStack.back()).name());
+#endif
                 if (cnt != textInputCounter)
                     continue; // if input target changed, skip this frame
                 cbStack.back()->IR_OnTextInput(event.text.text);
