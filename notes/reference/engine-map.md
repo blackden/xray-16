@@ -660,6 +660,28 @@ window events продолжают идти через SDL.
   в #145. Кандидаты для аналогичного фикса: F11/F12 dev panels с
   ImGui InputText (если когда-нибудь добавим), любые ImGui-driven
   dialog'и с input.
+- **Native NSTextInputContext owns text input (A.7.2, #165)**:
+  `src/xrEngine/NativeTextInputBackend.mm` создаёт singleton
+  `NSTextInputContext` поверх detached `OpenXRayTextInputView : NSView
+  <NSTextInputClient>`. Активируется через
+  `CInput::EnableTextInput` → `Backend::Start` →
+  `[context activate]` + публикация `g_textInputActive=1` (atomic в
+  `macos_cocoa_shim.mm`). KeyDown в active mode: NSEvent local monitor
+  вызывает `OpenXRay_HandleNativeTextInputKeyDown` → `[context
+  handleEvent:]` → синхронно `insertText:` → `IR_OnTextInput(utf8)` на
+  top of `cbStack`. Non-committed keys (Enter/Esc/arrows/dead-key
+  mid-composition) fall through в A.3 ring как обычный
+  `IR_OnKeyboardPress`. KeyUp всегда через A.3 ring. **SDL drain на
+  Apple отключён полностью** (`xr_input.cpp:KeyUpdate` под
+  `#if !defined(XR_PLATFORM_APPLE)`) — SDL queue accumulates через
+  `[NSWindow keyDown:]` parallel ingest, но никто не consume'ит →
+  inert. NSTextInputContext detached от responder chain (никогда не
+  устанавливается в window) — это работает потому что
+  `[context handleEvent:]` driver doesn't need firstResponder
+  membership. Trade-off: committed UTF-8 only, no IME composition
+  preview / marked-text rendering. Acceptable пока ни один consumer
+  не подписан на marked text. См.
+  [`notes/decisions/a7-2-native-text-input.md`](../decisions/a7-2-native-text-input.md).
 
 ## Audio (xrSound + OpenAL)
 
