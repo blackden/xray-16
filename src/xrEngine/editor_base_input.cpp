@@ -263,6 +263,8 @@ void ide::UpdateTextInput(bool force_disable /*= false*/)
     {
         if (m_imgui_backend.text_input_enabled)
         {
+            // XXX [smoke][DIAG6-INPUT]: caller identification follow-up to PR #156
+            Msg("# DIAG6-D Disable called from ide::UpdateTextInput force_disable=1");
             pInput->DisableTextInput();
             m_imgui_backend.text_input_enabled = false;
         }
@@ -276,9 +278,17 @@ void ide::UpdateTextInput(bool force_disable /*= false*/)
         m_imgui_backend.text_input_enabled = io.WantTextInput;
 
         if (m_imgui_backend.text_input_enabled)
+        {
+            // XXX [smoke][DIAG6-INPUT]: caller identification follow-up to PR #156
+            Msg("# DIAG6-D Enable called from ide::UpdateTextInput WantTextInput=%d", (int)io.WantTextInput);
             pInput->EnableTextInput();
+        }
         else
+        {
+            // XXX [smoke][DIAG6-INPUT]: caller identification follow-up to PR #156
+            Msg("# DIAG6-D Disable called from ide::UpdateTextInput WantTextInput=%d", (int)io.WantTextInput);
             pInput->DisableTextInput();
+        }
     }
 }
 
