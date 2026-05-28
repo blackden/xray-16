@@ -260,7 +260,13 @@ CApplication::CApplication(pcstr commandLine, GameModule* game, const std::array
         ShowSplash(topmost);
     }
 
-    SDL_StopTextInput(); // It's enabled by default for some reason, we don't want it
+    // A.7.2 (gitea #165): SDL text-input pathway is no longer used
+    // on this macOS-only fork. NativeTextInputBackend owns
+    // NSTextInputContext directly, which is dormant until
+    // CInput::EnableTextInput() activates it — so the pre-A.7.2
+    // unconditional kick-off-the-default-on-state call against SDL's
+    // text-input subsystem is gone. (Linux/Windows path lives
+    // upstream.)
     const auto& inputTask = TaskManager::AddTask([]
     {
         const bool captureInput = !strstr(Core.Params, "-i");
