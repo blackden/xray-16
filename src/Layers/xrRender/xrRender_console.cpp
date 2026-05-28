@@ -36,12 +36,6 @@ extern "C" void OpenXRay_OnNSEventInputCvarChanged(int newValue);
 // CCC_Integer registration — flipping is a pure read-path swap, no
 // held-state to flush. See issue #123.
 extern "C" int  g_native_timing;
-
-// Defined in xrEngine/xr_input.cpp. 0 (default) = toggle key (backtick
-// / §) closes console when text input is active; 1 = toggle key inserts
-// as printable char, only ESC closes. Personal preference, see comment
-// at definition site. Apple-only, gitea #165.
-extern "C" int  g_consoleTogglePassthrough;
 #endif
 
 namespace xray::render::RENDER_NAMESPACE
@@ -790,13 +784,6 @@ void xrRender_initconsole()
     // macOS after A.4.1 microbench confirmed gameplay parity with the
     // legacy SDL pipeline (A.4.2). Set to 0 for diagnostics. See #123.
     CMD4(CCC_Integer, "native_timing", &::g_native_timing, 0, 1);
-
-    // Toggle key behaviour while text input is active. 0 (default) — the
-    // toggle key (backtick / §) bypasses native text input and closes
-    // the console, matching the X-Ray standard. 1 — toggle key inserts
-    // as a printable character and only ESC closes. Persistable in
-    // user.ltx for personal preference. Apple-only, gitea #165.
-    CMD4(CCC_Integer, "console_toggle_passthrough", &::g_consoleTogglePassthrough, 0, 1);
 #endif
 
     CMD3(CCC_Preset, "_preset", &ps_Preset, qpreset_token);

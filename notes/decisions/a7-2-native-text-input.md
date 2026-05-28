@@ -137,3 +137,45 @@ the entire branch it lived in is gone.
 - Roadmap §4: `docs/superpowers/specs/2026-05-25-native-shell-roadmap.md`
 - Apple Cocoa Event Handling Guide — "Text Input"
 - Apple NSTextInputClient protocol reference
+
+## Final architecture — AppKit-owned text dispatch (2026-05-28, iteration 3)
+
+**Что**: NSTextInputContext активируется в `OpenXRay_NativeTextInput_Activate`,
+деактивируется в `OpenXRay_NativeTextInput_Deactivate`. Handler
+`OpenXRay_HandleNativeTextInputKeyDown` пустой (return 0). AppKit
+сам диспатчит keyDown в `insertText:` через responder chain — это
+один источник text input, без duplicate.
+
+**Why iterations**: первая попытка (ea233da38) убрала `[activate]` чтобы
+починить double-dispatch предполагая что handleEvent: на detached context
+fires insertText:. Runtime DIAG7-F probe показал delta=0 — detached
+context не вызывает insertText: вообще. Текст input был сломан
+полностью, но не вскрылось до того как ragnar реально попробовал
+напечатать буквы.
+
+**Решение**: вернуть activate, убрать manual handleEvent:. AppKit owns
+dispatch — единственный путь к insertText:.
+
+**Accepted trade-offs** (2 ⚠ из code-craft-checklist, обоснованы):
+
+1. **Ownership-style возвращён** (принцип 4). AppKit владеет dispatch'ем
+   через global current input context. Driver-style невозможен без
+   firstResponder, что требует NSWindow ownership = A.7.4 (#166).
+
+2. **Toggle-key char leak** (принцип 8). Backtick/§ печатают char перед
+   тем как A.3 ring обработает SCANCODE_GRAVE и закроет консоль. Cosmetic
+   one-frame artefact. Structural fix = NSWindow ownership позволит
+   override `[NSWindow keyDown:]` и блокировать parallel ingest selectively
+   (A.7.4 #166).
+
+**ESC** закрывает консоль чисто: AppKit вызывает `doCommandBySelector:`
+для control keys (наш view stub — no-op), insertText не fires, handler
+возвращает 0, monitor пушит scancode в A.3 ring, CConsole закрывает.
+
+**Cvar `console_toggle_passthrough`** удалён (был workaround для другой
+реализации). Поведение default = ragnar's стояло как preference cvar=1
+эквивалент. Re-introduce только если NSWindow ownership landing'а
+изменит default behavior.
+
+**DIAG7-B probe** остаётся parked в `insertText:` — verify по нему что
+один insertText: per keystroke (не два) post-fix.
