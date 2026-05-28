@@ -3,6 +3,9 @@
 
 #include "xr_input.h"
 #include "ITextInputBackend.h"
+#if defined(XR_PLATFORM_APPLE)
+#include "NativeTextInputBackend.h"
+#endif
 #include "IInputReceiver.h"
 #include "GameFont.h"
 #include "XR_IOConsole.h"
@@ -486,7 +489,11 @@ CInput::CInput(const bool exclusive)
 
     Log("Starting INPUT device...");
 
+#if defined(XR_PLATFORM_APPLE)
+    textInputBackend = CreateNativeTextInputBackend();
+#else
     textInputBackend = CreateSDLTextInputBackend();
+#endif
 
     mouseState.reset();
     keyboardState.reset();
