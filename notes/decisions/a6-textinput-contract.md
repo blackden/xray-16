@@ -247,14 +247,68 @@ open — drain критичен. Unconditional drain функционально 
 Codified в memory: `project_sdl_double_gate_macos`,
 `project_imgui_wanttextinput_reactive`, `feedback_two_fails_call_team_lead`.
 
-## Финальный stack PR'ов
+## Финальный stack PR'ов (после второго постмортема 2026-05-28)
+
+Первое «A.6 закрыто» оказалось ошибкой — после первого мерджа всего stack'а
+у ragnar'а появилась **gameplay регрессия** (X/L/ESC dead, ` залипает,
+inventory open+close). Источник — моё неверное assumption об SDL parallel
+ingest. Закрытие потребовало второго прохода с runtime instrumentation:
 
 | PR | Issue | Что закрыл |
 |----|-------|------------|
 | #142 | #141 | T1: engine-owned `std::atomic<bool> g_textInputActive` flag, NSEvent gate переведён с `SDL_IsTextInputActive()` |
 | #145 | #144 | T1.1 hotfix: explicit `EnableTextInput`/`DisableTextInput` в `CConsole::Show/Hide` (ImGui reactive deadlock) |
-| #147 | #146 | T1.2 critical: убран Apple-conditional SDL drain skip в `CInput::KeyUpdate` (orphan events когда gate open) |
+| #147 | #146 | T1.2: убран Apple-conditional SDL drain skip в `CInput::KeyUpdate` |
 | #148 | #143 | T2 hygiene: убран `SDL_PumpEvents` из `CSDLTextInputBackend::Start/Stop`, сохранён `SDL_FlushEvent(SDL_TEXTEDITING)` в Stop |
-| #150 | #149 | T3 cleanup: удалён dead `IsActive()` surface из `ITextInputBackend` (нет consumers; counter — authoritative) |
+| #150 | #149 | T3 cleanup: удалён dead `IsActive()` surface |
+| #151 | (docs) | Codify v1 (первый постмортем) |
+| #154 | #153 | **Roster:** новые agents `input-slice-engineer` + `smoke-tester` |
+| #156 | #155 | T1.3: `SDL_ResetKeyboard()` на gate close (Bug 7 SDL phantom-held) + DIAG6-A/B/C probes |
+| #157 | (followup) | T1.4: DIAG6-D probes — caller identification + receiver dispatch. **Этот шаг прервал гадание** — лог показал double dispatch на каждый keypress. |
+| #159 | #158 | T1.5 root fix: skip SDL drain when `textInputCounter==0` на Apple (предотвращает double dispatch SDL drain + A.3 ring) |
+| #160 | (followup) | T1.6: flush stale SDL queue при drain skip→resume transition (W-stop edge case: stale KEYUP накапливалось пока skipped, replay'илось при resume) |
 
-A.6 техдолг закрыт. Ready for A.7 (SDL2 removed из macOS-билда).
+## Второй постмортем — почему первое закрытие провалилось
+
+Я предположил что **NSEvent local monitor swallow** (`return nil`) полностью
+блокирует SDL от получения keyDown. Apple-platform agent ранее это утверждал
+("local monitor is the chokepoint"). PR #147 (T1.2) под этим assumption сделал
+SDL drain unconditional на Apple ("SDL queue будет пустой когда gate=false,
+значит drain — no-op").
+
+**Это неверно.** DIAG6-D log (PR #157) показал что SDL получает keyDown
+**параллельно** через `[NSWindow keyDown:]` responder chain, который AppKit
+вызывает даже когда local monitor вернул nil. На каждый physical key press
+оба path fire'ят:
+- A.3 ring (через NSEvent monitor swallow) → IR_OnKeyboardPress
+- SDL drain (через `[NSWindow keyDown:]` accumulating SDL queue) → IR_OnKeyboardPress
+
+→ Inventory open+close, X run+stop, ESC silent — всё это double-dispatch toggle.
+
+SDL2 source не vendored в `Externals/` (Homebrew установка) — agent не мог
+verify свою теорию. DIAG6-D probe stripped иллюзию.
+
+### Уроки
+
+1. **Runtime instrumentation beats static analysis after 2 failed code changes.**
+   `feedback_two_fails_call_team_lead` теперь enforce'ит: после 2 fails →
+   instrumentation, не очередной blind fix. Мы дошли до 4 fails прежде чем
+   я выбрал этот путь — урок дорогой.
+2. **External dependency assumptions must be DATA-verified.** Apple-platform
+   agent написал "local monitor is the chokepoint" — это было reasonable
+   reasoning от canonical SDL2 architecture, **но SDL2 не vendored** в нашем
+   репо. Static analysis assumption ≠ ground truth. DIAG6 это доказал.
+3. **Parallel ingest paths require explicit single-source-of-truth gating.**
+   Нельзя полагаться что "swallow в одном path блокирует другие". Гейтить
+   обе.
+4. **Skipping drain accumulates queue → flush on resume.** Если SDL queue
+   не drain'ить, события копятся через parallel ingest. Любой code path
+   который возобновляет drain после skip должен flush stale queue.
+
+Codified в memory: `project_sdl_parallel_ingest_macos` (новая),
+`project_sdl_double_gate_macos` (обновлена), `feedback_runtime_instrumentation`
+(новая), `feedback_two_fails_call_team_lead` (refinement).
+
+A.6 техдолг закрыт окончательно. DIAG6 probes остаются park'ed (XXX-tag).
+Ready for A.7 (SDL2 removed из macOS-билда) — теперь нет parallel ingest,
+single path, single dispatch.
