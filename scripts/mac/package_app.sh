@@ -118,6 +118,24 @@ if [ -f "${MACOS_DIR}/xrUnpack" ]; then
     install_name_tool -add_rpath "@executable_path/." "${MACOS_DIR}/xrUnpack" 2>/dev/null || true
 fi
 
+echo "==> Copying openal-soft HRTF data"
+# openal-soft looks for HRTF datasets under directories listed in alsoft.conf
+# or in ALSOFT_LOCAL_PATH. We ship the default HRTF inside the bundle and
+# point the launcher at it so spatial audio works without a system openal-soft
+# install on the player's Mac.
+HRTF_DST_DIR="${APP_DIR}/Contents/Resources/openal/hrtf"
+mkdir -p "${HRTF_DST_DIR}"
+HRTF_CANDIDATES=(
+    "/opt/homebrew/opt/openal-soft/share/openal/hrtf"
+    "/usr/local/opt/openal-soft/share/openal/hrtf"
+)
+for hrtf_src in "${HRTF_CANDIDATES[@]}"; do
+    if [ -d "${hrtf_src}" ]; then
+        cp -R "${hrtf_src}/" "${HRTF_DST_DIR}/" 2>/dev/null || true
+        break
+    fi
+done
+
 echo "==> Writing Info.plist + PkgInfo"
 ICON_FRAGMENT=""
 ICON_SRC="${REPO_ROOT}/scripts/mac/openxray.icns"
@@ -189,6 +207,15 @@ export OS_ACTIVITY_MODE=disable
 export MallocNanoZone=0
 
 SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+
+# Point openal-soft at the HRTF dataset shipped inside the bundle.
+# ALSOFT_LOCAL_PATH is searched in addition to system config paths; this
+# makes "Default HRTF.mhr" available even on Macs without a Brew install.
+HRTF_BUNDLE_DIR="\${SCRIPT_DIR}/../Resources/openal/hrtf"
+if [ -d "\${HRTF_BUNDLE_DIR}" ]; then
+    export ALSOFT_LOCAL_PATH="\${HRTF_BUNDLE_DIR}"
+fi
+
 LOG_DIR="\${HOME}/Library/Logs/OpenXRay"
 mkdir -p "\${LOG_DIR}"
 
