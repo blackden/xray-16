@@ -660,28 +660,59 @@ window events продолжают идти через SDL.
   в #145. Кандидаты для аналогичного фикса: F11/F12 dev panels с
   ImGui InputText (если когда-нибудь добавим), любые ImGui-driven
   dialog'и с input.
-- **Native NSTextInputContext owns text input (A.7.2, #165)**:
+- **Native NSTextInputContext owns text input (A.7.2 final, #165)**:
   `src/xrEngine/NativeTextInputBackend.mm` создаёт singleton
   `NSTextInputContext` поверх detached `OpenXRayTextInputView : NSView
   <NSTextInputClient>`. Активируется через
   `CInput::EnableTextInput` → `Backend::Start` →
   `[context activate]` + публикация `g_textInputActive=1` (atomic в
-  `macos_cocoa_shim.mm`). KeyDown в active mode: NSEvent local monitor
-  вызывает `OpenXRay_HandleNativeTextInputKeyDown` → `[context
-  handleEvent:]` → синхронно `insertText:` → `IR_OnTextInput(utf8)` на
-  top of `cbStack`. Non-committed keys (Enter/Esc/arrows/dead-key
-  mid-composition) fall through в A.3 ring как обычный
-  `IR_OnKeyboardPress`. KeyUp всегда через A.3 ring. **SDL drain на
-  Apple отключён полностью** (`xr_input.cpp:KeyUpdate` под
-  `#if !defined(XR_PLATFORM_APPLE)`) — SDL queue accumulates через
-  `[NSWindow keyDown:]` parallel ingest, но никто не consume'ит →
-  inert. NSTextInputContext detached от responder chain (никогда не
-  устанавливается в window) — это работает потому что
-  `[context handleEvent:]` driver doesn't need firstResponder
-  membership. Trade-off: committed UTF-8 only, no IME composition
-  preview / marked-text rendering. Acceptable пока ни один consumer
-  не подписан на marked text. См.
-  [`notes/decisions/a7-2-native-text-input.md`](../decisions/a7-2-native-text-input.md).
+  `macos_cocoa_shim.mm`).
+  **Iteration-3 final architecture: AppKit владеет dispatch'ем.**
+  `OpenXRay_HandleNativeTextInputKeyDown` пустой (return 0).
+  `[context activate]` делает context process-wide current, после
+  чего `[NSWindow keyDown:]` parallel ingest → responder chain →
+  current input context → `insertText:` синхронно. Одна сторона
+  dispatch'а, один fire `insertText:` per keystroke. NSEvent local
+  monitor для KeyDown в active mode только пушит scancode в A.3 ring
+  (для non-printable nav keys типа ESC: AppKit вызывает наш
+  `doCommandBySelector:` no-op → не fires insertText: → fall through
+  → CConsole.IR_OnKeyboardPress(SCANCODE_ESCAPE) → close).
+  **SDL drain на Apple отключён полностью** (`xr_input.cpp:KeyUpdate`
+  под `#if !defined(XR_PLATFORM_APPLE)`) — SDL queue accumulates
+  через [NSWindow keyDown:] parallel ingest но никто не consume'ит.
+  Iteration history (читай как учебник): hidden DIAG7-B probe под
+  `#if 0` + forensic comments на DIAG7-E/F в architecture header.
+  Trade-off: committed UTF-8 only, no IME composition preview;
+  toggle key (backtick / § / ё на keyCode 0x32) печатает char +
+  закрывает консоль (cosmetic one-frame leak, fix через A.7.4
+  NSWindow ownership). См.
+  [`notes/decisions/a7-2-native-text-input.md`](../decisions/a7-2-native-text-input.md)
+  «Final architecture».
+
+- **`-[NSTextInputContext activate]` is a process-wide registration
+  (A.7.2 landmine)**: `activate` устанавливает context как **current
+  input context для всего процесса**, после чего AppKit auto-dispatches
+  каждый keyDown через responder chain в client view's `insertText:`.
+  Что это значит для driver/ownership choice: (а) detached context
+  без activate **не вызывает** insertText: — `handleEvent:` ничего не
+  делает (DIAG7-F observed delta=0); (б) activate + manual
+  `[context handleEvent:]` из local NSEvent monitor = double-dispatch
+  (AppKit + our driver обе fire insertText: для одного keyDown);
+  (в) правильный паттерн = activate + НЕ дёргать handleEvent: вручную.
+  AppKit dispatch'ит сам ровно один раз. См. iteration history в
+  `NativeTextInputBackend.mm` architecture header и
+  [`notes/decisions/a7-2-native-text-input.md`](../decisions/a7-2-native-text-input.md)
+  «Final architecture». History: gitea #165 iterations 1-3.
+
+- **NSTextInputContext caches current input source at activate-time
+  (A.7.2 known limitation, fix in A.7.4 #166)**: после `[activate]`
+  context фиксирует текущую раскладку. Cmd+Space смена раскладки
+  во время open text-input surface (консоль) **не действует** пока
+  context не deactivate/reactivate (= закрыть и открыть консоль).
+  Workaround = reopen. Structural fix через
+  `NSTextInputContextKeyboardSelectionDidChangeNotification` listener
+  + auto re-activate планируется в A.7.4 NSWindow ownership. Observed
+  by ragnar 2026-05-29 smoke A.7.2 final.
 
 ## Audio (xrSound + OpenAL)
 
