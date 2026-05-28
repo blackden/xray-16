@@ -413,12 +413,6 @@ void CConsole::IR_OnKeyboardHold(int key)
 
 void CConsole::IR_OnTextInput(pcstr text)
 {
-#if defined(XR_PLATFORM_APPLE)
-    // XXX [smoke][DIAG6-E]: log every text input received by console
-    // for gitea #162 to identify frame timing of '`' leak. Park, don't
-    // strip (recurring input bug family).
-    Msg("# DIAG6-E console.IR_OnTextInput text='%s'", text);
-#endif
     Device.editor().IR_OnTextInput(text);
 }
 
@@ -525,8 +519,6 @@ void CConsole::Show()
     // proactively flip the engine-owned g_textInputActive; ImGui
     // can't activate InputText without the first keyDown reaching it,
     // creating a deadlock without this explicit call. See #144.
-    // XXX [smoke][DIAG6-INPUT]: caller identification follow-up to PR #156
-    Msg("# DIAG6-D Enable called from CConsole::Show");
     pInput->EnableTextInput();
     Device.seqFrame.Add(this);
 }
@@ -548,8 +540,6 @@ void CConsole::Hide()
     Device.seqFrame.Remove(this);
     IR_Release();
     // Symmetric to Show(); see #144 / EnableTextInput rationale.
-    // XXX [smoke][DIAG6-INPUT]: caller identification follow-up to PR #156
-    Msg("# DIAG6-D Disable called from CConsole::Hide");
     pInput->DisableTextInput();
     if (!Device.editor().IsActiveState())
         Device.editor().UpdateTextInput(true);

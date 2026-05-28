@@ -168,14 +168,6 @@ id           g_nsEventMonitor      = nil;
 // but for proper publication ordering inside the NSApp re-entry window.
 std::atomic<bool> g_textInputActive{false};
 
-// XXX [smoke][DIAG6-INPUT]: NSEvent monitor swallow-decision log rate
-// limit. Cap at 200 lines per session — enough to cover console-open +
-// rebind smoke without flooding ~/Library/Logs/OpenXRay/openxray.log.
-// Park under XXX tag per feedback_instrumentation_strategy (recurring
-// input-pipeline bug family).
-std::atomic<uint32_t> g_diag6BCounter{0};
-constexpr uint32_t DIAG6_B_LIMIT = 200;
-
 void QueuePush(const OpenXRayNSEventRecord &rec)
 {
     bool justOverflowed = false;
@@ -650,14 +642,6 @@ extern "C" void OpenXRay_InstallNSEventMonitor(void)
                 {
                     case NSEventTypeKeyDown:
                     {
-                        // XXX [smoke][DIAG6-INPUT]: NSEvent monitor swallow
-                        // decision log. Rate-limited 200/session.
-                        if (g_diag6BCounter.fetch_add(1, std::memory_order_relaxed) < DIAG6_B_LIMIT)
-                        {
-                            const bool gate = g_textInputActive.load(std::memory_order_acquire);
-                            POSTLOG_MARK_FMT("# DIAG6-B NSEvent KeyDown keyCode=%d gate=%d action=%s",
-                                (int)[event keyCode], gate ? 1 : 0, gate ? "forward" : "swallow");
-                        }
                         if (g_textInputActive.load(std::memory_order_acquire))
                             return event; // let SDL produce SDL_TEXTINPUT
                         QueuePush(MakeRecordFromKey(event, OXR_NS_EVENT_KEY_DOWN));
@@ -665,14 +649,6 @@ extern "C" void OpenXRay_InstallNSEventMonitor(void)
                     }
                     case NSEventTypeKeyUp:
                     {
-                        // XXX [smoke][DIAG6-INPUT]: NSEvent monitor swallow
-                        // decision log. Rate-limited 200/session.
-                        if (g_diag6BCounter.fetch_add(1, std::memory_order_relaxed) < DIAG6_B_LIMIT)
-                        {
-                            const bool gate = g_textInputActive.load(std::memory_order_acquire);
-                            POSTLOG_MARK_FMT("# DIAG6-B NSEvent KeyUp keyCode=%d gate=%d action=%s",
-                                (int)[event keyCode], gate ? 1 : 0, gate ? "forward" : "swallow");
-                        }
                         if (g_textInputActive.load(std::memory_order_acquire))
                             return event;
                         QueuePush(MakeRecordFromKey(event, OXR_NS_EVENT_KEY_UP));
@@ -732,17 +708,6 @@ extern "C" void OpenXRay_SetNSEventInputEnabled(int enabled)
 
 extern "C" void OpenXRay_NotifyTextInputActive(int active)
 {
-    // XXX [smoke][DIAG6-INPUT]: gate transition with SDL state snapshot.
-    {
-        int sdl_count = 0;
-        const Uint8* sdl_state = SDL_GetKeyboardState(&sdl_count);
-        uint32_t held = 0;
-        for (int i = 0; i < sdl_count && i < 512; ++i)
-            if (sdl_state[i]) ++held;
-        POSTLOG_MARK_FMT("# DIAG6-C NotifyTextInputActive active=%d SDL_held=%u",
-            active, held);
-    }
-
     g_textInputActive.store(active != 0, std::memory_order_release);
 
     if (active == 0)
@@ -759,14 +724,6 @@ extern "C" void OpenXRay_NotifyTextInputActive(int active)
         // moment of console close is released from SDL's view and needs a
         // re-press — acceptable trade-off for console-close being rare.
         SDL_ResetKeyboard();
-
-        // XXX [smoke][DIAG6-INPUT]: verify reset cleared SDL state.
-        int sdl_count = 0;
-        const Uint8* sdl_state = SDL_GetKeyboardState(&sdl_count);
-        uint32_t held = 0;
-        for (int i = 0; i < sdl_count && i < 512; ++i)
-            if (sdl_state[i]) ++held;
-        POSTLOG_MARK_FMT("# DIAG6-C post-reset SDL_held=%u", held);
     }
 }
 
