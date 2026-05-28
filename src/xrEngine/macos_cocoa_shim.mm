@@ -53,6 +53,7 @@
 #import <Foundation/Foundation.h>
 
 #include "macos_cocoa_shim.h"
+#include "Common/PostLogMark.hpp"
 
 // Defined in Engine.cpp under XR_PLATFORM_APPLE — defers KERNEL:disconnect
 // then KERNEL:quit on the engine event queue. Out-of-line to keep this .mm
@@ -166,6 +167,14 @@ id           g_nsEventMonitor      = nil;
 // required NOT for thread safety (both sides may be main thread today),
 // but for proper publication ordering inside the NSApp re-entry window.
 std::atomic<bool> g_textInputActive{false};
+
+// XXX [smoke][DIAG6-INPUT]: NSEvent monitor swallow-decision log rate
+// limit. Cap at 200 lines per session — enough to cover console-open +
+// rebind smoke without flooding ~/Library/Logs/OpenXRay/openxray.log.
+// Park under XXX tag per feedback_instrumentation_strategy (recurring
+// input-pipeline bug family).
+std::atomic<uint32_t> g_diag6BCounter{0};
+constexpr uint32_t DIAG6_B_LIMIT = 200;
 
 void QueuePush(const OpenXRayNSEventRecord &rec)
 {
@@ -640,15 +649,35 @@ extern "C" void OpenXRay_InstallNSEventMonitor(void)
                 switch (t)
                 {
                     case NSEventTypeKeyDown:
+                    {
+                        // XXX [smoke][DIAG6-INPUT]: NSEvent monitor swallow
+                        // decision log. Rate-limited 200/session.
+                        if (g_diag6BCounter.fetch_add(1, std::memory_order_relaxed) < DIAG6_B_LIMIT)
+                        {
+                            const bool gate = g_textInputActive.load(std::memory_order_acquire);
+                            POSTLOG_MARK_FMT("# DIAG6-B NSEvent KeyDown keyCode=%d gate=%d action=%s",
+                                (int)[event keyCode], gate ? 1 : 0, gate ? "forward" : "swallow");
+                        }
                         if (g_textInputActive.load(std::memory_order_acquire))
                             return event; // let SDL produce SDL_TEXTINPUT
                         QueuePush(MakeRecordFromKey(event, OXR_NS_EVENT_KEY_DOWN));
                         return nil;
+                    }
                     case NSEventTypeKeyUp:
+                    {
+                        // XXX [smoke][DIAG6-INPUT]: NSEvent monitor swallow
+                        // decision log. Rate-limited 200/session.
+                        if (g_diag6BCounter.fetch_add(1, std::memory_order_relaxed) < DIAG6_B_LIMIT)
+                        {
+                            const bool gate = g_textInputActive.load(std::memory_order_acquire);
+                            POSTLOG_MARK_FMT("# DIAG6-B NSEvent KeyUp keyCode=%d gate=%d action=%s",
+                                (int)[event keyCode], gate ? 1 : 0, gate ? "forward" : "swallow");
+                        }
                         if (g_textInputActive.load(std::memory_order_acquire))
                             return event;
                         QueuePush(MakeRecordFromKey(event, OXR_NS_EVENT_KEY_UP));
                         return nil;
+                    }
                     case NSEventTypeFlagsChanged:
                         QueuePush(MakeRecordFromFlags(event));
                         return nil;
@@ -703,7 +732,42 @@ extern "C" void OpenXRay_SetNSEventInputEnabled(int enabled)
 
 extern "C" void OpenXRay_NotifyTextInputActive(int active)
 {
+    // XXX [smoke][DIAG6-INPUT]: gate transition with SDL state snapshot.
+    {
+        int sdl_count = 0;
+        const Uint8* sdl_state = SDL_GetKeyboardState(&sdl_count);
+        uint32_t held = 0;
+        for (int i = 0; i < sdl_count && i < 512; ++i)
+            if (sdl_state[i]) ++held;
+        POSTLOG_MARK_FMT("# DIAG6-C NotifyTextInputActive active=%d SDL_held=%u",
+            active, held);
+    }
+
     g_textInputActive.store(active != 0, std::memory_order_release);
+
+    if (active == 0)
+    {
+        // Bug 7 fix (gitea #155): KeyDown for `~`/console-toggle is swallowed
+        // by this monitor (gate=false → A.3 ring → CConsole::Show flips gate
+        // true). Subsequent KeyUp arrives with gate=true → forwarded to SDL.
+        // SDL never saw the paired KEYDOWN, leaving SDL_GetKeyboardState
+        // with a phantom-held key. OS-level autorepeat for that key then
+        // floods SDL_TEXTINPUT into the engine queue → IR_OnTextInput spam
+        // on whatever IR receiver is on cbStack (rebind UI, gameplay
+        // overlay). Reset SDL's view on every gate close so phantom doesn't
+        // accumulate. Cost: any physically-held key (W, Shift, ...) at the
+        // moment of console close is released from SDL's view and needs a
+        // re-press — acceptable trade-off for console-close being rare.
+        SDL_ResetKeyboard();
+
+        // XXX [smoke][DIAG6-INPUT]: verify reset cleared SDL state.
+        int sdl_count = 0;
+        const Uint8* sdl_state = SDL_GetKeyboardState(&sdl_count);
+        uint32_t held = 0;
+        for (int i = 0; i < sdl_count && i < 512; ++i)
+            if (sdl_state[i]) ++held;
+        POSTLOG_MARK_FMT("# DIAG6-C post-reset SDL_held=%u", held);
+    }
 }
 
 extern "C" void OpenXRay_SetMouseCaptureMode(int captured)
