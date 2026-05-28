@@ -6,6 +6,8 @@
 #include <SDL.h>
 
 #if defined(XR_PLATFORM_APPLE)
+#include "Common/PostLogMark.hpp"
+
 // Inline forward-decl — see SDLTextInputBackend.h header comment. The
 // macos_cocoa_shim.h header deliberately scopes itself to the A.3
 // NSEvent pipeline; this notify symbol piggybacks on the same TU as
@@ -20,12 +22,34 @@ void CSDLTextInputBackend::Start()
     // re-enters NSApp run loop via [NSTextInputContext activate]; flag
     // must be visible to the NSEvent monitor before that re-entry.
     OpenXRay_NotifyTextInputActive(1);
+
+    // XXX [smoke][DIAG6-E]: probe TEXTINPUT count at 3 points around
+    // SDL_StartTextInput + SDL_FlushEvents to identify how '`' leaks
+    // into console (gitea #162). Park, don't strip — recurring input
+    // bug family per feedback_instrumentation_strategy.
+    SDL_Event peek[16];
+    const int p1_before_start = SDL_PeepEvents(peek, 16, SDL_PEEKEVENT,
+        SDL_TEXTINPUT, SDL_TEXTINPUT);
 #endif
+
     SDL_StartTextInput();
+
+#if defined(XR_PLATFORM_APPLE)
+    const int p2_after_start = SDL_PeepEvents(peek, 16, SDL_PEEKEVENT,
+        SDL_TEXTINPUT, SDL_TEXTINPUT);
+#endif
+
     // Drop the whole TEXTEDITING..TEXTINPUT range so a fresh receiver
     // does not see stale composition or final-text from the previous
     // surface.
     SDL_FlushEvents(SDL_TEXTEDITING, SDL_TEXTINPUT);
+
+#if defined(XR_PLATFORM_APPLE)
+    const int p3_after_flush = SDL_PeepEvents(peek, 16, SDL_PEEKEVENT,
+        SDL_TEXTINPUT, SDL_TEXTINPUT);
+    POSTLOG_MARK_FMT("# DIAG6-E backend.Start TEXTINPUT p1=%d p2=%d p3=%d",
+        p1_before_start, p2_after_start, p3_after_flush);
+#endif
 }
 
 void CSDLTextInputBackend::Stop()
