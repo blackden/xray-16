@@ -684,7 +684,21 @@ void CInput::KeyUpdate()
     // The per-frame hold loop at the end must run unconditionally: it reads
     // keyboardState (populated by whichever source is active) and drives
     // hold-based features (sprint hold, continuous-fire, menu repeat).
+    //
+    // #158: SDL also receives keyDowns via its own [NSWindow keyDown:]
+    // responder chain — the NSEvent local monitor's swallow does NOT
+    // block that parallel ingest (proven by DIAG6-D log showing 2x
+    // IR_OnKeyboardPress per physical key in gameplay). To prevent double
+    // dispatch, skip SDL drain when text-input mode is OFF: gameplay
+    // routes through A.3 ring (authoritative); text-input mode (counter>0
+    // — console open, save dialog) routes through SDL. textInputCounter
+    // mirrors g_textInputActive shim flag: backend->Start() flips both
+    // on 0→1 transition, so counter>0 ≡ gate=true.
     bool runSDLDrain = true;
+#if defined(XR_PLATFORM_APPLE)
+    if (g_nsEventInputCvar && textInputCounter == 0)
+        runSDLDrain = false;
+#endif
 
     if (runSDLDrain)
     {
