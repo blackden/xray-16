@@ -47,6 +47,8 @@
 #include <atomic>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>  // XXX [smoke][DIAG7-B] fprintf
+#include <string.h> // XXX [smoke][DIAG7-B] strlen
 
 // Engine-owned gate flag setter — symbol lives in macos_cocoa_shim.mm.
 // Mirrors the same Notify call the SDL backend used so the NSEvent
@@ -108,6 +110,15 @@ std::atomic<int> g_insertTextDepth{0};
     const char* utf8 = [text UTF8String];
     if (utf8 == NULL)
         return;
+
+    // XXX [smoke][DIAG7-B]: A.7.2 reports double-dispatch — keystroke
+    // appearing twice in console / ImGui inputs. Park until source
+    // root-caused (likely [NSWindow keyDown:] parallel ingest reaching
+    // a second handleEvent path). Strip in A.7.4+ when NSWindow
+    // ownership consolidates the responder chain.
+    fprintf(stderr, "==> DIAG7-B insertText utf8=[%s] len=%zu\n",
+            utf8 ? utf8 : "<null>", utf8 ? strlen(utf8) : 0u);
+    fflush(stderr);
 
     OpenXRay_DispatchTextInputUTF8(utf8);
 
@@ -216,16 +227,23 @@ extern "C" void OpenXRay_NativeTextInput_Activate(void)
     {
         EnsureContextInitialized();
 
-        // Publish gate flag BEFORE [context activate]. The NSEvent
-        // local monitor reads g_textInputActive to decide whether to
-        // route KeyDown into the native text-input path
-        // ([context handleEvent:]) or the A.3 ring. Flag must be
-        // visible before any keystroke can reach the monitor under
-        // the new mode. Mirrors the ordering invariant the SDL
-        // backend documented.
+        // Publish gate flag — NSEvent local monitor reads
+        // g_textInputActive to decide whether to route KeyDown into
+        // the native text-input path ([context handleEvent:]) or the
+        // A.3 ring.
+        //
+        // NOTE: must NOT call [sTextInputContext activate]. Activate
+        // installs the context process-wide as the current input
+        // context, after which AppKit auto-routes every keyDown that
+        // reaches the responder chain (via [NSWindow keyDown:]
+        // parallel ingest path that our local NSEvent monitor cannot
+        // intercept) to our singleton view's insertText:. Combined
+        // with our manual [context handleEvent:] driver from the
+        // local monitor this fires insertText: TWICE per keystroke
+        // and doubles every character in the ImGui InputText field.
+        // handleEvent: works on detached/un-activated contexts —
+        // driver-style usage stays here.
         OpenXRay_NotifyTextInputActive(1);
-
-        [sTextInputContext activate];
     }
 }
 
@@ -233,15 +251,9 @@ extern "C" void OpenXRay_NativeTextInput_Deactivate(void)
 {
     @autoreleasepool
     {
-        // Clear gate BEFORE [context deactivate] — asymmetric to
-        // Activate. Same rationale as the SDL backend's Stop
-        // ordering: a real gameplay keyDown arriving mid-teardown of
-        // the text-input context would otherwise be routed to a
-        // context that is mid-deactivation and dropped on the floor.
+        // Symmetric — see Activate. No deactivate either: context was
+        // never activated, so nothing to undo besides the gate flag.
         OpenXRay_NotifyTextInputActive(0);
-
-        if (sTextInputContext != nil)
-            [sTextInputContext deactivate];
     }
 }
 
