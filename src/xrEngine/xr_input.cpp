@@ -696,8 +696,24 @@ void CInput::KeyUpdate()
     // on 0→1 transition, so counter>0 ≡ gate=true.
     bool runSDLDrain = true;
 #if defined(XR_PLATFORM_APPLE)
+    static bool s_sdlDrainWasSkipping = false;
     if (g_nsEventInputCvar && textInputCounter == 0)
+    {
         runSDLDrain = false;
+        s_sdlDrainWasSkipping = true;
+    }
+    else if (s_sdlDrainWasSkipping)
+    {
+        // Transition from skip to drain (counter just went 0→>0). SDL
+        // queue has accumulated stale events via parallel ingest
+        // ([NSWindow keyDown:] responder chain) while we were skipping.
+        // Flush them so a held movement key (W) that started in gameplay
+        // doesn't replay as KEYDOWN+KEYUP through the new SDL drain path
+        // when text-input mode opens (#159 followup: W release on §
+        // console-toggle while moving). See gitea issue #158 followup.
+        SDL_FlushEvents(SDL_KEYDOWN, SDL_KEYMAPCHANGED);
+        s_sdlDrainWasSkipping = false;
+    }
 #endif
 
     if (runSDLDrain)
