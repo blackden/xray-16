@@ -48,8 +48,11 @@
 #include <atomic>
 #include <stddef.h>
 #include <stdint.h>
-#include <stdio.h>  // XXX [smoke][DIAG7-B] fprintf
-#include <string.h> // XXX [smoke][DIAG7-B] strlen
+// Includes below stay even with DIAG7-B parked under #if 0 — keeping
+// them avoids re-deriving the right header set when the probe is
+// flipped back on for a future investigation.
+#include <stdio.h>  // DIAG7-B fprintf
+#include <string.h> // DIAG7-B strlen
 
 // Engine-owned gate flag setter — symbol lives in macos_cocoa_shim.mm.
 // Mirrors the same Notify call the SDL backend used so the NSEvent
@@ -69,10 +72,26 @@ extern "C" void OpenXRay_DispatchTextInputUTF8(const char* utf8);
 // (double-dispatch returning, or insertText: stalling) can be
 // observed via fprintf + counter delta without re-deriving the
 // instrumentation from scratch.
+//
+// `#if 0` block — the probe is kept as a reading artefact for whoever
+// next debugs this path. The full DIAG7 family (B/E/F) was used during
+// the A.7.2 iteration 3 root-cause hunt: B = «insertText: fired with
+// utf8=...», E = «handler entry, ctx=..., cvar=...», F = «handleEvent:
+// delta=...». E/F survive as forensic comments in the architecture
+// block at the top of this file; B (the most reusable signal) lives
+// here behind a 0/1 switch.
+//
+// To re-enable: flip the `#if 0` to `#if 1` here, rebuild, ship,
+// reproduce the input. Each call to insertText: emits one line to
+// stderr; combined with DIAG7-E/F (re-derivable from the architecture
+// comment) you get full visibility into «who fired insertText: and
+// what did handleEvent: think it did».
+#if 0
 namespace
 {
 std::atomic<int> g_insertTextDepth{0};
 } // namespace
+#endif
 
 @interface OpenXRayTextInputView : NSView <NSTextInputClient>
 @end
@@ -110,21 +129,26 @@ std::atomic<int> g_insertTextDepth{0};
     if (utf8 == NULL)
         return;
 
-    // XXX [smoke][DIAG7-B]: A.7.2 reports double-dispatch — keystroke
-    // appearing twice in console / ImGui inputs. Park until source
-    // root-caused (likely [NSWindow keyDown:] parallel ingest reaching
-    // a second handleEvent path). Strip in A.7.4+ when NSWindow
-    // ownership consolidates the responder chain.
+    // DIAG7-B probe — historical instrumentation that confirmed
+    // iteration-3 fixed the double-dispatch (40 fires for 40
+    // keystrokes during the 2026-05-28 smoke). Kept as a #if 0 block
+    // so future investigators of this path see the «right probe» to
+    // re-enable rather than re-deriving it from scratch. See the
+    // explanatory block next to g_insertTextDepth declaration above.
+#if 0
     fprintf(stderr, "==> DIAG7-B insertText utf8=[%s] len=%zu\n",
             utf8 ? utf8 : "<null>", utf8 ? strlen(utf8) : 0u);
     fflush(stderr);
+#endif
 
     OpenXRay_DispatchTextInputUTF8(utf8);
 
+#if 0
     // Counter parked alongside DIAG7-B probe — see declaration. Not
     // read by any production code; available for future regression
     // diagnosis.
     g_insertTextDepth.fetch_add(1, std::memory_order_release);
+#endif
 }
 
 // ---------------------------------------------------------------------
