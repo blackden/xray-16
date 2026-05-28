@@ -269,6 +269,13 @@ extern "C" void OpenXRay_NativeTextInput_Deactivate(void)
 // non-printable keys (Enter, Escape, Backspace, arrows) still reach
 // gameplay receivers via IR_OnKeyboardPress.
 // ---------------------------------------------------------------------
+// Defined in xrEngine/xr_input.cpp. 0 (default) — toggle key (backtick
+// / §) bypasses native text-input handling so the same key that opened
+// the console can also close it. 1 — toggle key passes through and
+// inserts as a printable character; only ESC closes. User preference
+// cvar `console_toggle_passthrough`, persisted in user.ltx.
+extern "C" int g_consoleTogglePassthrough;
+
 extern "C" int OpenXRay_HandleNativeTextInputKeyDown(void* nsevent)
 {
     if (nsevent == NULL || sTextInputContext == nil)
@@ -276,8 +283,22 @@ extern "C" int OpenXRay_HandleNativeTextInputKeyDown(void* nsevent)
 
     @autoreleasepool
     {
+        NSEvent* event = (__bridge NSEvent*)nsevent;
+
+        // Toggle-key bypass — default behaviour. kVK_ANSI_Grave (0x32)
+        // is backtick on ANSI; kVK_ISO_Section (0x0A) is § on Apple
+        // ISO keyboards (the physical key bound to console toggle via
+        // the A.7.1 keyCode table + #162 alias work). Returning 0 here
+        // lets the local monitor push the event into the A.3 ring so
+        // CConsole::IR_OnKeyboardPress can run the close action.
+        if (g_consoleTogglePassthrough == 0)
+        {
+            const unsigned short keyCode = [event keyCode];
+            if (keyCode == 0x32 || keyCode == 0x0A)
+                return 0;
+        }
+
         const int before = g_insertTextDepth.load(std::memory_order_acquire);
-        NSEvent*  event  = (__bridge NSEvent*)nsevent;
         [sTextInputContext handleEvent:event];
         const int after = g_insertTextDepth.load(std::memory_order_acquire);
         return (after > before) ? 1 : 0;

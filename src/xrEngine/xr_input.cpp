@@ -155,6 +155,16 @@ constexpr int kVK_JIS_Kana            = 0x68;
 // mid-frame text-input toggles.
 int g_nsEventInputCvar = 1;
 
+// Behaviour of the console toggle key (backtick on ANSI, § on ISO)
+// while text input is already active. 0 (default) — toggle key bypasses
+// the native NSTextInputContext handler and falls through to the A.3
+// ring; this lets CConsole::IR_OnKeyboardPress close the console with
+// the same key that opened it (the X-Ray standard behaviour). 1 —
+// toggle key passes through to native text input and inserts as a
+// printable character; only ESC closes the console. Personal preference
+// cvar — survives in user.ltx. Apple-only.
+int g_consoleTogglePassthrough = 0;
+
 // Apple HID keyCode -> SDL_Scancode mapping.
 // Static replica of SDL's internal table in SDL_cocoakeyboard.m. Lets us
 // drop SDL from the keyboard event path without changing the engine's
