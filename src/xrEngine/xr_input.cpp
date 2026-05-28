@@ -9,6 +9,7 @@
 #include "xrCore/Text/StringConversion.hpp"
 
 #include <locale>
+#include <typeinfo> // XXX [smoke][DIAG6-INPUT]: for typeid(...).name() in caller identification probes
 
 #if defined(XR_PLATFORM_APPLE)
 // Apple HID virtual key codes (from <Carbon/HIToolbox/Events.h>).
@@ -759,6 +760,9 @@ void CInput::KeyUpdate()
             case SDL_KEYDOWN:
                 if (event.key.repeat)
                     continue;
+                // XXX [smoke][DIAG6-INPUT]: caller identification follow-up to PR #156
+                Msg("# DIAG6-D IR_OnKeyboardPress scancode=%d receiver=%s stack_depth=%zu",
+                    (int)event.key.keysym.scancode, typeid(*cbStack.back()).name(), cbStack.size());
                 cbStack.back()->IR_OnKeyboardPress(event.key.keysym.scancode);
                 break;
 
@@ -1241,6 +1245,9 @@ void CInput::NSEventDrain()
                     // hold-based actions (движение WASD, sprint Shift+W)
                     // не работают — press проходит, но Hold не догоняет.
                     keyboardState[sc] = true;
+                    // XXX [smoke][DIAG6-INPUT]: caller identification follow-up to PR #156
+                    Msg("# DIAG6-D A3_IR_OnKeyboardPress scancode=%d receiver=%s stack_depth=%zu",
+                        (int)sc, typeid(*receiver).name(), cbStack.size());
                     receiver->IR_OnKeyboardPress((int)sc);
                 }
                 break;
