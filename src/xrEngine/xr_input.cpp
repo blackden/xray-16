@@ -3,6 +3,9 @@
 
 #include "xr_input.h"
 #include "ITextInputBackend.h"
+#if defined(XR_PLATFORM_APPLE)
+#include "NativeTextInputBackend.h"
+#endif
 #include "IInputReceiver.h"
 #include "GameFont.h"
 #include "XR_IOConsole.h"
@@ -486,7 +489,11 @@ CInput::CInput(const bool exclusive)
 
     Log("Starting INPUT device...");
 
+#if defined(XR_PLATFORM_APPLE)
+    textInputBackend = CreateNativeTextInputBackend();
+#else
     textInputBackend = CreateSDLTextInputBackend();
+#endif
 
     mouseState.reset();
     keyboardState.reset();
@@ -686,52 +693,26 @@ void CInput::KeyUpdate()
 {
     ZoneScoped;
 
-    // Drain SDL keyboard events. On Apple with nsevent_input=1, gameplay
-    // keyDowns are consumed by the NSEvent local monitor before SDL sees
-    // them, so the SDL queue is empty and this drain is a no-op. However,
-    // when text input is active (g_textInputActive flag opens the monitor
-    // gate — console open, save dialog, MP chat), keyDowns pass through to
-    // SDL via [NSWindow keyDown:] and produce SDL_KEYDOWN / SDL_TEXTINPUT
-    // events here. Those must be drained the same way as on Linux/Windows
-    // so console toggles (DIK_GRAVE), text input (SDL_TEXTINPUT → ImGui),
-    // and save-name typing work. The pre-#146 unconditional skip orphaned
-    // those events and broke text input post-A.6 (#142/#145 closes #146).
-    // The per-frame hold loop at the end must run unconditionally: it reads
-    // keyboardState (populated by whichever source is active) and drives
-    // hold-based features (sprint hold, continuous-fire, menu repeat).
+    // Drain SDL keyboard events.
     //
-    // #158: SDL also receives keyDowns via its own [NSWindow keyDown:]
-    // responder chain — the NSEvent local monitor's swallow does NOT
-    // block that parallel ingest (proven by DIAG6-D log showing 2x
-    // IR_OnKeyboardPress per physical key in gameplay). To prevent double
-    // dispatch, skip SDL drain when text-input mode is OFF: gameplay
-    // routes through A.3 ring (authoritative); text-input mode (counter>0
-    // — console open, save dialog) routes through SDL. textInputCounter
-    // mirrors g_textInputActive shim flag: backend->Start() flips both
-    // on 0→1 transition, so counter>0 ≡ gate=true.
-    bool runSDLDrain = true;
-#if defined(XR_PLATFORM_APPLE)
-    static bool s_sdlDrainWasSkipping = false;
-    if (g_nsEventInputCvar && textInputCounter == 0)
-    {
-        runSDLDrain = false;
-        s_sdlDrainWasSkipping = true;
-    }
-    else if (s_sdlDrainWasSkipping)
-    {
-        // Transition from skip to drain (counter just went 0→>0). SDL
-        // queue has accumulated stale events via parallel ingest
-        // ([NSWindow keyDown:] responder chain) while we were skipping.
-        // Flush them so a held movement key (W) that started in gameplay
-        // doesn't replay as KEYDOWN+KEYUP through the new SDL drain path
-        // when text-input mode opens (#159 followup: W release on §
-        // console-toggle while moving). See gitea issue #158 followup.
-        SDL_FlushEvents(SDL_KEYDOWN, SDL_KEYMAPCHANGED);
-        s_sdlDrainWasSkipping = false;
-    }
-#endif
-
-    if (runSDLDrain)
+    // On Apple (A.7.2, gitea #165) the SDL queue drain is disabled
+    // entirely: keyDown has one ingest source now — the A.3 NSEvent
+    // local monitor in macos_cocoa_shim.mm. In gameplay mode the
+    // monitor swallows the event and pushes a ring-queue record
+    // (drained by NSEventDrain in OnFrame -> IR_OnKeyboardPress); in
+    // text-input mode the monitor pushes a ring-queue record for nav
+    // keys (ESC / arrows / Enter) while AppKit's activated
+    // NSTextInputContext auto-dispatches printable keystrokes to
+    // insertText: on our NativeTextInputBackend view via the responder
+    // chain. SDL still receives keyDowns in parallel via the
+    // [NSWindow keyDown:] responder chain (parallel ingest, see
+    // notes/decisions/a6-textinput-contract.md), but with no consumer
+    // here the SDL queue is inert: events accumulate harmlessly and
+    // are never read.
+    //
+    // The per-frame hold loop at the end runs unconditionally —
+    // keyboardState is populated by whichever source is active.
+#if !defined(XR_PLATFORM_APPLE)
     {
         SDL_Event events[MAX_KEYBOARD_EVENTS];
         const auto count = SDL_PeepEvents(events, MAX_KEYBOARD_EVENTS,
@@ -741,28 +722,6 @@ void CInput::KeyUpdate()
         for (int i = 0; i < count; ++i)
         {
             SDL_Event& event = events[i];
-
-#if defined(XR_PLATFORM_APPLE)
-            // Issue #162: SDL2 maps the ISO Mac key between LShift and Z
-            // (kVK_ANSI_Grave, keyCode 50) to SCANCODE_NONUSBACKSLASH (100),
-            // but our A.3 ring path maps the same physical key to
-            // SCANCODE_GRAVE (53). Without aliasing here, the second press
-            // at gate=1 (forward path through SDL) dispatches scancode=100,
-            // which has no console-toggle binding → console doesn't close
-            // and the printable TEXTINPUT (']' on RU PC layout) leaks into
-            // the still-open console. Aliasing at SDL drain entry keeps
-            // both ingest paths (A.3 ring vs SDL drain) consistent. We
-            // mutate the local event copy so both keyboardState update
-            // (this loop) and dispatch (next loop) see the canonical
-            // scancode. ANSI Mac users unaffected: on ANSI layout
-            // kVK_ANSI_Grave is the `~` row above Tab and SDL maps it
-            // directly to SCANCODE_GRAVE.
-            if ((event.type == SDL_KEYDOWN || event.type == SDL_KEYUP)
-                && event.key.keysym.scancode == SDL_SCANCODE_NONUSBACKSLASH)
-            {
-                event.key.keysym.scancode = SDL_SCANCODE_GRAVE;
-            }
-#endif
 
             switch (event.type)
             {
@@ -824,6 +783,7 @@ void CInput::KeyUpdate()
             }
         }
     }
+#endif
 
     for (u32 i = 0; i < COUNT_KB_BUTTONS; ++i)
         if (keyboardState[i])

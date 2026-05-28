@@ -478,6 +478,12 @@ void ide::IR_OnKeyboardHold(int /*key*/)
 void ide::IR_OnTextInput(pcstr text)
 {
     ImGuiIO& io = ImGui::GetIO();
+    // XXX [smoke][DIAG7-C]: A.7.2 double-dispatch hunt. Logs every char
+    // entering ImGui io. Pair with DIAG7-B in NativeTextInputBackend.mm
+    // insertText: — if DIAG7-C fires 2× per DIAG7-B, second source is
+    // somewhere between native dispatch and ImGui. Park until A.7.2
+    // double-dispatch root-caused.
+    Msg("==> DIAG7-C ide::IR_OnTextInput text=[%s] WantText=%d", text ? text : "<null>", (int)io.WantTextInput);
     if (io.WantTextInput)
         io.AddInputCharactersUTF8(text);
 }

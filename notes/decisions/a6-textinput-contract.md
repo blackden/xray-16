@@ -313,6 +313,18 @@ A.6 техдолг закрыт окончательно. DIAG6 probes оста�
 Ready for A.7 (SDL2 removed из macOS-билда) — теперь нет parallel ingest,
 single path, single dispatch.
 
+> **A.7.2 follow-up (2026-05-28, gitea #165):** the SDL text-input
+> pathway documented above (`SDLTextInputBackend` Start/Stop wrapping
+> SDL_StartTextInput) was replaced on macOS with a native
+> NSTextInputContext-driven backend
+> (`src/xrEngine/NativeTextInputBackend.mm`). The "gate that lets SDL
+> see keyDown for SDL_TEXTINPUT" mechanism described in §"Root cause
+> #124" no longer exists on Apple — keyDown is now exclusively owned
+> by the A.3 NSEvent monitor, which either swallows into the ring
+> (gameplay) or forwards into our own NSTextInputContext (text
+> surfaces). See
+> [`notes/decisions/a7-2-native-text-input.md`](a7-2-native-text-input.md).
+
 ## DIAG6 lifecycle — парковка → strip (2026-05-28, A.7.1)
 
 После закрытия #162 (NONUSBACKSLASH alias) DIAG6-A/B/C/D/E probes
