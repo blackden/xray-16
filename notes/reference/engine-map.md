@@ -585,13 +585,25 @@ window events продолжают идти через SDL.
   `event.button.button`. Под `nsevent_input=1` сайдовые mouse кнопки
   недоступны. Default CoP binds их не используют — non-blocker; fix
   через `[event buttonNumber]` если потребуется.
-- **ISO European keyboards**: клавиша §/±/ёЁ между левым Shift и Z/Я
-  имеет `kVK_ISO_Section` (0x0A), не `kVK_ANSI_Grave` (0x32). SDL
-  свопал их runtime для совместимости с US ANSI bindings. Мы маппим
-  обе на SCANCODE_GRAVE (без runtime detection) — обе работают как
-  console-open, безвредно. (Asymmetry на close замечена 2026-05-28 —
-  `~` open, `§` close; ` после открытия консоли просто печатается.
-  Follow-up task #19.)
+- **ISO European keyboards**: клавиша §/±/ёЁ **левее единицы** имеет
+  `kVK_ISO_Section` (0x0A) — на ANSI keyboards её нет. Клавиша **между
+  левым Shift и Z/Я** на ISO Mac имеет `kVK_ANSI_Grave` (0x32) — на
+  ANSI Mac та же `kVK_ANSI_Grave` соответствует клавише `~` левее
+  единицы. Наша Apple keyCode table в `xr_input.cpp:191/199` маппит
+  ОБЕ на `SDL_SCANCODE_GRAVE` (53), но **SDL2 macOS video driver
+  маппит kVK_ANSI_Grave на ISO Mac на `SDL_SCANCODE_NONUSBACKSLASH`
+  (100)** через HID-canonical layout detection. Mismatch ломает
+  console-toggle close path: первое нажатие через A.3 ring (swallow,
+  gate=0) идёт через нашу table → GRAVE → `Show()`; второе при gate=1
+  идёт через SDL drain → NONUSBACKSLASH → `GetBindedAction(100)` = no
+  action → console stays open, plus SDL synthesises TEXTINPUT для
+  printable character (`']'` на RU PC layout) → leak в console.
+  Mitigation (#162, PR #163, 2026-05-28): alias `SDL_SCANCODE_NONUSBACKSLASH`
+  → `SDL_SCANCODE_GRAVE` в SDL drain entry на Apple (`xr_input.cpp`
+  ~line 748-770). Landmine: SDL2 HID-canonical scancode mapping может
+  расходиться с нашей table на любой ISO-specific позиции. Если ещё
+  такие symptoms — audit полной таблицы против `SDL_GetScancodeFromKey`
+  на ISO Mac live build, не assume.
 - **Text-input двойной gate (post-A.6 #142/#147)**: `g_textInputActive`
   (наш atomic в шиме) И `SDL_IsTextInputActive()` (downstream внутри
   SDL `Cocoa_HandleKeyEvent`) — оба должны быть true для `SDL_TEXTINPUT`
