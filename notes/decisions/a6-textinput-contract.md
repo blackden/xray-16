@@ -312,3 +312,26 @@ Codified в memory: `project_sdl_parallel_ingest_macos` (новая),
 A.6 техдолг закрыт окончательно. DIAG6 probes остаются park'ed (XXX-tag).
 Ready for A.7 (SDL2 removed из macOS-билда) — теперь нет parallel ingest,
 single path, single dispatch.
+
+## DIAG6 lifecycle — парковка → strip (2026-05-28, A.7.1)
+
+После закрытия #162 (NONUSBACKSLASH alias) DIAG6-A/B/C/D/E probes
+парковали под `XXX [smoke][DIAG6-...]` tags за strategy
+`feedback_instrumentation_strategy` (recurring input bug family — probes
+survive root-cause-found bar, ждут следующего confirmed-quiet scan).
+
+В A.7.1 strip — обоснование:
+
+1. #162 root cause был ISO scancode divergence (`kVK_ANSI_Grave` →
+   NONUSBACKSLASH на ISO Mac), не parallel ingest race. DIAG6 ловили
+   parallel ingest signature (двойной dispatch SDL drain + A.3 ring), что
+   уже было закрыто в #159/#160.
+2. Parallel ingest **архитектурно исчезнет** в A.7.2 (NSTextInputContext
+   replaces SDL_TEXTINPUT pathway → `[NSWindow keyDown:]` больше не
+   уходит в SDL responder chain в text-input mode). DIAG6 теряет
+   raison d'être.
+3. `-Wpotentially-evaluated-expression` warnings в DIAG6-D sites
+   (`typeid(*receiver).name()`) исчезают как side effect.
+
+Pattern для будущих re-introduce если class issue вернётся: реактивировать
+через `git revert` revert-of-strip + повторно park под XXX tag.

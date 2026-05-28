@@ -604,6 +604,13 @@ window events продолжают идти через SDL.
   расходиться с нашей table на любой ISO-specific позиции. Если ещё
   такие symptoms — audit полной таблицы против `SDL_GetScancodeFromKey`
   на ISO Mac live build, не assume.
+- **Apple keyCode → SDL_Scancode table parity**: `src/xrEngine/xr_input.cpp`
+  `kNSKeyCodeToSDLScancode[128]` — designated-initializer; gaps default
+  к `SDL_SCANCODE_UNKNOWN`. `VerifyInputTable()` после A.7.1 логирует
+  unmapped entries при boot (gated `g_nsEventInputCvar==1` ||
+  `_DEBUG`). Reference: SDL2 `src/video/cocoa/SDL_cocoakeyboard.m` для
+  divergence checks. История: #162 ISO landmine, A.7.1 gitea #164 —
+  JIS coverage + parity scan.
 - **Text-input двойной gate (post-A.6 #142/#147)**: `g_textInputActive`
   (наш atomic в шиме) И `SDL_IsTextInputActive()` (downstream внутри
   SDL `Cocoa_HandleKeyEvent`) — оба должны быть true для `SDL_TEXTINPUT`
