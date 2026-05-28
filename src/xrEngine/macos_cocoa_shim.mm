@@ -91,6 +91,17 @@ extern "C" void OpenXRay_OnSystemDidWake(void);
 extern "C" void OpenXRay_OnAppDidBecomeActive(void);
 extern "C" void OpenXRay_OnAppWillResignActive(void);
 
+// Defined in NativeTextInputBackend.mm under XR_PLATFORM_APPLE. Hands the
+// NSEvent to our NSTextInputContext via [context handleEvent:] and returns
+// 1 if the event produced committed text (insertText: fired into
+// IR_OnTextInput), 0 otherwise. Caller falls back to the A.3 ring path
+// for non-text keys (Enter, Escape, arrows, function keys) when this
+// returns 0, so navigation in text surfaces still reaches receivers.
+// nsevent is type-erased (void*) — the cocoa shim already holds a typed
+// NSEvent* but the .mm boundary is exposed as a plain C entry to keep
+// NativeTextInputBackend.h consumable from .cpp TUs (xr_input.cpp).
+extern "C" int OpenXRay_HandleNativeTextInputKeyDown(void* nsevent);
+
 // ---------------------------------------------------------------------------
 // NSEvent input pipeline (issue #120, A.3 step 2a/4) — infrastructure-only.
 //
@@ -604,53 +615,63 @@ extern "C" void OpenXRay_InstallNSEventMonitor(void)
 
                 NSWindow *window = [event window];
 
-                // Text-input gate (gitea #124, hardened in #141). When SDL
-                // text input is active (console open, save-name dialog, MP
-                // chat entry), AppKit must see keyDown so SDL can translate
-                // it into SDL_TEXTINPUT via the IME / interpretKeyEvents:
-                // pipeline. Swallowing the keyDown here (the A.3 default
-                // path) blocks SDL_TEXTINPUT entirely and breaks every text
-                // entry surface in the engine.
+                // Text-input gate (A.7.2, gitea #165).
                 //
-                // When text input is inactive (gameplay, menus driven by
-                // discrete key bindings) we still want the A.3 NSEvent
-                // pipeline: queue the record and consume so SDL never sees
-                // the keyDown — that is the whole reason A.3 exists
-                // (deterministic keyCode ordering, no SDL scancode races).
+                // When text input is INACTIVE (gameplay, discrete key
+                // bindings): queue the keyDown into the A.3 ring and
+                // consume — A.3 owns gameplay key dispatch exclusively.
                 //
-                // The gate reads an engine-owned std::atomic<bool>
-                // (g_textInputActive above) published by
-                // CSDLTextInputBackend::Start/Stop in SDLTextInputBackend.cpp
-                // synchronously with CInput::EnableTextInput/DisableTextInput.
-                // The previous SDL_IsTextInputActive() read races
-                // [NSTextInputContext activate/deactivate] re-entry inside
-                // SDL_Start/StopTextInput (the same pump path drives this
-                // monitor), producing stale-state windows that broke console
-                // and save-dialog input after the A.6 backend extraction.
+                // When text input is ACTIVE (console open, save-name
+                // dialog, MP chat entry): hand the event to our own
+                // NSTextInputContext via
+                // OpenXRay_HandleNativeTextInputKeyDown
+                // (NativeTextInputBackend.mm). The context invokes
+                // insertText: synchronously for committed characters,
+                // landing UTF-8 in IR_OnTextInput on the top receiver.
+                // If the context did NOT produce committed text
+                // (return 0: Enter, Escape, Backspace, arrows, dead-key
+                // mid-composition, function keys), fall through to the
+                // A.3 ring so the keystroke still reaches gameplay /
+                // navigation receivers as IR_OnKeyboardPress. KeyUp is
+                // always routed through the A.3 ring — text surfaces
+                // are commit-only and don't care about releases.
                 //
-                // KeyUp asymmetry — known limitation. If the user holds key
-                // X while text input is ACTIVE, then text input toggles off
-                // (e.g. console closes) while X is still physically held,
-                // the eventual KeyUp arrives with g_textInputActive == false
-                // and lands in the A.3 ring queue without a paired KeyDown
-                // there — meanwhile SDL keyboardState still sees X as down.
-                // Symptom is the stuck-key class; trigger is narrow (modal
-                // toggle while key physically held). Deferred to A.7 where
-                // the entire keyboard pipeline is unified under native
-                // AppKit and the dual-pipeline asymmetry disappears.
+                // Pre-A.7.2 the gate let the event through to SDL so
+                // SDL_TEXTINPUT could be produced via SDL's own
+                // NSTextInputContext. That pathway was the last reason
+                // for [NSWindow keyDown:] parallel ingest to matter,
+                // which spawned the #155/#156/#157/#158/#159/#160/#162
+                // double-dispatch / phantom-key cascade. Owning the
+                // input context here makes the monitor authoritative
+                // again for every keystroke regardless of mode.
+                //
+                // KeyUp asymmetry (still present): if the user holds
+                // key X while text input is ACTIVE, then text input
+                // toggles off while X is still physically held, the
+                // KeyUp lands in the A.3 ring without a paired KeyDown
+                // there. Symptom narrow (modal toggle while key
+                // physically held); will be addressed when the A.3
+                // keyboardState ↔ text-input pipeline get fully unified
+                // under native AppKit ownership of NSWindow (A.7.4+).
                 switch (t)
                 {
                     case NSEventTypeKeyDown:
                     {
                         if (g_textInputActive.load(std::memory_order_acquire))
-                            return event; // let SDL produce SDL_TEXTINPUT
+                        {
+                            // Try native text-input first. Returns 1 if
+                            // committed text was produced (insertText:
+                            // fired) → consume. Otherwise fall through
+                            // to A.3 ring so navigation keys still
+                            // reach receivers.
+                            if (OpenXRay_HandleNativeTextInputKeyDown((__bridge void*)event))
+                                return nil;
+                        }
                         QueuePush(MakeRecordFromKey(event, OXR_NS_EVENT_KEY_DOWN));
                         return nil;
                     }
                     case NSEventTypeKeyUp:
                     {
-                        if (g_textInputActive.load(std::memory_order_acquire))
-                            return event;
                         QueuePush(MakeRecordFromKey(event, OXR_NS_EVENT_KEY_UP));
                         return nil;
                     }
@@ -710,21 +731,16 @@ extern "C" void OpenXRay_NotifyTextInputActive(int active)
 {
     g_textInputActive.store(active != 0, std::memory_order_release);
 
-    if (active == 0)
-    {
-        // Bug 7 fix (gitea #155): KeyDown for `~`/console-toggle is swallowed
-        // by this monitor (gate=false → A.3 ring → CConsole::Show flips gate
-        // true). Subsequent KeyUp arrives with gate=true → forwarded to SDL.
-        // SDL never saw the paired KEYDOWN, leaving SDL_GetKeyboardState
-        // with a phantom-held key. OS-level autorepeat for that key then
-        // floods SDL_TEXTINPUT into the engine queue → IR_OnTextInput spam
-        // on whatever IR receiver is on cbStack (rebind UI, gameplay
-        // overlay). Reset SDL's view on every gate close so phantom doesn't
-        // accumulate. Cost: any physically-held key (W, Shift, ...) at the
-        // moment of console close is released from SDL's view and needs a
-        // re-press — acceptable trade-off for console-close being rare.
-        SDL_ResetKeyboard();
-    }
+    // Pre-A.7.2 a SDL_ResetKeyboard() call lived here to wipe SDL's
+    // phantom-held key state on every gate close (Bug 7 / gitea #155).
+    // With the SDL_TEXTINPUT pathway gone (A.7.2 / #165) SDL's own
+    // keyboardState is no longer consulted by the engine on Apple —
+    // KeyUpdate skips SDL_PeepEvents entirely under XR_PLATFORM_APPLE —
+    // so SDL's view of phantom-held is moot. The engine's own
+    // keyboardState bitset stays consistent because both KeyDown and
+    // KeyUp land in the A.3 ring path now (the active-mode keyDown
+    // forwards into NativeTextInputBackend, then optionally falls
+    // through to the ring; KeyUp goes straight to the ring).
 }
 
 extern "C" void OpenXRay_SetMouseCaptureMode(int captured)
