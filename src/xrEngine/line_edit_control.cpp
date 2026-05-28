@@ -152,11 +152,15 @@ void line_edit_control::clear_states()
 
 void line_edit_control::on_ir_capture()
 {
+    // XXX [smoke][DIAG6-INPUT]: caller identification follow-up to PR #156
+    Msg("# DIAG6-D Enable called from line_edit_control::on_ir_capture");
     pInput->EnableTextInput();
 }
 
 void line_edit_control::on_ir_release()
 {
+    // XXX [smoke][DIAG6-INPUT]: caller identification follow-up to PR #156
+    Msg("# DIAG6-D Disable called from line_edit_control::on_ir_release");
     pInput->DisableTextInput();
 }
 
