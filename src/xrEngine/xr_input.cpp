@@ -747,7 +747,29 @@ void CInput::KeyUpdate()
         // Let iGetAsyncKeyState work correctly during this frame immediately
         for (int i = 0; i < count; ++i)
         {
-            const SDL_Event& event = events[i];
+            SDL_Event& event = events[i];
+
+#if defined(XR_PLATFORM_APPLE)
+            // Issue #162: SDL2 maps the ISO Mac key between LShift and Z
+            // (kVK_ANSI_Grave, keyCode 50) to SCANCODE_NONUSBACKSLASH (100),
+            // but our A.3 ring path maps the same physical key to
+            // SCANCODE_GRAVE (53). Without aliasing here, the second press
+            // at gate=1 (forward path through SDL) dispatches scancode=100,
+            // which has no console-toggle binding → console doesn't close
+            // and the printable TEXTINPUT (']' on RU PC layout) leaks into
+            // the still-open console. Aliasing at SDL drain entry keeps
+            // both ingest paths (A.3 ring vs SDL drain) consistent. We
+            // mutate the local event copy so both keyboardState update
+            // (this loop) and dispatch (next loop) see the canonical
+            // scancode. ANSI Mac users unaffected: on ANSI layout
+            // kVK_ANSI_Grave is the `~` row above Tab and SDL maps it
+            // directly to SCANCODE_GRAVE.
+            if ((event.type == SDL_KEYDOWN || event.type == SDL_KEYUP)
+                && event.key.keysym.scancode == SDL_SCANCODE_NONUSBACKSLASH)
+            {
+                event.key.keysym.scancode = SDL_SCANCODE_GRAVE;
+            }
+#endif
 
             switch (event.type)
             {
