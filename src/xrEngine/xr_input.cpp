@@ -691,6 +691,28 @@ void CInput::KeyUpdate()
         const auto count = SDL_PeepEvents(events, MAX_KEYBOARD_EVENTS,
             SDL_GETEVENT, SDL_KEYDOWN, SDL_KEYMAPCHANGED);
 
+        // XXX [smoke][DIAG6-INPUT]: SDL drain volume + type distribution.
+        // Park after Bug 7 verified; recurring input family per
+        // feedback_instrumentation_strategy. Only logs non-empty drains so
+        // idle frames don't flood the log.
+        if (count > 0)
+        {
+            u32 kd = 0, ku = 0, ti = 0, te = 0, other = 0;
+            for (int i = 0; i < count; ++i)
+            {
+                switch (events[i].type)
+                {
+                case SDL_KEYDOWN: ++kd; break;
+                case SDL_KEYUP: ++ku; break;
+                case SDL_TEXTINPUT: ++ti; break;
+                case SDL_TEXTEDITING: ++te; break;
+                default: ++other; break;
+                }
+            }
+            Msg("# DIAG6-A SDL_drain count=%d kd=%u ku=%u ti=%u te=%u other=%u",
+                count, kd, ku, ti, te, other);
+        }
+
         // Let iGetAsyncKeyState work correctly during this frame immediately
         for (int i = 0; i < count; ++i)
         {
