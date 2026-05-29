@@ -84,14 +84,37 @@
   (m_sdlWnd = nullptr + Apple-condition'ить consumers). Это A.7.4c step
   C.4 / отдельный PR. История: PR #191 reverted attempts `b2e87f9a7` и
   `324b638ef`.
-- **Native render env vars** (PR #187/#189/#191):
+- **Native render env vars** (PR #187/#189/#191/#193):
   - `OPENXRAY_NATIVE_SWAP=1` → `[ctx flushBuffer]` вместо `SDL_GL_SwapWindow`
   - `OPENXRAY_NATIVE_GL=1` → собственный NSOpenGLContext (attached к SDL'овскому view)
-  - `OPENXRAY_NATIVE_WINDOW=1` → собственный NSWindow visible (implicit
-    NATIVE_GL + NATIVE_SWAP, attached к нашему view)
+  - `OPENXRAY_NATIVE_WINDOW=1` → собственный NSWindow + skip SDL_CreateWindow
+    (PR #193, implicit NATIVE_GL + NATIVE_SWAP, attached к нашему view).
+    `m_sdlWnd = nullptr` на этом path. Single source of truth — field
+    `Device.m_useNativeWindow` (env читается один раз в `Device_Initialize`),
+    consumers через C-ABI getter `OpenXRay_IsNativeWindowRender()` в
+    `xrEngine/native_window.h`. **Не вызывать `getenv` в hot path** —
+    использовать getter.
   - `OPENXRAY_RED_CLEAR_PROBE=1` → красный экран перед swap (validates
     FBO 0 path)
   - Full rationale: `notes/decisions/a7-4-native-render-series.md`.
+- **GLAD proc-loader на Apple+native — dlsym, не SDL_GL_GetProcAddress**
+  (PR #193 hotfix): `src/Layers/xrRenderGL/glHW.cpp` функция
+  `OpenXRay_AppleGLProcLoader` (`dlsym(RTLD_DEFAULT, name)`) — единственный
+  way загрузить gl* указатели когда SDL не создавал GL context (нет SDL_Window
+  под NATIVE_WINDOW=1). Без этого segfault на первом draw (SDL'овский loader
+  возвращает «No GL driver has been loaded» → glad nullptr → NULL ptr deref).
+  OpenGL.framework на macOS статически линкована — все base 4.1 символы в
+  процессе. История: PR #193 commit `4fbe371da` smoke поймал.
+- **NSWindowDelegate enqueue-only pattern** (PR #193): `OXRayNativeWindowDelegate`
+  в `src/xrEngine/native_window.mm` — все delegate-методы (`windowDidBecomeKey`,
+  `windowWillClose:`, `windowDidResize:`, etc.) **только enqueue'ят** в
+  single-slot last-wins aggregator. Никаких прямых вызовов engine state. Drain
+  через existing `OpenXRay_RunPerFrameMacOSHooks` engine-tick + C trampoline
+  `OpenXRay_NativeWindow_PollEvents` в `Engine.cpp`. Pattern parallel к
+  `g_pendingLifecycleEvent` (A.1 NSApplicationDelegate). Mitigation
+  ownership-style risk (Cocoa drives event dispatch — мы не доверяем
+  AppKit'у звать engine code на его расписании).
+- **OnWindowActivate signature** (PR #193): сигнатура `OnWindowActivate(bool isMainWindow, bool active)` — НЕ старая `(SDL_Window*, bool)`. Старая использовала `window == m_sdlWnd` как «main» check, что ломалось когда оба `nullptr` (sentinel collision). Все callers обновлены: `device.cpp` event-loop, `x_ray.cpp` event loop, `Engine.cpp` lifecycle apply, trampoline от NSWindowDelegate. Не добавляй back legacy сигнатуру.
 
 ## Shader compile (GL)
 
