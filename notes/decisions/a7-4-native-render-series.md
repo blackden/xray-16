@@ -87,6 +87,8 @@ Structural fix вместо C.3 SDL_HideWindow hack'а. Под `OPENXRAY_NATIVE_
 
 **Landmine class.** Pre-implementation audit должен спрашивать «что **неявно** зависит от состояния которое мы убираем?» — не только direct call sites через grep. GLAD ↔ SDL ctx implicit link не вылез через grep на `SDL_*Window*`. Урок зафиксирован в feedback memory.
 
+**History.** Hotfix commit `4fbe371da` был применён локально во время C.4a smoke (29 мая) и работал. **Не попал в PR #193 при merge** — commit остался только в локальной branch'е, не cherry-pick'нулся в integration tip перед PR merge. Codify earlier ошибочно записал что fix folded в `a9dd1fdb1`. Регрессия вскрылась когда ragnar запустил NATIVE_WINDOW=1 на свежем master (30 мая) — иконка прыгала в dock, GLAD init fail. Восстановлено через cherry-pick на новую ветку → PR #199 → merge master `a74b620d8`. См. memory `feedback_verify_hotfix_landed_in_pr`.
+
 ### NSWindowDelegate enqueue-only + engine-tick drain (ownership-style mitigation)
 
 **Decision.** `OXRayNativeWindowDelegate` (`native_window.mm`) — Obj-C класс с методами `windowDidBecomeKey/ResignKey`, `windowDidResize/Move`, `windowDidMiniaturize/Deminiaturize`, `windowWillClose:`. Каждый метод **только enqueue'ит** в single-slot last-wins aggregator. Никаких прямых вызовов в engine. Drain через existing `OpenXRay_RunPerFrameMacOSHooks` engine-tick. C-trampolines (`OpenXRay_NativeWindow_PollEvents`) подцепляются в `Engine.cpp` к engine consumers (Reset, OnWindowActivate, RequestGracefulShutdown).
