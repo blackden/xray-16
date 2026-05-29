@@ -14,7 +14,19 @@
 #include "xrEngine/native_window.h"
 #include <cstdio>
 #include <cstdlib>
+#include <dlfcn.h>
 #include <unistd.h>
+
+// A.7.4 C.4a hotfix (gitea #192): GLAD proc-loader для native path.
+// Когда SDL_CreateWindow skip'ается (OPENXRAY_NATIVE_WINDOW=1), нет
+// SDL_GL_CreateContext → SDL_GL_GetProcAddress возвращает «No GL driver
+// has been loaded» → gladLoadGL получает nullptr loader → все gl*
+// указатели null → segfault. OpenGL.framework линкуется статически,
+// все символы уже в процессе — берём их через dlsym(RTLD_DEFAULT).
+static void* OpenXRay_AppleGLProcLoader(const char* name)
+{
+    return dlsym(RTLD_DEFAULT, name);
+}
 
 namespace
 {
@@ -256,7 +268,19 @@ void CHW::CreateDevice(SDL_Window* hWnd)
     int version;
     {
         ZoneScopedN("gladLoadGL");
-        version = gladLoadGL(reinterpret_cast<GLADloadfunc>(SDL_GL_GetProcAddress));
+#if defined(XR_PLATFORM_APPLE)
+        if (s_nativeGLOwned)
+        {
+            // Native NSOpenGLContext — SDL не загружало драйвер, нечего
+            // через SDL_GL_GetProcAddress искать. dlsym по уже линкованной
+            // OpenGL.framework.
+            version = gladLoadGL(reinterpret_cast<GLADloadfunc>(&OpenXRay_AppleGLProcLoader));
+        }
+        else
+#endif
+        {
+            version = gladLoadGL(reinterpret_cast<GLADloadfunc>(SDL_GL_GetProcAddress));
+        }
     }
     if (version == 0)
     {
