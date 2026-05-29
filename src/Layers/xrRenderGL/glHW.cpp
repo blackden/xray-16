@@ -9,6 +9,7 @@
 
 #if defined(XR_PLATFORM_APPLE)
 #include "xrEngine/native_swap.h"
+#include "xrEngine/native_sdl_inspect.h"
 #include <cstdio>
 #include <cstdlib>
 #include <unistd.h>
@@ -144,6 +145,15 @@ void CHW::CreateDevice(SDL_Window* hWnd)
         Log("! OpenGL: could not create drawing context:", SDL_GetError());
         return;
     }
+
+#if defined(XR_PLATFORM_APPLE)
+    // A.7.4b Step B.1 (gitea #188): inspect SDL'овский NSOpenGLContext.
+    // Дампит pixel format attributes, view, swap interval — для сравнения
+    // с тем что наш native_gl_context.mm создаёт. На step B.2 наш
+    // NSOpenGLContext должен воспроизвести этот setup (share group + те же
+    // attributes).
+    OpenXRay_NativeSDLInspect_Context(m_context);
+#endif
 
     if (MakeContextCurrent(IRender::PrimaryContext) != 0)
     {
