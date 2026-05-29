@@ -79,19 +79,23 @@ extern "C" bool OpenXRay_NativeGL_Create(void* contentViewVoid)
     {
         NSView* view = (__bridge NSView*)contentViewVoid;
 
+        // SDL-matching attributes (A.7.4b step B.1 inspect dump):
+        // SDL ставит Color=32 (включая alpha bits в общий count) Depth=32
+        // (больше precision для дальних объектов) и НЕ ставит NoRecovery
+        // (разрешает software fallback). Воспроизводим тот же setup чтобы
+        // render pipeline не получил меньше precision'а при переходе.
         const NSOpenGLPixelFormatAttribute attrs[] = {
             NSOpenGLPFAOpenGLProfile, NSOpenGLProfileVersion4_1Core,
-            NSOpenGLPFAColorSize,     24,
+            NSOpenGLPFAColorSize,     32,
             NSOpenGLPFAAlphaSize,     8,
-            NSOpenGLPFADepthSize,     24,
+            NSOpenGLPFADepthSize,     32,
             NSOpenGLPFAStencilSize,   8,
             NSOpenGLPFADoubleBuffer,
             NSOpenGLPFAAccelerated,
-            NSOpenGLPFANoRecovery,
             0
         };
-        DLOG("alloc NSOpenGLPixelFormat: profile=Core4.1 color=24 alpha=8 depth=24 stencil=8 "
-             "DoubleBuffer Accelerated NoRecovery");
+        DLOG("alloc NSOpenGLPixelFormat: profile=Core4.1 color=32 alpha=8 depth=32 stencil=8 "
+             "DoubleBuffer Accelerated (SDL-matching, A.7.4b)");
         g_pf = [[NSOpenGLPixelFormat alloc] initWithAttributes:attrs];
         if (!g_pf)
         {
@@ -200,4 +204,152 @@ extern "C" void OpenXRay_NativeGL_ClearCurrent(void)
 extern "C" void* OpenXRay_NativeGL_GetNSContext(void)
 {
     return (__bridge void*)g_ctx;
+}
+
+// ---------------------------------------------------------------------------
+// A.7.4b Step B.2 (gitea #188): persistent variant.
+//
+// Не использует g_ctx / g_pf globals — создаёт fresh NSOpenGLContext +
+// NSOpenGLPixelFormat с CFRetain'ом (через __bridge_retained), возвращает
+// caller'у NSOpenGLContext* как void*. Caller потом передаёт обратно в
+// DestroyPersistent для release.
+//
+// Используется в glHW.cpp как замена SDL_GL_CreateContext под env var
+// OPENXRAY_NATIVE_GL=1. SDL_GL_MakeCurrent / SwapWindow / DeleteContext
+// на macOS — обёртки над [NSOpenGLContext ...], поэтому наш контекст
+// совместим с SDL API.
+// ---------------------------------------------------------------------------
+
+extern "C" void* OpenXRay_NativeGL_CreatePersistent(void* contentViewVoid)
+{
+    DLOG("[persistent] entry contentView=%p", contentViewVoid);
+
+    if (!contentViewVoid)
+    {
+        DLOG("[persistent] FAIL: contentView is null");
+        return nullptr;
+    }
+
+    NSOpenGLContext* ctx = nil;
+
+    @autoreleasepool
+    {
+        NSView* view = (__bridge NSView*)contentViewVoid;
+
+        // SDL-matching attributes (см. step B.1 inspect dump).
+        const NSOpenGLPixelFormatAttribute attrs[] = {
+            NSOpenGLPFAOpenGLProfile, NSOpenGLProfileVersion4_1Core,
+            NSOpenGLPFAColorSize,     32,
+            NSOpenGLPFAAlphaSize,     8,
+            NSOpenGLPFADepthSize,     32,
+            NSOpenGLPFAStencilSize,   8,
+            NSOpenGLPFADoubleBuffer,
+            NSOpenGLPFAAccelerated,
+            0
+        };
+        DLOG("[persistent] alloc NSOpenGLPixelFormat: profile=Core4.1 color=32 alpha=8 depth=32 stencil=8");
+        NSOpenGLPixelFormat* pf = [[NSOpenGLPixelFormat alloc] initWithAttributes:attrs];
+        if (!pf)
+        {
+            DLOG("[persistent] FAIL: NSOpenGLPixelFormat returned nil");
+            return nullptr;
+        }
+        DLOG("[persistent] NSOpenGLPixelFormat OK ptr=%p", (__bridge void*)pf);
+
+        DLOG("[persistent] alloc NSOpenGLContext shareContext=nil");
+        ctx = [[NSOpenGLContext alloc] initWithFormat:pf shareContext:nil];
+        if (!ctx)
+        {
+            DLOG("[persistent] FAIL: NSOpenGLContext alloc returned nil");
+            return nullptr;
+        }
+        DLOG("[persistent] NSOpenGLContext OK ptr=%p", (__bridge void*)ctx);
+
+        DLOG("[persistent] setView contentView=%p", contentViewVoid);
+        [ctx setView:view];
+
+        DLOG("[persistent] makeCurrentContext");
+        [ctx makeCurrentContext];
+
+        // ----- GL capabilities dump (caller'у полезно знать что у него) -----
+        const GLubyte* vendor   = glGetString(GL_VENDOR);
+        const GLubyte* renderer = glGetString(GL_RENDERER);
+        const GLubyte* version  = glGetString(GL_VERSION);
+        const GLubyte* glsl     = glGetString(GL_SHADING_LANGUAGE_VERSION);
+        DLOG("[persistent] GL_VENDOR='%s'",                   vendor   ? (const char*)vendor   : "(null)");
+        DLOG("[persistent] GL_RENDERER='%s'",                 renderer ? (const char*)renderer : "(null)");
+        DLOG("[persistent] GL_VERSION='%s'",                  version  ? (const char*)version  : "(null)");
+        DLOG("[persistent] GL_SHADING_LANGUAGE_VERSION='%s'", glsl     ? (const char*)glsl     : "(null)");
+
+        GLint fbBinding = -1;
+        glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &fbBinding);
+        DLOG("[persistent] GL_DRAW_FRAMEBUFFER_BINDING=%d", (int)fbBinding);
+
+        const GLenum fbStatus = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
+        DLOG("[persistent] glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER)=0x%x (%s)",
+             (unsigned)fbStatus, FbStatusName(fbStatus));
+
+        bool clean = false;
+        for (int i = 0; i < 10; ++i)
+        {
+            const GLenum err = glGetError();
+            if (err == GL_NO_ERROR)
+            {
+                DLOG("[persistent] glGetError loop[%d]=GL_NO_ERROR (clean)", i);
+                clean = true;
+                break;
+            }
+            DLOG("[persistent] glGetError loop[%d]=0x%x (%s)", i, (unsigned)err, GlErrorName(err));
+        }
+        if (!clean)
+            DLOG("[persistent] WARNING: glGetError loop hit 10-iteration cap without GL_NO_ERROR");
+    }
+
+    // __bridge_retained даёт +1 retain count на ctx и возвращает void*
+    // который caller должен передать обратно в DestroyPersistent
+    // (__bridge_transfer там вернёт retain count в ARC, alloc'нув от
+    // void* обратно в strong NSOpenGLContext* и автоматически отпустит).
+    void* result = (__bridge_retained void*)ctx;
+    DLOG("[persistent] done — returning void* %p (retain transferred to caller)", result);
+    return result;
+}
+
+extern "C" bool OpenXRay_NativeGL_MakeCurrentArg(void* nsContextVoid)
+{
+    if (!nsContextVoid)
+    {
+        DLOG("[persistent] makeCurrentArg: nil → clearCurrentContext");
+        [NSOpenGLContext clearCurrentContext];
+        return true;
+    }
+    NSOpenGLContext* ctx = (__bridge NSOpenGLContext*)nsContextVoid;
+    DLOG("[persistent] makeCurrentArg ctx=%p", nsContextVoid);
+    [ctx makeCurrentContext];
+    const bool ok = ([NSOpenGLContext currentContext] == ctx);
+    DLOG("[persistent] makeCurrentArg result: isCurrent=%d", ok ? 1 : 0);
+    return ok;
+}
+
+extern "C" void OpenXRay_NativeGL_DestroyPersistent(void* nsContextVoid)
+{
+    DLOG("[persistent] destroy entry ctx=%p", nsContextVoid);
+    if (!nsContextVoid)
+    {
+        DLOG("[persistent] destroy: null, return");
+        return;
+    }
+
+    @autoreleasepool
+    {
+        // __bridge_transfer: void* возвращается в ARC ownership,
+        // переменная ctx будет release'нута на выходе из autoreleasepool.
+        NSOpenGLContext* ctx = (__bridge_transfer NSOpenGLContext*)nsContextVoid;
+        DLOG("[persistent] clearCurrentContext + clearDrawable");
+        if ([NSOpenGLContext currentContext] == ctx)
+            [NSOpenGLContext clearCurrentContext];
+        [ctx clearDrawable];
+        // ctx будет release'нут когда autoreleasepool drain'ится
+        (void)ctx;
+    }
+    DLOG("[persistent] destroy done");
 }

@@ -9,9 +9,19 @@
 
 #if defined(XR_PLATFORM_APPLE)
 #include "xrEngine/native_swap.h"
+#include "xrEngine/native_sdl_inspect.h"
+#include "xrEngine/native_gl_context.h"
 #include <cstdio>
 #include <cstdlib>
 #include <unistd.h>
+
+namespace
+{
+// A.7.4b Step B.2 (gitea #188): tracks whether `m_context` was created
+// by us (native CreatePersistent) или SDL'ом. На DestroyDevice выбираем
+// правильный destroy path.
+bool s_nativeGLOwned = false;
+} // namespace
 // A.7.4-restart Step 3 (gitea #186): pure observability на render swap
 // pipeline. Эти DLOG'и + опциональный red-clear probe не меняют поведение
 // рендера — только дают чистый сигнал на каком фрейме / в каком состоянии
@@ -137,13 +147,66 @@ void CHW::CreateDevice(SDL_Window* hWnd)
     Caps.fTarget = D3DFMT_A8R8G8B8;
     Caps.fDepth = D3DFMT_D24S8;
 
+#if defined(XR_PLATFORM_APPLE)
+    // A.7.4b Step B.2 (gitea #188): под env var OPENXRAY_NATIVE_GL=1
+    // создаём собственный NSOpenGLContext attached к SDL'овскому
+    // contentView (через SDL_GetWindowWMInfo). SDL_GL_CreateContext НЕ
+    // вызывается — m_context напрямую указывает на наш контекст.
+    //
+    // SDL_GL_MakeCurrent / GetCurrentContext / DeleteContext на macOS —
+    // обёртки над [NSOpenGLContext ...] (см. SDL2 Cocoa_GL_*), поэтому
+    // наш контекст совместим с SDL API без адаптеров.
+    //
+    // На DestroyDevice s_nativeGLOwned выбирает правильный destroy path.
+    const bool useNativeGL = ::getenv("OPENXRAY_NATIVE_GL") != nullptr;
+    Msg("* A.7.4b: OPENXRAY_NATIVE_GL=%d", useNativeGL ? 1 : 0);
+
+    if (useNativeGL)
+    {
+        void* contentView = OpenXRay_NativeSDLInspect_GetContentView(m_window);
+        if (!contentView)
+        {
+            Log("! A.7.4b: could not get SDL contentView, falling back to SDL_GL_CreateContext");
+            m_context = SDL_GL_CreateContext(m_window);
+        }
+        else
+        {
+            m_context = OpenXRay_NativeGL_CreatePersistent(contentView);
+            if (!m_context)
+            {
+                Log("! A.7.4b: native CreatePersistent failed, falling back to SDL_GL_CreateContext");
+                m_context = SDL_GL_CreateContext(m_window);
+            }
+            else
+            {
+                s_nativeGLOwned = true;
+                Msg("* A.7.4b: native NSOpenGLContext owned, m_context=%p", m_context);
+            }
+        }
+    }
+    else
+    {
+        m_context = SDL_GL_CreateContext(m_window);
+    }
+#else
     // Create the context
     m_context = SDL_GL_CreateContext(m_window);
+#endif
     if (m_context == nullptr)
     {
         Log("! OpenGL: could not create drawing context:", SDL_GetError());
         return;
     }
+
+#if defined(XR_PLATFORM_APPLE)
+    // A.7.4b Step B.1 (gitea #188): inspect SDL'овский NSOpenGLContext.
+    // Дампит pixel format attributes, view, swap interval — для сравнения
+    // с тем что наш native_gl_context.mm создаёт. На step B.2 наш
+    // NSOpenGLContext должен воспроизвести этот setup (share group + те же
+    // attributes). Под OPENXRAY_NATIVE_GL=1 inspect'ит наш контекст,
+    // подтверждая что pixel format attributes совпадают с target setup'ом.
+    OpenXRay_NativeSDLInspect_Context(m_context);
+#endif
 
     if (MakeContextCurrent(IRender::PrimaryContext) != 0)
     {
@@ -237,11 +300,29 @@ void CHW::DestroyDevice()
     CHK_GL(glDeleteFramebuffers(1, &pFB));
     pFB = 0;
 
+#if defined(XR_PLATFORM_APPLE)
+    if (s_nativeGLOwned)
+    {
+        // Под native path SDL'у наш ctx неизвестен — clearCurrent через
+        // нашу helper'ю, потом destroy.
+        OpenXRay_NativeGL_MakeCurrentArg(nullptr);
+        Msg("* A.7.4b: destroying native NSOpenGLContext m_context=%p", m_context);
+        OpenXRay_NativeGL_DestroyPersistent(m_context);
+        s_nativeGLOwned = false;
+    }
+    else
+    {
+        const auto context = SDL_GL_GetCurrentContext();
+        if (context == m_context)
+            SDL_GL_MakeCurrent(nullptr, nullptr);
+        SDL_GL_DeleteContext(m_context);
+    }
+#else
     const auto context = SDL_GL_GetCurrentContext();
     if (context == m_context)
         SDL_GL_MakeCurrent(nullptr, nullptr);
-
     SDL_GL_DeleteContext(m_context);
+#endif
     m_context = nullptr;
 }
 
@@ -283,6 +364,18 @@ void CHW::SetPrimaryAttributes(u32& windowFlags)
 
 IRender::RenderContext CHW::GetCurrentContext() const
 {
+#if defined(XR_PLATFORM_APPLE)
+    if (s_nativeGLOwned)
+    {
+        // Обходим SDL'овский tracking — наш ctx ему неизвестен, ответ
+        // SDL_GL_GetCurrentContext был бы nullptr. Сравниваем через
+        // Cocoa API: ctx == [NSOpenGLContext currentContext].
+        return (OpenXRay_NativeGL_GetNSContext() != nullptr &&
+                m_context != nullptr)
+            ? IRender::PrimaryContext
+            : IRender::NoContext;
+    }
+#endif
     const auto context = SDL_GL_GetCurrentContext();
     if (context == m_context)
         return IRender::PrimaryContext;
@@ -291,6 +384,28 @@ IRender::RenderContext CHW::GetCurrentContext() const
 
 int CHW::MakeContextCurrent(IRender::RenderContext context) const
 {
+#if defined(XR_PLATFORM_APPLE)
+    if (s_nativeGLOwned)
+    {
+        // A.7.4b Step B.2 (gitea #188): SDL_GL_MakeCurrent на macOS делает
+        // internal tracking, рассчитывая что SDL_GLContext был создан
+        // через SDL_GL_CreateContext. Наш ctx ему неизвестен — SDL_GL_
+        // MakeCurrent вернёт ошибку «Invalid OpenGL context». Обходим SDL
+        // и зовём [ctx makeCurrentContext] напрямую.
+        switch (context)
+        {
+        case IRender::NoContext:
+            return OpenXRay_NativeGL_MakeCurrentArg(nullptr) ? 0 : -1;
+
+        case IRender::PrimaryContext:
+            return OpenXRay_NativeGL_MakeCurrentArg(m_context) ? 0 : -1;
+
+        default:
+            NODEFAULT;
+        }
+        return -1;
+    }
+#endif
     switch (context)
     {
     case IRender::NoContext:
