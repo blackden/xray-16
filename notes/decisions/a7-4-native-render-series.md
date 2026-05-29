@@ -117,6 +117,33 @@ Structural fix вместо C.3 SDL_HideWindow hack'а. Под `OPENXRAY_NATIVE_
 
 **Revisit if.** Уходим на runtime cvar (e.g. `r_native_window` через console) — тогда reads должны идти через cvar субсистему, не env var snapshot. Но это уже после A.7.5 SDL strip.
 
+## #196 backspace в save-name — Option C deferred to view-attach phase (2026-05-30)
+
+**Decision.** Backspace bug в save-name input field (gitea #196) **не фиксим quick-fix'ом**. Откладываем до A.7.4 view-attach фазы когда `OpenXRayTextInputView` будет добавлен в NSWindow's content view / responder chain как proper text-editing client.
+
+**Why.** Investigation на ветке `issue-196-backspace-savename-diag` (BS-TRACE probes + 2 failed foreground fix attempts + apple-platform read-only specialist audit) выявил root cause: detached client view (`NSZeroRect`, не attached к window content view) заставляет AppKit fallback'ить control codepoints (0x08 backspace, 0x1b escape, etc.) напрямую в `insertText:` вместо routing через `doCommandBySelector:`. Foreground attempts с no-op NSResponder method stubs (commit `9590c954d`) и затем dispatch через `performSelector:` в overridden `doCommandBySelector:` (commit `f2b6add81`) **не сработали** потому что AppKit до `doCommandBySelector:` на detached view не доходит — fallback path таверной у Apple's interpretKeyEvents:.
+
+Два варианта fix'а после specialist verdict:
+- **Option A (quick):** Filter control bytes (`< 0x20 || == 0x7F`) в `OpenXRayTextInputView::insertText:` где первый раз эти байты попадают в engine code. 2 строки. Маскировка — AppKit продолжает слать мусор, мы игнорируем. Не лечит причину.
+- **Option C (structural):** Attach view к NSWindow's content view / responder chain. AppKit увидит proper text-editing client → route'ит commands через `doCommandBySelector:` (наши NSResponder stubs из failed attempts тогда станут используемыми, либо вообще не нужны если просто fall through к A.3 ring). Лечит причину, требует window plumbing.
+
+Workaround в ожидании fix'а: `save <filename>` через консоль (` ` toggle). Использует другую input pipeline (XR_IOConsole → Device.editor() ImGui InputText, без detached NSTextInputContext'а). Работает.
+
+**Trade-off.** Quick-fix Option A был доступен прямо сейчас (10 минут работы), но это маскировка не structural. Принцип «correctness over throughput» (см. memory `feedback_correctness_over_throughput`) + «не оставлять костыли» — выбрали отложить до правильного решения. Цена: backspace в save-name dialog не работает пока A.7.4 view-attach не сделан; единственный affected workflow — F2 save game через menu, alternative path (console) работает. Acceptable для personal fork пока единственный тестер (ragnar) использует console route.
+
+**Revisit if.** A.7.4 view-attach задержится >2 недель — пересмотреть применение Option A как interim до A.7.4. Или если появится другой affected surface (MP chat, network connect dialog, etc.) — расширит impact, повысит priority.
+
+**State.**
+- Issue #196 на gitea — open, labels `deferred` + `blocked-by-a7-4`, со специфическим root cause описанием в comment.
+- Branch `issue-196-backspace-savename-diag` на gitea (НЕ merged) содержит investigation history:
+  - `ea742e1ed` BS-TRACE [6/7][7/7] probes pre/post в `line_edit_control::on_key_press`
+  - `b9f7f6c6f` BS-TRACE [TI][SE] probes в `on_text_input` + `set_edit`
+  - `9590c954d` failed attempt — NSResponder no-op stubs
+  - `f2b6add81` failed attempt — doCommandBySelector dispatch через performSelector
+- TaskList #13 трекает «A.7.4: attach NSTextInputContext view to NSWindow responder chain (closes #196)».
+
+См. `notes/reference/engine-map.md` Apple gotchas — «NSTextInputContext detached client view → control byte fallback» + memory `project_nstextinput_detached_fallback`.
+
 ## Links
 
 - PR #187 (gitea #186) — foundation, master `5d1109f5e`
