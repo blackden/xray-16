@@ -8,6 +8,7 @@
 #include "xrEngine/XR_IOConsole.h"
 
 #if defined(XR_PLATFORM_APPLE)
+#include "xrEngine/native_swap.h"
 #include <cstdio>
 #include <cstdlib>
 #include <unistd.h>
@@ -429,12 +430,29 @@ void CHW::Present()
     }
 #endif
 
+#if defined(XR_PLATFORM_APPLE)
+    // A.7.4-restart Step 4 (gitea #186): опциональный swap через native
+    // [NSOpenGLContext flushBuffer] вместо SDL_GL_SwapWindow. SDL'овский
+    // m_context фактически указывает на NSOpenGLContext — берём его как
+    // есть и flushBuffer'им напрямую. Env var OPENXRAY_NATIVE_SWAP=1.
+    // Default OFF, никакой регрессии.
+    static const bool s_nativeSwap = ::getenv("OPENXRAY_NATIVE_SWAP") != nullptr;
+    if (s_frameIdx == 0)
+        A74P_RENDER_DLOG("OPENXRAY_NATIVE_SWAP=%d (1=[NSOpenGLContext flushBuffer] вместо SDL_GL_SwapWindow)",
+                          s_nativeSwap ? 1 : 0);
+    if (s_nativeSwap)
+        OpenXRay_NativeSwap_FlushBuffer(m_context);
+    else
+        SDL_GL_SwapWindow(m_window);
+#else
     SDL_GL_SwapWindow(m_window);
+#endif
     CurrentBackBuffer = (CurrentBackBuffer + 1) % BackBufferCount;
 
 #if defined(XR_PLATFORM_APPLE)
     if (verbose)
-        A74P_RENDER_DLOG("frame[%u] POST-swap: done", s_frameIdx);
+        A74P_RENDER_DLOG("frame[%u] POST-swap: done (native=%d)",
+                          s_frameIdx, s_nativeSwap ? 1 : 0);
     ++s_frameIdx;
 #endif
 }
