@@ -13,6 +13,7 @@
 
 #if defined(XR_PLATFORM_APPLE)
 #   include "native_shell_probe.h"
+#   include "native_sdl_inspect.h"
 #endif
 
 SDL_HitTestResult WindowHitTest(SDL_Window* win, const SDL_Point* area, void* data);
@@ -113,6 +114,12 @@ void CRenderDevice::Initialize()
         // SDL — probe полностью изолирован. Цель: чистый log signal
         // что macOS API delivers, ДО подмены SDL paths на native.
         OpenXRay_NativeShellProbe();
+
+        // A.7.4b Step B.1 (gitea #188): inspect SDL'овский NSWindow.
+        // Дампит class / styleMask / frame / contentView properties для
+        // сравнения с тем что наш native_window create. На step B.3 наш
+        // NSWindow должен воспроизвести этот setup.
+        OpenXRay_NativeSDLInspect_Window(m_sdlWnd);
 #endif
     }
 

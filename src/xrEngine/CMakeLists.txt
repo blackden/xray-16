@@ -471,6 +471,8 @@ if(APPLE)
         native_shell_probe.mm
         native_swap.h
         native_swap.mm
+        native_sdl_inspect.h
+        native_sdl_inspect.mm
     )
     set_source_files_properties(
         macos_cocoa_shim.mm
@@ -479,6 +481,7 @@ if(APPLE)
         native_gl_context.mm
         native_shell_probe.mm
         native_swap.mm
+        native_sdl_inspect.mm
         PROPERTIES
         SKIP_PRECOMPILE_HEADERS ON
         SKIP_UNITY_BUILD_INCLUSION ON
