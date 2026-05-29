@@ -14,6 +14,27 @@
 #include <locale>
 
 #if defined(XR_PLATFORM_APPLE)
+#include <cstdio>
+#include <unistd.h>
+// A.7.4-restart Step 2 (gitea #186): pure observability на cursor capture
+// pipeline. Эти DLOG'и не меняют поведение — только пишут в stderr
+// (через launcher → ~/Library/Logs/OpenXRay/openxray.log) кто и когда
+// дёргает GrabInput / ShowCursor. После того как мы увидим pattern
+// вызовов из реального геймплея, step 3 будет вводить CG-based path
+// под env var, side-by-side с SDL'овским.
+#   define A74P_INPUT_DLOG(fmt, ...) do {                                       \
+        char _buf[512];                                                         \
+        int _n = snprintf(_buf, sizeof _buf,                                    \
+                          "==> a74p[input:%s]: " fmt "\n",                      \
+                          __func__, ##__VA_ARGS__);                             \
+        if (_n > 0)                                                             \
+            (void)::write(STDERR_FILENO, _buf, (size_t)_n);                     \
+    } while (0)
+#else
+#   define A74P_INPUT_DLOG(fmt, ...) ((void)0)
+#endif
+
+#if defined(XR_PLATFORM_APPLE)
 // Apple HID virtual key codes (from <Carbon/HIToolbox/Events.h>).
 // Inline-defined here because <Carbon/HIToolbox/Events.h> only resolves
 // in Objective-C/C++ TUs (.m/.mm) — plain .cpp builds reject the
@@ -1100,17 +1121,24 @@ bool CInput::iSetMousePos(const Ivector2& p, bool global /*= false*/) const
 
 void CInput::GrabInput(const bool grab)
 {
+    A74P_INPUT_DLOG("entry grab=%d (prev inputGrabbed=%d exclusiveInput=%d sdlWnd=%p)",
+                    grab ? 1 : 0, inputGrabbed ? 1 : 0, exclusiveInput ? 1 : 0,
+                    (void*)Device.m_sdlWnd);
+
     // Self descriptive
     ShowCursor(!grab);
 
     // Clip cursor to the current window
     // If SDL_HINT_GRAB_KEYBOARD is set then the keyboard will be grabbed too
     SDL_SetWindowGrab(Device.m_sdlWnd, grab ? SDL_TRUE : SDL_FALSE);
+    A74P_INPUT_DLOG("after SDL_SetWindowGrab(%d)", grab ? 1 : 0);
 
     // Grab the mouse
     if (exclusiveInput)
     {
-        SDL_SetRelativeMouseMode(grab ? SDL_TRUE : SDL_FALSE);
+        const int rc = SDL_SetRelativeMouseMode(grab ? SDL_TRUE : SDL_FALSE);
+        A74P_INPUT_DLOG("after SDL_SetRelativeMouseMode(%d) rc=%d sdlErr='%s'",
+                        grab ? 1 : 0, rc, SDL_GetError());
 #if defined(XR_PLATFORM_APPLE)
         // Mirror capture state into the shim so the NSEvent local monitor's
         // mouse translator picks the right coordinate source: deltas vs
@@ -1118,11 +1146,17 @@ void CInput::GrabInput(const bool grab)
         // продолжал бы слать locX/Y и менюшный курсор бы прыгал в captured
         // mode (или look-around игнорировал бы deltas).
         OpenXRay_SetMouseCaptureMode(grab ? 1 : 0);
+        A74P_INPUT_DLOG("after OpenXRay_SetMouseCaptureMode(%d)", grab ? 1 : 0);
 #endif
+    }
+    else
+    {
+        A74P_INPUT_DLOG("exclusiveInput=0 — relative mode + shim mirror SKIPPED");
     }
 
     // We're done here.
     inputGrabbed = grab;
+    A74P_INPUT_DLOG("exit inputGrabbed=%d", inputGrabbed ? 1 : 0);
 }
 
 bool CInput::InputIsGrabbed() const
@@ -1132,7 +1166,9 @@ bool CInput::InputIsGrabbed() const
 
 void CInput::ShowCursor(const bool show)
 {
-    SDL_ShowCursor(show ? SDL_TRUE : SDL_FALSE);
+    const int rc = SDL_ShowCursor(show ? SDL_TRUE : SDL_FALSE);
+    A74P_INPUT_DLOG("show=%d rc=%d (0=hidden, 1=shown, -1=err sdlErr='%s')",
+                    show ? 1 : 0, rc, rc < 0 ? SDL_GetError() : "");
 }
 
 void CInput::SetCursor(const SDL_SystemCursor cursor)
