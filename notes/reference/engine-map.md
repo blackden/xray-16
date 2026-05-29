@@ -716,40 +716,78 @@ window events продолжают идти через SDL.
 
 ## Audio (xrSound + OpenAL)
 
-- **Backend на macOS — Apple OpenAL.framework, не openal-soft.**
-  `cmake/XRay.Compiler.GNULike.cmake:160` использует
-  `find_package(OpenAL REQUIRED)` без hint'ов — CMake's `FindOpenAL`
-  ищет `/System/Library/Frameworks` первым и попадает в Apple's
-  framework (deprecated с macOS 10.15). Brewfile установил
-  `openal-soft`, но формула `keg_only :provided_by_macos` → не
-  симлинкуется в `/opt/homebrew/lib`, CMake его не видит. Результат:
-  **нет EFX/EAX, нет HRTF**, spatial audio = простой amplitude panning.
-  Любой fix требует `OPENAL_ROOT=/opt/homebrew/opt/openal-soft`
-  injection в `if(APPLE)` блок + EFX backend C-side + dylib packaging
-  в `scripts/mac/package_app.sh`. Детали в
-  [`notes/decisions/a5-audio-audit.md`](../decisions/a5-audio-audit.md).
-- **`alcCreateContext(pDevice, nullptr)`** в `src/xrSound/SoundRender_CoreA.cpp:60`
-  — нет attribute list, нет HRTF hint, нет frequency/sources control.
-  Даже если бы линковался openal-soft, HRTF был бы выключен по умолчанию
-  (нужен `ALC_HRTF_SOFT, ALC_TRUE`).
-- **EFX backend существует только как EAX wrapper.** `CSoundRender_Effects`
-  pure-virtual base + единственная имплементация
-  `SoundRender_EffectsA_EAX.cpp`, gated `__has_include(<eax/eax.h>)`.
-  На macOS header отсутствует → `m_effects == nullptr` навсегда.
-  `OpenALDeviceList.cpp:71` собирает `addedDevice.props.efx`, но
-  никогда не используется чтобы инстанциировать backend — non-EAX EFX
-  пути нет в codebase.
-- **`snd_efx 1` silently no-ops на macOS.** Cvar `CCC_Mask` flip'ает
-  `ss_EFX` бит, runtime gate `Sound.cpp:195`
-  `if (!psSoundFlags.test(ss_EFX) || !m_effects) return;` — на macOS
-  `m_effects` всегда nullptr → toggle не пишет в лог, не warning'ит,
-  user не понимает почему «нет EFX». Open issue для one-time
-  init-time Msg.
-- **xrSound имеет ноль Apple-conditional кода.** Грепни
+- **EFX / HRTF на macOS via openal-soft (A.7.3, gitea #129).**
+  Link target — Brew's `libopenal.1.dylib` (`/opt/homebrew/opt/openal-soft`,
+  keg-only). `cmake/XRay.Compiler.GNULike.cmake` Apple-block инжектит
+  `OPENAL_ROOT` + `CMAKE_FIND_FRAMEWORK NEVER` перед `find_package(OpenAL)` —
+  без этого CMake'ский `FindOpenAL` уходит в deprecated
+  `/System/Library/Frameworks/OpenAL.framework`. `<efx.h>` резолвится из
+  Brew include path; `XR_HAS_EFX` определяется через `__has_include(<efx.h>)`
+  в `src/xrSound/SoundRender_EffectsA_EFX.h`. Selection в
+  `SoundRender_CoreA.cpp` — параллельные `#if XR_HAS_EAX` / `#if XR_HAS_EFX`
+  блоки, EAX выигрывает на Windows через `!m_effects` short-circuit. HRTF
+  opt-in: `ALC_HRTF_SOFT=ALC_TRUE` attribute при `alcCreateContext`,
+  статус логируется через `ALC_HRTF_STATUS_SOFT`. HRTF data
+  (`Default HRTF.mhr`) шипится в `.app/Contents/Resources/openal/hrtf/`,
+  launcher указывает `ALSOFT_LOCAL_PATH`. История: A.5 audit +
+  [`notes/decisions/a7-3-openal-soft.md`](../decisions/a7-3-openal-soft.md).
+- **`alcCreateContext` теперь с HRTF attribute list** (`SoundRender_CoreA.cpp`).
+  Fallback на `nullptr`-attrs если backend отвергает (e.g. старый Apple
+  framework). После A.7.3 на Brew openal-soft HRTF включается автоматом
+  при detect наушников (`ALC_HRTF_HEADPHONES_DETECTED_SOFT`).
+- **Two reverb backends, parallel selection.** `CSoundRender_Effects`
+  pure-virtual base, две имплементации: `SoundRender_EffectsA_EAX.cpp`
+  (gated `__has_include(<eax/eax.h>)`, Windows-only — Externals не
+  поставляет header на других платформах) и `SoundRender_EffectsA_EFX.cpp`
+  (gated `__has_include(<efx.h>)`, на macOS активен через Brew
+  openal-soft). `OpenALDeviceList.cpp:71` собирает `props.efx` —
+  используется EFX-блоком в `SoundRender_CoreA.cpp` для instantiate.
+- **`snd_efx 1` на macOS теперь даёт audible reverb** в interior зонах
+  (Skadovsk, X-8, бункеры). Cvar `CCC_Mask` flip'ает `ss_EFX` бит,
+  runtime gate `Sound.cpp:195` — `m_effects` инстанциируется
+  `CSoundRender_EffectsA_EFX` если device exposes `ALC_EXT_EFX` (Brew
+  openal-soft всегда yes). Init-time diagnostic: `* SOUND: reverb backend
+  active (snd_efx cvar drives env effects)` (issue #128 + A.7.3).
+- **xrSound остаётся capability-driven, без Apple-gate'ов.** Грепни
   `XR_PLATFORM_APPLE`/`__APPLE__`/`TARGET_OS_MAC` в `src/xrSound/` —
-  zero hits. Единственное упоминание — comment про lowercase
-  `AL_EXT_float32` (`SoundRender_CoreA.cpp:85`). Divergence Apple
-  framework vs openal-soft surface'ится без grep'абельного маркера.
+  zero hits (это deliberate). Apple-ness живёт в CMake (Brew
+  `OPENAL_ROOT` injection) и в packaging script; xrSound видит правильные
+  capabilities (`props.efx`, `XR_HAS_EFX`, `ALC_HRTF_SOFT`) и сам решает
+  какой backend подключить.
+- **EFX backend использует `AL_EFFECT_EAXREVERB`** (не initial
+  `AL_EFFECT_REVERB`). Тот же env-data layout (mB → linear gain через
+  `mB_to_gain` лямбду в `set_listener`), но расширенная reverb model
+  даёт recognizable character. Параметры которые env-data не несёт
+  (DECAY_LFRATIO, ECHO_*, MODULATION_*, *REFERENCE, DECAY_HFLIMIT)
+  seeded в constructor'е с `AL_EAXREVERB_DEFAULT_*` и не трогаются.
+- **Sound source → aux slot binding** (`SoundRender_TargetA.{h,cpp}`).
+  Каждый `CSoundRender_TargetA` принимает `ALuint slot` в ctor и в
+  `_initialize()` делает
+  `alSource3i(pSource, AL_AUXILIARY_SEND_FILTER, pAuxSlot, 0, AL_FILTER_NULL)`.
+  Без этого slot живёт пустой — effect attached через `commit()`, но
+  ни один source не подаёт сигнал в wet path. Landmine first PR
+  version — backend «active» в логе, но реверба нет.
+  `SoundRender_CoreA.cpp::_initialize()` достаёт slot из EFX backend
+  через `get_slot()` и передаёт в каждый Target.
+- **`CSoundRender_Environment` defaults НЕ зависят от EAX.**
+  `set_default()`, `set_identity()`, `clamp()` в `SoundRender_Environment.cpp`
+  раньше были полностью обёрнуты в `#if defined(XR_HAS_EAX)`. На маке
+  → no-op → default-constructed env с zero fields → `set_listener`
+  подаёт нули в `AL_EAXREVERB_*` → metallic ringing. После A.7.3 —
+  hardcoded numeric EAXLISTENER_DEFAULT_* и EAXLISTENER_MIN/MAX_*
+  значения (EAX 2.0 spec).
+- **`snd_efx` cvar теперь真 работает** через virtual `detach()` в
+  `CSoundRender_Effects` (default no-op, EFX override делает
+  `alAuxiliaryEffectSloti(slot, AL_EFFECTSLOT_EFFECT, AL_EFFECT_NULL)`).
+  `SoundRender_Core::update_listener` при `ss_EFX` off вызывает
+  `detach()`, не просто early-return — иначе previously-committed
+  effect оставался прикреплён к slot'у.
+- **Debug `snd_efx_preset` cvar** (`xr_ioc_cmd.cpp:870-ish`, range 0..5).
+  `0` = env-data driven (default, vanilla CoP). `1..5` = hardcoded
+  preset из `<efx-presets.h>` (BATHROOM, AUDITORIUM, HANGAR,
+  STONECORRIDOR, CAVE). Переключается live в консоли для A/B reverb
+  comparison без rebuild'а. Использован во время A.7.3 smoke сессии
+  для proof что EFX pipeline работает end-to-end.
 - **Sound shutdown order:** `Engine.Sound.Destroy()` в `x_ray.cpp:361`
   идёт **до** `Device.Destroy()` (`:363`) — инверсия spatial-DB hazard'а.
   Sound не держит spatial-DB ref'ов, safe.

@@ -48,6 +48,7 @@ XRSOUND_API extern float psSoundRolloff;
 XRSOUND_API extern float psSoundOcclusionScale;
 XRSOUND_API extern float psSoundTimeFactor; //--#SM+#--
 XRSOUND_API extern Flags32 psSoundFlags;
+XRSOUND_API extern int psSoundEFXPreset; // debug: 0=env-data, 1+=hardcoded preset
 XRSOUND_API extern int psSoundTargets;
 XRSOUND_API extern int psSoundCacheSizeMB;
 XRSOUND_API extern u32 snd_device_id;

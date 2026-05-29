@@ -867,6 +867,11 @@ void CCC_Register()
     CMD1(CCC_SND_Restart, "snd_restart");
     CMD3(CCC_Mask, "snd_acceleration", &psSoundFlags, ss_Hardware);
     CMD3(CCC_Mask, "snd_efx", &psSoundFlags, ss_EFX);
+    // Debug: 0 = drive EFX reverb from level env data (vanilla CoP).
+    //        1+ = override with a fixed preset (1=BATHROOM, 2=AUDITORIUM,
+    //        3=HANGAR, 4=STONECORRIDOR, 5=CAVE). Lets you A/B reverb
+    //        character in console without rebuilding.
+    CMD4(CCC_Integer, "snd_efx_preset", &psSoundEFXPreset, 0, 5);
     CMD3(CCC_Mask, "snd_use_float32", &psSoundFlags, ss_UseFloat32);
     CMD4(CCC_Integer, "snd_targets", &psSoundTargets, 4, 256);
     CMD4(CCC_Integer, "snd_cache_size", &psSoundCacheSizeMB, 4, 64);

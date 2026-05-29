@@ -5,6 +5,11 @@
 #include "SoundRender_TargetA.h"
 #include "OpenALDeviceList.h"
 #include "SoundRender_EffectsA_EAX.h"
+#include "SoundRender_EffectsA_EFX.h"
+
+#if __has_include(<alext.h>)
+#   include <alext.h>
+#endif
 
 CSoundRender_CoreA::CSoundRender_CoreA(CSoundManager& p)
     : CSoundRender_Core(p)
@@ -56,8 +61,26 @@ void CSoundRender_CoreA::_initialize()
     // Get the device specifier.
     //const ALCchar* deviceSpecifier = alcGetString(pDevice, ALC_DEVICE_SPECIFIER);
 
-    // Create context
+    // Create context with HRTF opt-in. openal-soft honours ALC_HRTF_SOFT and
+    // logs HRTF status via ALC_HRTF_STATUS_SOFT; Apple's deprecated
+    // OpenAL.framework ignores these attributes (harmless). If the call
+    // returns null, fall back to a no-attr context so we don't lose audio
+    // on a backend that rejects the attr list.
+#ifdef ALC_HRTF_SOFT
+    const ALCint attrs[] = {
+        ALC_HRTF_SOFT, ALC_TRUE,
+        ALC_HRTF_ID_SOFT, ALC_DONT_CARE_SOFT, // let openal-soft pick "Default HRTF.mhr"
+        0
+    };
+    pContext = alcCreateContext(pDevice, attrs);
+    if (!pContext)
+    {
+        Log("! SOUND: OpenAL: context create with HRTF attrs failed, retrying without.");
+        pContext = alcCreateContext(pDevice, nullptr);
+    }
+#else
     pContext = alcCreateContext(pDevice, nullptr);
+#endif
     if (!pContext)
     {
         Log("! SOUND: OpenAL: Failed to create context.");
@@ -66,6 +89,23 @@ void CSoundRender_CoreA::_initialize()
         pDevice = nullptr;
         return;
     }
+
+#ifdef ALC_HRTF_STATUS_SOFT
+    {
+        ALCint hrtfStatus = 0;
+        alcGetIntegerv(pDevice, ALC_HRTF_STATUS_SOFT, 1, &hrtfStatus);
+        switch (hrtfStatus)
+        {
+        case ALC_HRTF_ENABLED_SOFT:             Msg("* SOUND: HRTF enabled"); break;
+        case ALC_HRTF_DISABLED_SOFT:            Msg("* SOUND: HRTF disabled (backend supports it but not active)"); break;
+        case ALC_HRTF_DENIED_SOFT:              Msg("* SOUND: HRTF denied (device config blocks)"); break;
+        case ALC_HRTF_REQUIRED_SOFT:            Msg("* SOUND: HRTF required by device"); break;
+        case ALC_HRTF_HEADPHONES_DETECTED_SOFT: Msg("* SOUND: HRTF auto-enabled (headphones detected)"); break;
+        case ALC_HRTF_UNSUPPORTED_FORMAT_SOFT:  Msg("* SOUND: HRTF unsupported format"); break;
+        default:                                Msg("* SOUND: HRTF status unknown (0x%x)", hrtfStatus); break;
+        }
+    }
+#endif
 
     // clear errors
     alGetError();
@@ -86,8 +126,9 @@ void CSoundRender_CoreA::_initialize()
 
     supports_float_pcm &= psSoundFlags.test(ss_UseFloat32);
 
+    ALuint auxSlot = 0;
 #if defined(XR_HAS_EAX)
-    // Check for EAX extension
+    // Check for EAX extension (Windows path — Creative legacy GUIDs)
     if (deviceDesc.props.eax && !m_effects)
     {
         m_effects = xr_new<CSoundRender_EffectsA_EAX>();
@@ -99,11 +140,30 @@ void CSoundRender_CoreA::_initialize()
     }
 #endif
 
-#if !defined(XR_HAS_EAX)
-    Msg("* SOUND: EFX backend not built (no <eax/eax.h>) - snd_efx cvar has no effect");
+#if defined(XR_HAS_EFX)
+    // Check for standard EFX extension (openal-soft on Apple/Linux). On
+    // Windows with both EAX and EFX present, the !m_effects short-circuit
+    // gives EAX priority — matches upstream intent.
+    if (deviceDesc.props.efx && !m_effects)
+    {
+        m_effects = xr_new<CSoundRender_EffectsA_EFX>();
+        if (m_effects->initialized())
+            auxSlot = static_cast<CSoundRender_EffectsA_EFX*>(m_effects)->get_slot();
+        else
+        {
+            Log("SOUND: OpenAL: Failed to initialize EFX.");
+            xr_delete(m_effects);
+        }
+    }
+#endif
+
+#if !defined(XR_HAS_EAX) && !defined(XR_HAS_EFX)
+    Msg("* SOUND: no reverb backend compiled - snd_efx cvar has no effect");
 #else
     if (!m_effects)
-        Msg("* SOUND: EFX backend present but device lacks ALC_EXT_EFX - snd_efx cvar has no effect");
+        Msg("* SOUND: device lacks ALC_EXT_EFX/EAX - snd_efx cvar has no effect");
+    else
+        Msg("* SOUND: reverb backend active (snd_efx cvar drives env effects)");
 #endif
 
     inherited::_initialize();
@@ -112,7 +172,7 @@ void CSoundRender_CoreA::_initialize()
     CSoundRender_Target* T = nullptr;
     for (u32 tit = 0; tit < u32(psSoundTargets); tit++)
     {
-        T = xr_new<CSoundRender_TargetA>();
+        T = xr_new<CSoundRender_TargetA>(auxSlot);
         if (T->_initialize())
         {
             s_targets.emplace_back(T);
