@@ -11,6 +11,7 @@
 #include "xrEngine/native_swap.h"
 #include "xrEngine/native_sdl_inspect.h"
 #include "xrEngine/native_gl_context.h"
+#include "xrEngine/native_window.h"
 #include <cstdio>
 #include <cstdlib>
 #include <unistd.h>
@@ -21,6 +22,12 @@ namespace
 // by us (native CreatePersistent) или SDL'ом. На DestroyDevice выбираем
 // правильный destroy path.
 bool s_nativeGLOwned = false;
+
+// A.7.4c Step C.2 (gitea #190): tracks whether render идёт через наше
+// NSWindow contentView. Если да — swap implicit через flushBuffer, потому
+// что SDL_GL_SwapWindow swap'нет SDL'овский view (наш ctx attached к
+// нашему), render улетит в скрытое окно.
+bool s_nativeWindowRender = false;
 } // namespace
 // A.7.4-restart Step 3 (gitea #186): pure observability на render swap
 // pipeline. Эти DLOG'и + опциональный red-clear probe не меняют поведение
@@ -158,15 +165,33 @@ void CHW::CreateDevice(SDL_Window* hWnd)
     // наш контекст совместим с SDL API без адаптеров.
     //
     // На DestroyDevice s_nativeGLOwned выбирает правильный destroy path.
-    const bool useNativeGL = ::getenv("OPENXRAY_NATIVE_GL") != nullptr;
-    Msg("* A.7.4b: OPENXRAY_NATIVE_GL=%d", useNativeGL ? 1 : 0);
+    const bool useNativeGL     = ::getenv("OPENXRAY_NATIVE_GL")     != nullptr;
+    const bool useNativeWindow = ::getenv("OPENXRAY_NATIVE_WINDOW") != nullptr;
+    // A.7.4c (gitea #190): NATIVE_WINDOW implicit включает наш native ctx —
+    // SDL'овский ctx был бы attached к SDL'овскому view, render улетел бы
+    // в скрытое окно. Так что либо оба native, либо ни одного.
+    const bool useOurCtx = useNativeGL || useNativeWindow;
+    Msg("* A.7.4*: OPENXRAY_NATIVE_GL=%d NATIVE_WINDOW=%d → useOurCtx=%d",
+        useNativeGL ? 1 : 0, useNativeWindow ? 1 : 0, useOurCtx ? 1 : 0);
 
-    if (useNativeGL)
+    if (useOurCtx)
     {
-        void* contentView = OpenXRay_NativeSDLInspect_GetContentView(m_window);
+        // Под NATIVE_WINDOW=1 attach'аем к НАШЕМУ contentView (нашему окну).
+        // Иначе (NATIVE_GL=1 alone) attach'аем к SDL'овскому contentView.
+        void* contentView = nullptr;
+        if (useNativeWindow)
+        {
+            contentView = OpenXRay_NativeWindow_GetContentView();
+            Msg("* A.7.4c: target our NSWindow contentView=%p", contentView);
+        }
+        else
+        {
+            contentView = OpenXRay_NativeSDLInspect_GetContentView(m_window);
+            Msg("* A.7.4b: target SDL contentView=%p", contentView);
+        }
         if (!contentView)
         {
-            Log("! A.7.4b: could not get SDL contentView, falling back to SDL_GL_CreateContext");
+            Log("! A.7.4*: contentView is null, falling back to SDL_GL_CreateContext");
             m_context = SDL_GL_CreateContext(m_window);
         }
         else
@@ -174,13 +199,15 @@ void CHW::CreateDevice(SDL_Window* hWnd)
             m_context = OpenXRay_NativeGL_CreatePersistent(contentView);
             if (!m_context)
             {
-                Log("! A.7.4b: native CreatePersistent failed, falling back to SDL_GL_CreateContext");
+                Log("! A.7.4*: native CreatePersistent failed, falling back to SDL_GL_CreateContext");
                 m_context = SDL_GL_CreateContext(m_window);
             }
             else
             {
                 s_nativeGLOwned = true;
-                Msg("* A.7.4b: native NSOpenGLContext owned, m_context=%p", m_context);
+                s_nativeWindowRender = useNativeWindow;
+                Msg("* A.7.4*: native NSOpenGLContext owned, m_context=%p nativeWindowRender=%d",
+                    m_context, s_nativeWindowRender ? 1 : 0);
             }
         }
     }
@@ -550,12 +577,18 @@ void CHW::Present()
     // [NSOpenGLContext flushBuffer] вместо SDL_GL_SwapWindow. SDL'овский
     // m_context фактически указывает на NSOpenGLContext — берём его как
     // есть и flushBuffer'им напрямую. Env var OPENXRAY_NATIVE_SWAP=1.
-    // Default OFF, никакой регрессии.
-    static const bool s_nativeSwap = ::getenv("OPENXRAY_NATIVE_SWAP") != nullptr;
+    //
+    // A.7.4c Step C.2 (gitea #190): при NATIVE_WINDOW=1 swap implicit
+    // через flushBuffer — наш ctx attached к нашему contentView, SDL_GL_
+    // SwapWindow на m_sdlWnd swap'ил бы SDL'овский (другой) view, render
+    // улетел бы в скрытое окно.
+    static const bool s_nativeSwapEnv = ::getenv("OPENXRAY_NATIVE_SWAP") != nullptr;
+    const bool nativeSwap = s_nativeSwapEnv || s_nativeWindowRender;
     if (s_frameIdx == 0)
-        A74P_RENDER_DLOG("OPENXRAY_NATIVE_SWAP=%d (1=[NSOpenGLContext flushBuffer] вместо SDL_GL_SwapWindow)",
-                          s_nativeSwap ? 1 : 0);
-    if (s_nativeSwap)
+        A74P_RENDER_DLOG("OPENXRAY_NATIVE_SWAP=%d nativeWindowRender=%d → swap %s",
+                          s_nativeSwapEnv ? 1 : 0, s_nativeWindowRender ? 1 : 0,
+                          nativeSwap ? "[ctx flushBuffer]" : "SDL_GL_SwapWindow");
+    if (nativeSwap)
         OpenXRay_NativeSwap_FlushBuffer(m_context);
     else
         SDL_GL_SwapWindow(m_window);
@@ -566,8 +599,8 @@ void CHW::Present()
 
 #if defined(XR_PLATFORM_APPLE)
     if (verbose)
-        A74P_RENDER_DLOG("frame[%u] POST-swap: done (native=%d)",
-                          s_frameIdx, s_nativeSwap ? 1 : 0);
+        A74P_RENDER_DLOG("frame[%u] POST-swap: done (nativeSwap=%d)",
+                          s_frameIdx, nativeSwap ? 1 : 0);
     ++s_frameIdx;
 #endif
 }
