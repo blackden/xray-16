@@ -7,6 +7,53 @@
 #include "glHW.h"
 #include "xrEngine/XR_IOConsole.h"
 
+#if defined(XR_PLATFORM_APPLE)
+#include "xrEngine/native_swap.h"
+#include <cstdio>
+#include <cstdlib>
+#include <unistd.h>
+// A.7.4-restart Step 3 (gitea #186): pure observability на render swap
+// pipeline. Эти DLOG'и + опциональный red-clear probe не меняют поведение
+// рендера — только дают чистый сигнал на каком фрейме / в каком состоянии
+// GL находится перед blit'ом RT в FBO 0 и перед SDL_GL_SwapWindow. После
+// того как у нас будет trace engine'ового render pipeline на текущем
+// (SDL) пути, step 4 будет переключать swap path на NSOpenGLContext'овый
+// flushBuffer с уже понятыми инвариантами.
+//
+// Red-clear probe (опциональный, gated env var OPENXRAY_RED_CLEAR_PROBE=1):
+// после blit'а RT в FBO 0, ПЕРЕД SDL_GL_SwapWindow перезаписываем FBO 0
+// чистым красным. Если экран краснеет на A.7.4b будущем native swap'е —
+// значит swap path физически работает с правильным FBO. Если чёрный —
+// значит swap не идёт через FBO 0 или мы binds не туда.
+#   define A74P_RENDER_DLOG(fmt, ...) do {                                      \
+        char _buf[512];                                                         \
+        int _n = snprintf(_buf, sizeof _buf,                                    \
+                          "==> a74p[render:%s]: " fmt "\n",                     \
+                          __func__, ##__VA_ARGS__);                             \
+        if (_n > 0)                                                             \
+            (void)::write(STDERR_FILENO, _buf, (size_t)_n);                     \
+    } while (0)
+
+namespace
+{
+const char* GlErrorName(GLenum e)
+{
+    switch (e)
+    {
+    case GL_NO_ERROR:                      return "GL_NO_ERROR";
+    case GL_INVALID_ENUM:                  return "GL_INVALID_ENUM";
+    case GL_INVALID_VALUE:                 return "GL_INVALID_VALUE";
+    case GL_INVALID_OPERATION:             return "GL_INVALID_OPERATION";
+    case GL_INVALID_FRAMEBUFFER_OPERATION: return "GL_INVALID_FRAMEBUFFER_OPERATION";
+    case GL_OUT_OF_MEMORY:                 return "GL_OUT_OF_MEMORY";
+    default:                               return "?";
+    }
+}
+} // namespace
+#else
+#   define A74P_RENDER_DLOG(fmt, ...) ((void)0)
+#endif
+
 namespace xray::render::RENDER_NAMESPACE
 {
 CHW HW;
@@ -287,6 +334,42 @@ void CHW::Present()
             pxW, pxH, (unsigned)pFB);
     }
 
+#if defined(XR_PLATFORM_APPLE)
+    // A.7.4-restart Step 3 (gitea #186): подробный trace render swap pipeline.
+    // Первые 3 Present'а дампим полный GL state до и после blit'а; затем
+    // periodic GL error pulse каждые ~600 frames (10 сек @ 60fps) ловит
+    // sticky errors на длинном run. Red-clear probe — опциональный
+    // sanity-test default framebuffer (env var OPENXRAY_RED_CLEAR_PROBE=1).
+    static unsigned   s_frameIdx       = 0;
+    static const bool s_redClearProbe  = ::getenv("OPENXRAY_RED_CLEAR_PROBE") != nullptr;
+    const bool        verbose          = (s_frameIdx < 3);
+    const bool        errorPulse       = (s_frameIdx > 0) && (s_frameIdx % 600 == 0);
+
+    if (s_frameIdx == 0)
+        A74P_RENDER_DLOG("OPENXRAY_RED_CLEAR_PROBE=%d (1=overwrite FBO 0 red before swap)",
+                          s_redClearProbe ? 1 : 0);
+
+    if (verbose)
+    {
+        GLint preDrawFB = -1, preReadFB = -1, viewport[4] = {0,0,0,0};
+        glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &preDrawFB);
+        glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &preReadFB);
+        glGetIntegerv(GL_VIEWPORT, viewport);
+        A74P_RENDER_DLOG("frame[%u] PRE-blit: pFB=%u draw_fb=%d read_fb=%d viewport=%d,%d,%d,%d",
+                          s_frameIdx, (unsigned)pFB, (int)preDrawFB, (int)preReadFB,
+                          viewport[0], viewport[1], viewport[2], viewport[3]);
+        // Drain pre-existing GL errors so post-blit/post-swap дампит ТОЛЬКО
+        // ошибки этого frame'а.
+        for (int i = 0; i < 10; ++i)
+        {
+            const GLenum err = glGetError();
+            if (err == GL_NO_ERROR) break;
+            A74P_RENDER_DLOG("frame[%u] PRE-blit drain GL error %d=0x%x (%s)",
+                              s_frameIdx, i, (unsigned)err, GlErrorName(err));
+        }
+    }
+#endif
+
 #if 0 // kept for historical reasons
     RImplementation.Target->phase_flip();
 #else
@@ -298,8 +381,80 @@ void CHW::Present()
         GL_COLOR_BUFFER_BIT, GL_NEAREST);
 #endif
 
+#if defined(XR_PLATFORM_APPLE)
+    if (verbose)
+    {
+        // Post-blit GL state + error check.
+        GLint postDrawFB = -1, postReadFB = -1;
+        glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &postDrawFB);
+        glGetIntegerv(GL_READ_FRAMEBUFFER_BINDING, &postReadFB);
+        const GLenum fbStatusDraw = glCheckFramebufferStatus(GL_DRAW_FRAMEBUFFER);
+        const GLenum fbStatusRead = glCheckFramebufferStatus(GL_READ_FRAMEBUFFER);
+        A74P_RENDER_DLOG("frame[%u] POST-blit: draw_fb=%d read_fb=%d draw_status=0x%x read_status=0x%x",
+                          s_frameIdx, (int)postDrawFB, (int)postReadFB,
+                          (unsigned)fbStatusDraw, (unsigned)fbStatusRead);
+        for (int i = 0; i < 10; ++i)
+        {
+            const GLenum err = glGetError();
+            if (err == GL_NO_ERROR) break;
+            A74P_RENDER_DLOG("frame[%u] POST-blit GL error %d=0x%x (%s)",
+                              s_frameIdx, i, (unsigned)err, GlErrorName(err));
+        }
+    }
+
+    if (s_redClearProbe)
+    {
+        // Override FBO 0 red right before swap. Engine рендер всё равно
+        // отойдёт на следующий frame, так что цена эксперимента — один
+        // красный кадр когда probe включён.
+        glBindFramebuffer(GL_FRAMEBUFFER, 0);
+        glClearColor(1.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+        if (verbose)
+            A74P_RENDER_DLOG("frame[%u] RED-CLEAR probe applied to FBO 0", s_frameIdx);
+    }
+
+    if (errorPulse)
+    {
+        bool any = false;
+        for (int i = 0; i < 10; ++i)
+        {
+            const GLenum err = glGetError();
+            if (err == GL_NO_ERROR) break;
+            any = true;
+            A74P_RENDER_DLOG("frame[%u] PULSE GL error %d=0x%x (%s)",
+                              s_frameIdx, i, (unsigned)err, GlErrorName(err));
+        }
+        if (!any)
+            A74P_RENDER_DLOG("frame[%u] PULSE: GL error queue clean", s_frameIdx);
+    }
+#endif
+
+#if defined(XR_PLATFORM_APPLE)
+    // A.7.4-restart Step 4 (gitea #186): опциональный swap через native
+    // [NSOpenGLContext flushBuffer] вместо SDL_GL_SwapWindow. SDL'овский
+    // m_context фактически указывает на NSOpenGLContext — берём его как
+    // есть и flushBuffer'им напрямую. Env var OPENXRAY_NATIVE_SWAP=1.
+    // Default OFF, никакой регрессии.
+    static const bool s_nativeSwap = ::getenv("OPENXRAY_NATIVE_SWAP") != nullptr;
+    if (s_frameIdx == 0)
+        A74P_RENDER_DLOG("OPENXRAY_NATIVE_SWAP=%d (1=[NSOpenGLContext flushBuffer] вместо SDL_GL_SwapWindow)",
+                          s_nativeSwap ? 1 : 0);
+    if (s_nativeSwap)
+        OpenXRay_NativeSwap_FlushBuffer(m_context);
+    else
+        SDL_GL_SwapWindow(m_window);
+#else
     SDL_GL_SwapWindow(m_window);
+#endif
     CurrentBackBuffer = (CurrentBackBuffer + 1) % BackBufferCount;
+
+#if defined(XR_PLATFORM_APPLE)
+    if (verbose)
+        A74P_RENDER_DLOG("frame[%u] POST-swap: done (native=%d)",
+                          s_frameIdx, s_nativeSwap ? 1 : 0);
+    ++s_frameIdx;
+#endif
 }
 
 DeviceState CHW::GetDeviceState() const

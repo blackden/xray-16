@@ -463,10 +463,22 @@ if(APPLE)
         FILES
         macos_cocoa_shim.mm
         RendererPlayground_HotReload.mm
+        native_window.h
+        native_window.mm
+        native_gl_context.h
+        native_gl_context.mm
+        native_shell_probe.h
+        native_shell_probe.mm
+        native_swap.h
+        native_swap.mm
     )
     set_source_files_properties(
         macos_cocoa_shim.mm
         RendererPlayground_HotReload.mm
+        native_window.mm
+        native_gl_context.mm
+        native_shell_probe.mm
+        native_swap.mm
         PROPERTIES
         SKIP_PRECOMPILE_HEADERS ON
         SKIP_UNITY_BUILD_INCLUSION ON
@@ -477,6 +489,7 @@ if(APPLE)
         "-framework AppKit"
         "-framework Foundation"
         "-framework CoreServices"
+        "-framework OpenGL"
     )
 endif()
 

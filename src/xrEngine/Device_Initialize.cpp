@@ -11,6 +11,10 @@
 #   include <SDL_syswm.h>
 #endif
 
+#if defined(XR_PLATFORM_APPLE)
+#   include "native_shell_probe.h"
+#endif
+
 SDL_HitTestResult WindowHitTest(SDL_Window* win, const SDL_Point* area, void* data);
 
 namespace
@@ -101,6 +105,15 @@ void CRenderDevice::Initialize()
         ExtractAndSetWindowIcon(m_sdlWnd, icon);
 
         TracySetProgramName(title);
+
+#if defined(XR_PLATFORM_APPLE)
+        // A.7.4-restart Step 1 (gitea #186): диагностический probe рядом с
+        // SDL'овским окном. Создаёт dormant NSWindow + NSOpenGLContext,
+        // дампит GL caps, destroy'ит. Engine продолжает работать через
+        // SDL — probe полностью изолирован. Цель: чистый log signal
+        // что macOS API delivers, ДО подмены SDL paths на native.
+        OpenXRay_NativeShellProbe();
+#endif
     }
 
 #ifdef IMGUI_ENABLE_VIEWPORTS
