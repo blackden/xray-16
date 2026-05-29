@@ -5,6 +5,10 @@
 #include "RendererPlayground.h"
 #include "XR_IOConsole.h"
 
+#if defined(XR_PLATFORM_APPLE)
+#   include "native_window.h"
+#endif
+
 // Defined in RendererPlayground.cpp. Returns a function pointer the xrCore
 // CHK_GL macro will invoke on each Apple-side GL error.
 extern "C" xr_gl_error_sink_fn RendererPlayground_GetGLErrorSink();
@@ -190,9 +194,19 @@ void ide::UpdateMouseData()
 #if SDL_HAS_CAPTURE_AND_GLOBAL_MOUSE && defined(IMGUI_ENABLE_VIEWPORTS)
     SDL_CaptureMouse(anyMouseButtonPressed ? SDL_TRUE : SDL_FALSE);
     SDL_Window* focused_window = SDL_GetKeyboardFocus();
-    const bool is_app_focused = focused_window && (Device.m_sdlWnd == focused_window || ImGui::FindViewportByPlatformHandle(focused_window));
+    bool is_app_focused = focused_window && (Device.m_sdlWnd == focused_window || ImGui::FindViewportByPlatformHandle(focused_window));
+#   if defined(XR_PLATFORM_APPLE)
+    if (Device.m_useNativeWindow && OpenXRay_NativeWindow_IsKeyWindow())
+        is_app_focused = true;
+#   endif
 #else
+#   if defined(XR_PLATFORM_APPLE)
+    const bool is_app_focused = Device.m_useNativeWindow
+        ? OpenXRay_NativeWindow_IsKeyWindow()
+        : (SDL_GetWindowFlags(Device.m_sdlWnd) & SDL_WINDOW_INPUT_FOCUS) != 0;
+#   else
     const bool is_app_focused = (SDL_GetWindowFlags(Device.m_sdlWnd) & SDL_WINDOW_INPUT_FOCUS) != 0;
+#   endif
 #endif
 
     if (is_app_focused)
