@@ -142,15 +142,23 @@ void CHW::CreateDevice(SDL_Window* hWnd)
 
     m_window = hWnd;
 
-    R_ASSERT(m_window);
+#if defined(XR_PLATFORM_APPLE)
+    // A.7.4 C.4a (gitea #192): под NATIVE_WINDOW=1 m_window == nullptr — мы
+    // skip'нули SDL_CreateWindow. Pixel format уже захардкожен в нашем
+    // NSOpenGLPixelFormat (native_gl_context.mm), SDL display-mode pick
+    // здесь irrelevant.
+    if (!OpenXRay_IsNativeWindowRender())
+#endif
+    {
+        R_ASSERT(m_window);
 
-
-    // Choose the closest pixel format
-    SDL_DisplayMode mode;
-    SDL_GetWindowDisplayMode(m_window, &mode);
-    mode.format = SDL_PIXELFORMAT_RGBA8888;
-    // Apply the pixel format to the device context
-    SDL_SetWindowDisplayMode(m_window, &mode);
+        // Choose the closest pixel format
+        SDL_DisplayMode mode;
+        SDL_GetWindowDisplayMode(m_window, &mode);
+        mode.format = SDL_PIXELFORMAT_RGBA8888;
+        // Apply the pixel format to the device context
+        SDL_SetWindowDisplayMode(m_window, &mode);
+    }
 
     Caps.fTarget = D3DFMT_A8R8G8B8;
     Caps.fDepth = D3DFMT_D24S8;
@@ -167,7 +175,10 @@ void CHW::CreateDevice(SDL_Window* hWnd)
     //
     // На DestroyDevice s_nativeGLOwned выбирает правильный destroy path.
     const bool useNativeGL     = ::getenv("OPENXRAY_NATIVE_GL")     != nullptr;
-    const bool useNativeWindow = ::getenv("OPENXRAY_NATIVE_WINDOW") != nullptr;
+    // A.7.4 C.4a (gitea #192): NATIVE_WINDOW читается через C-ABI — single
+    // source of truth установлен Device_Initialize в Device.m_useNativeWindow.
+    // getenv больше нигде в hot path не вызывается на этом флаге.
+    const bool useNativeWindow = OpenXRay_IsNativeWindowRender();
     // A.7.4c (gitea #190): NATIVE_WINDOW implicit включает наш native ctx —
     // SDL'овский ctx был бы attached к SDL'овскому view, render улетел бы
     // в скрытое окно. Так что либо оба native, либо ни одного.
@@ -470,7 +481,14 @@ void CHW::Present()
     {
         s_loggedFirst = true;
         int pxW = 0, pxH = 0;
-        SDL_GL_GetDrawableSize(m_window, &pxW, &pxH);
+#if defined(XR_PLATFORM_APPLE)
+        if (OpenXRay_IsNativeWindowRender())
+            OpenXRay_NativeWindow_GetBackingSize(&pxW, &pxH);
+        else if (m_window)
+#else
+        if (m_window)
+#endif
+            SDL_GL_GetDrawableSize(m_window, &pxW, &pxH);
         Msg("* Present[0]: src=%ux%u dest=%ux%u drawable=%dx%d pFB=%u",
             Device.dwWidth, Device.dwHeight,
             Device.dwWidth, Device.dwHeight,
@@ -618,6 +636,16 @@ std::pair<u32, u32> CHW::GetSurfaceSize() const
     // window points the user picked in vid_mode. The render path (RT
     // allocation, glViewport, Present blit) needs pixels; mouse / UI input
     // continues to use point dims via SDL_GetWindowSize elsewhere.
+#if defined(XR_PLATFORM_APPLE)
+    if (OpenXRay_IsNativeWindowRender())
+    {
+        int w = 0, h = 0;
+        OpenXRay_NativeWindow_GetBackingSize(&w, &h);
+        if (w > 0 && h > 0)
+            return { static_cast<u32>(w), static_cast<u32>(h) };
+        return { psDeviceMode.Width, psDeviceMode.Height };
+    }
+#endif
     if (m_window)
     {
         int w = 0, h = 0;

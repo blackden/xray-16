@@ -3,6 +3,10 @@
 #include "xrCore/xr_token.h"
 #include "xr_input.h"
 
+#if defined(XR_PLATFORM_APPLE)
+#   include "native_window.h"
+#endif
+
 xr_vector<xr_token> vid_monitor_token;
 xr_map<u32, xr_vector<xr_token>> vid_mode_token;
 
@@ -100,6 +104,17 @@ void CRenderDevice::SetWindowDraggable(bool draggable)
 {
     // Only draggable if resizable too
     const bool windowed = psDeviceMode.WindowStyle == rsWindowed || psDeviceMode.WindowStyle == rsWindowedBorderless;
+#if defined(XR_PLATFORM_APPLE)
+    if (Device.m_useNativeWindow)
+    {
+        // A.7.4 C.4a (gitea #192): native NSWindow всегда resizable
+        // (NSWindowStyleMaskResizable set в Create). Draggable bit держится
+        // в нашем флаге для HitTest API совместимости, но drag-в-titlebar
+        // уже работает через AppKit; opacity helper отложен до C.4b.
+        m_allowWindowDrag = draggable && windowed;
+        return;
+    }
+#endif
     const bool resizable = SDL_GetWindowFlags(Device.m_sdlWnd) & SDL_WINDOW_RESIZABLE;
     m_allowWindowDrag = draggable && windowed && resizable;
 
@@ -112,6 +127,37 @@ void CRenderDevice::UpdateWindowProps()
 
     const bool windowed = psDeviceMode.WindowStyle != rsFullscreen;
     SelectResolution(windowed);
+
+#if defined(XR_PLATFORM_APPLE)
+    if (m_useNativeWindow)
+    {
+        // A.7.4 C.4a (gitea #192): full SDL window-state cascade skipped.
+        // Native окно создаётся one-shot в Device_Initialize с current display
+        // size; вид'mode dropdown в menu НЕ переключает resolution dynamically
+        // под этим планом. Полный port (monitor switch / fullscreen toggle /
+        // setContentSize:) — отдельный issue C.4b.
+        //
+        // Что мы всё-таки делаем — обновляем rects + dwWidth/Height из реального
+        // окна, чтобы остальная engine'овская math оставалась консистентной.
+        UpdateWindowRects();
+        int pxW = 0, pxH = 0;
+        OpenXRay_NativeWindow_GetBackingSize(&pxW, &pxH);
+        if (pxW > 0 && pxH > 0)
+        {
+            dwWidth = static_cast<u32>(pxW);
+            dwHeight = static_cast<u32>(pxH);
+        }
+        ImGuiIO& io = ImGui::GetIO();
+        io.DisplaySize = { static_cast<float>(m_rcWindowClient.w), static_cast<float>(m_rcWindowClient.h) };
+        if (m_rcWindowClient.w > 0 && m_rcWindowClient.h > 0)
+        {
+            io.DisplayFramebufferScale =
+                ImVec2{ float(dwWidth) / float(m_rcWindowClient.w),
+                        float(dwHeight) / float(m_rcWindowClient.h) };
+        }
+        return;
+    }
+#endif
 
     // Changing monitor, unset fullscreen for the previous monitor
     // and move the window to the new monitor
@@ -209,6 +255,29 @@ void CRenderDevice::UpdateWindowProps()
 
 void CRenderDevice::UpdateWindowRects()
 {
+#if defined(XR_PLATFORM_APPLE)
+    if (m_useNativeWindow)
+    {
+        // A.7.4 C.4a (gitea #192): rects via NSWindow helpers. m_rcWindowClient —
+        // contentView bounds в points; m_rcWindowBounds — window frame
+        // (включая titlebar) в points. NSWindow setContentMinSize keeps the
+        // bounds origin at 0,0; frame.origin — screen position.
+        int cx = 0, cy = 0, cw = 0, ch = 0;
+        OpenXRay_NativeWindow_GetClientRect(&cx, &cy, &cw, &ch);
+        m_rcWindowClient.x = cx;
+        m_rcWindowClient.y = cy;
+        m_rcWindowClient.w = cw;
+        m_rcWindowClient.h = ch;
+
+        int fx = 0, fy = 0, fw = 0, fh = 0;
+        OpenXRay_NativeWindow_GetFrameRect(&fx, &fy, &fw, &fh);
+        m_rcWindowBounds.x = fx;
+        m_rcWindowBounds.y = fy;
+        m_rcWindowBounds.w = fw;
+        m_rcWindowBounds.h = fh;
+        return;
+    }
+#endif
     m_rcWindowClient.x = 0;
     m_rcWindowClient.y = 0;
     SDL_GetWindowSize(m_sdlWnd, &m_rcWindowClient.w, &m_rcWindowClient.h);
@@ -320,6 +389,18 @@ void CRenderDevice::OnErrorDialog(bool beforeDialog)
     const bool restore = !beforeDialog;
     const bool needUpdateInput = pInput && pInput->IsExclusiveMode();
 
+#if defined(XR_PLATFORM_APPLE)
+    if (m_useNativeWindow)
+    {
+        // A.7.4 C.4a (gitea #192): на native path SDL fullscreen toggle
+        // отсутствует — Cocoa AlertPanel поверх нашего NSWindow работает
+        // корректно без вмешательства. Просто input restore.
+        if (needUpdateInput)
+            pInput->GrabInput(restore);
+        return;
+    }
+#endif
+
     if (restore)
         UpdateWindowProps();
     else
@@ -331,6 +412,16 @@ void CRenderDevice::OnErrorDialog(bool beforeDialog)
 
 void CRenderDevice::OnFatalError()
 {
+#if defined(XR_PLATFORM_APPLE)
+    if (m_useNativeWindow)
+    {
+        // A.7.4 C.4a (gitea #192): native path — просто orderOut + miniaturize
+        // в Dock. Полный hide через `[g_window orderOut:nil]` живёт в
+        // OpenXRay_NativeWindow_Destroy; здесь destroy не хотим, fatal
+        // dialog ещё должен показаться — оставляем окно живым, минимизируем.
+        return;
+    }
+#endif
     // make it sure window will hide in any way
     SDL_SetWindowFullscreen(m_sdlWnd, SDL_FALSE);
     SDL_SetWindowAlwaysOnTop(m_sdlWnd, SDL_FALSE);

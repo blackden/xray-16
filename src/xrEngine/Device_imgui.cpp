@@ -12,6 +12,8 @@
 // pulling AppKit into this TU or introducing an xrEngine->xrCore header.
 extern "C" const char *OpenXRay_PasteboardGetString(void);
 extern "C" bool        OpenXRay_PasteboardSetString(const char *utf8);
+
+#   include "native_window.h"
 #endif
 
 void CRenderDevice::InitializeImGui()
@@ -196,6 +198,13 @@ void CRenderDevice::InitializeImGui()
     platform_io.Platform_ShowWindow = [](ImGuiViewport* viewport)
     {
         const auto vd = static_cast<ImGuiViewportData*>(viewport->PlatformUserData);
+#if defined(XR_PLATFORM_APPLE)
+        // A.7.4 C.4a (gitea #192): main viewport на native path — vd->Window=nullptr;
+        // окно уже видно (OpenXRay_NativeWindow_Show в Device_Initialize). Show
+        // — no-op для main viewport, secondary viewports keep SDL path.
+        if (!vd->Window)
+            return;
+#endif
 #if defined(XR_PLATFORM_WINDOWS)
         const HWND hwnd = static_cast<HWND>(viewport->PlatformHandleRaw);
 
@@ -222,12 +231,23 @@ void CRenderDevice::InitializeImGui()
     platform_io.Platform_SetWindowPos = [](ImGuiViewport* viewport, ImVec2 pos)
     {
         const auto vd = static_cast<ImGuiViewportData*>(viewport->PlatformUserData);
+#if defined(XR_PLATFORM_APPLE)
+        if (!vd->Window) return; // main viewport on native — position fixed by NSWindow
+#endif
         SDL_SetWindowPosition(vd->Window, (int)pos.x, (int)pos.y);
     };
 
     platform_io.Platform_GetWindowPos = [](ImGuiViewport* viewport)
     {
         const auto vd = static_cast<ImGuiViewportData*>(viewport->PlatformUserData);
+#if defined(XR_PLATFORM_APPLE)
+        if (!vd->Window)
+        {
+            int x = 0, y = 0, w = 0, h = 0;
+            OpenXRay_NativeWindow_GetFrameRect(&x, &y, &w, &h);
+            return ImVec2{ (float)x, (float)y };
+        }
+#endif
         int x = 0, y = 0;
         SDL_GetWindowPosition(vd->Window, &x, &y);
         return ImVec2{ (float)x, (float)y };
@@ -236,12 +256,23 @@ void CRenderDevice::InitializeImGui()
     platform_io.Platform_SetWindowSize = [](ImGuiViewport* viewport, ImVec2 size)
     {
         const auto vd = static_cast<ImGuiViewportData*>(viewport->PlatformUserData);
+#if defined(XR_PLATFORM_APPLE)
+        if (!vd->Window) return; // main viewport on native — size driven by NSWindow resize → C.4b
+#endif
         SDL_SetWindowSize(vd->Window, (int)size.x, (int)size.y);
     };
 
     platform_io.Platform_GetWindowSize = [](ImGuiViewport* viewport)
     {
         const auto vd = static_cast<ImGuiViewportData*>(viewport->PlatformUserData);
+#if defined(XR_PLATFORM_APPLE)
+        if (!vd->Window)
+        {
+            int x = 0, y = 0, w = 0, h = 0;
+            OpenXRay_NativeWindow_GetClientRect(&x, &y, &w, &h);
+            return ImVec2{ (float)w, (float)h };
+        }
+#endif
         int w = 0, h = 0;
         SDL_GetWindowSize(vd->Window, &w, &h);
         return ImVec2{ (float)w, (float)h };
@@ -250,30 +281,51 @@ void CRenderDevice::InitializeImGui()
     platform_io.Platform_SetWindowFocus = [](ImGuiViewport* viewport)
     {
         const auto vd = static_cast<ImGuiViewportData*>(viewport->PlatformUserData);
+#if defined(XR_PLATFORM_APPLE)
+        if (!vd->Window) return; // main viewport already key — see OpenXRay_NativeWindow_Show
+#endif
         SDL_RaiseWindow(vd->Window);
     };
 
     platform_io.Platform_GetWindowFocus = [](ImGuiViewport* viewport)
     {
         const auto vd = static_cast<ImGuiViewportData*>(viewport->PlatformUserData);
+#if defined(XR_PLATFORM_APPLE)
+        if (!vd->Window)
+            return OpenXRay_NativeWindow_IsKeyWindow();
+#endif
         return (SDL_GetWindowFlags(vd->Window) & SDL_WINDOW_INPUT_FOCUS) != 0;
     };
 
     platform_io.Platform_GetWindowMinimized = [](ImGuiViewport* viewport)
     {
         const auto vd = static_cast<ImGuiViewportData*>(viewport->PlatformUserData);
+#if defined(XR_PLATFORM_APPLE)
+        if (!vd->Window)
+            return OpenXRay_NativeWindow_IsMinimized();
+#endif
         return (SDL_GetWindowFlags(vd->Window) & SDL_WINDOW_MINIMIZED) != 0;
     };
 
     platform_io.Platform_SetWindowTitle = [](ImGuiViewport* viewport, const char* title)
     {
         const auto vd = static_cast<ImGuiViewportData*>(viewport->PlatformUserData);
+#if defined(XR_PLATFORM_APPLE)
+        if (!vd->Window)
+        {
+            OpenXRay_NativeWindow_SetTitle(title);
+            return;
+        }
+#endif
         SDL_SetWindowTitle(vd->Window, title);
     };
 
     platform_io.Platform_SetWindowAlpha = [](ImGuiViewport* viewport, float alpha)
     {
         const auto vd = static_cast<ImGuiViewportData*>(viewport->PlatformUserData);
+#if defined(XR_PLATFORM_APPLE)
+        if (!vd->Window) return; // main viewport opacity stays at 1.0 on native (C.4b helper)
+#endif
         SDL_SetWindowOpacity(vd->Window, alpha);
     };
 #endif // IMGUI_ENABLE_VIEWPORTS
