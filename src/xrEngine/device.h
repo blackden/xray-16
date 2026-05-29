@@ -53,6 +53,15 @@ public:
     // Main window
     SDL_Window* m_sdlWnd{};
 
+#if defined(XR_PLATFORM_APPLE)
+    // A.7.4 C.4a (gitea #192): single source of truth для NATIVE_WINDOW gate.
+    // Читается ОДИН раз в Device_Initialize::Initialize из env var
+    // OPENXRAY_NATIVE_WINDOW; все Apple-conditioned сайты читают этот field,
+    // НЕ getenv() в hot path. Render layer (glHW.cpp) использует
+    // OpenXRay_IsNativeWindowRender() C-ABI — то же значение.
+    bool m_useNativeWindow{false};
+#endif
+
     // Engine flow-control
     u32 dwFrame{};
     u32 dwPrecacheFrame{};
@@ -199,7 +208,13 @@ public:
     void Shutdown();
 
     void ProcessEvent(const SDL_Event& event);
-    void OnWindowActivate(SDL_Window* window, bool activated);
+
+    // A.7.4 C.4a (gitea #192): сигнатура decoupled от SDL_Window*. Раньше
+    // сравнивали `window == m_sdlWnd`; при native render path m_sdlWnd ==
+    // nullptr, и сравнение nullptr == nullptr ломало editor-mode routing
+    // (audit §4.5 — sentinel-collision bug). Теперь caller явно говорит
+    // «это main window или secondary viewport».
+    void OnWindowActivate(bool isMainWindow, bool activated);
 
     void UpdateWindowProps();
     void UpdateWindowRects();

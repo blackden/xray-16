@@ -455,7 +455,7 @@ int CApplication::Run()
                 case SDL_WINDOWEVENT_RESTORED:
                 case SDL_WINDOWEVENT_MAXIMIZED:
                     if (window != Device.m_sdlWnd)
-                        Device.OnWindowActivate(window, true);
+                        Device.OnWindowActivate(/*isMainWindow*/ false, true);
                     else
                     {
                         canCallActivate = true;
@@ -467,7 +467,7 @@ int CApplication::Run()
                 case SDL_WINDOWEVENT_FOCUS_LOST:
                 case SDL_WINDOWEVENT_MINIMIZED:
                     if (window != Device.m_sdlWnd)
-                        Device.OnWindowActivate(window, false);
+                        Device.OnWindowActivate(/*isMainWindow*/ false, false);
                     else
                     {
                         canCallActivate = true;
@@ -486,7 +486,7 @@ int CApplication::Run()
         // Workaround for screen blinking when there's too much timeouts
         if (canCallActivate)
         {
-            Device.OnWindowActivate(Device.m_sdlWnd, shouldActivate);
+            Device.OnWindowActivate(/*isMainWindow*/ true, shouldActivate);
         }
 
         Device.ProcessFrame();
