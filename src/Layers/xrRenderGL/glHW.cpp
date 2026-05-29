@@ -144,6 +144,19 @@ void CHW::CreateDevice(SDL_Window* hWnd)
 
     R_ASSERT(m_window);
 
+#if defined(XR_PLATFORM_APPLE)
+    // A.7.4c Step C.3 (gitea #190): defensive hide для SDL'овского окна
+    // под NATIVE_WINDOW=1. SDL_HideWindow в Device_Initialize не помогает,
+    // потому что engine SDL_ShowWindow'ит окно после в render init
+    // (CDeviceMode переключение, vid_mode setup, etc). Hide сразу здесь
+    // ловит окно до того как оно успеет показаться.
+    if (::getenv("OPENXRAY_NATIVE_WINDOW") != nullptr)
+    {
+        Msg("* A.7.4c CHW: defensive SDL_HideWindow(m_window) для native path");
+        SDL_HideWindow(m_window);
+    }
+#endif
+
     // Choose the closest pixel format
     SDL_DisplayMode mode;
     SDL_GetWindowDisplayMode(m_window, &mode);
