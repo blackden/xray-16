@@ -199,9 +199,29 @@ if (g_bShuttingDown) { s_emitters.clear(); return; }
 1. **`find_package(OpenAL REQUIRED)` на macOS silently выбирает Apple framework over Brew openal-soft** — даже если Brewfile установил openal-soft. Brew keg-only by design. Любой fix требует `OPENAL_ROOT` инjection в `if(APPLE)`.
 2. **xrSound имеет ноль Apple-conditional кода.** Divergence Apple framework vs openal-soft surface'ится без grep'абельного маркера. Audits / migrations должны знать.
 
+## Followups closed
+
+### A.7.3 — openal-soft EFX backend (2026-05-28, #129 → PR #177)
+
+Brew openal-soft подключён, `XR_HAS_EFX` defined через `__has_include(<efx.h>)`, реальный EFX backend (`CSoundRender_EffectsA_EFX`) активирован с AL_EAXREVERB + HRTF + aux slot binding в `CSoundRender_TargetA`. Env defaults без EAX gate. `detach()` lifecycle для `snd_efx` toggle. Debug `snd_efx_preset` cvar (0..5) кейфаст для tuning. Snapshot: `notes/decisions/a7-3-openal-soft.md`.
+
+### A.7.3a — EAX backend strip (2026-05-29, #178)
+
+После #177 EAX backend стал dead code на маке. Per fork posture «macOS-only, без Windows backcompat»:
+
+- Удалены `SoundRender_EffectsA_EAX.{cpp,h}`, `guids.cpp` (вместе с Windows-only `<eax/eax.h>` инклюдом)
+- `#if defined(XR_HAS_EAX)` блоки удалены из `SoundRender_CoreA.cpp`, инклюды из Core/Environment удалены
+- Old commented EAX SDK code в `SoundRender_Scene.cpp::set_environment{,_size}` удалён (bEAX/i_eax_set)
+- `ALDeviceDesc::ESndProps.eax` bitfield удалён, EAX-extension probing в `OpenALDeviceList.cpp` удалён, diagnostic Msg drops `eax[%d]`
+- CMake/vcxproj entries для EAX и guids убраны
+
+Section «EFX / EAX runtime path» выше отражает pre-A.7.3 state (EAX path как единственная реализация, EFX absent). Текущее состояние: единственный backend — `CSoundRender_EffectsA_EFX` под `__has_include(<efx.h>)`, без EAX dual-pathway.
+
 ## Links
 
 - A.4 timing (предыдущий шаг): [#123](https://git.fedorov.tech/ragnar/xray-16/issues/123), PR #126
+- A.7.3 closure: [#129](https://git.fedorov.tech/ragnar/xray-16/issues/129), PR #177, decision doc `notes/decisions/a7-3-openal-soft.md`
+- A.7.3a strip: [#178](https://git.fedorov.tech/ragnar/xray-16/issues/178)
 - Spec: `docs/superpowers/specs/2026-05-25-native-shell-roadmap.md` § A.5
 - P2 origin: `notes/strategy/roadmap.md:74`
 - Apple OpenAL deprecation: Apple Developer Docs (macOS 10.15 release notes)

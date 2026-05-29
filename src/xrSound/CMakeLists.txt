@@ -32,8 +32,6 @@ target_sources_grouped(
     TARGET xrSound
     NAME "Effects\\OpenAL"
     FILES
-    SoundRender_EffectsA_EAX.cpp
-    SoundRender_EffectsA_EAX.h
     SoundRender_EffectsA_EFX.cpp
     SoundRender_EffectsA_EFX.h
 )
@@ -68,15 +66,12 @@ target_sources_grouped(
     TARGET xrSound
     NAME "Kernel"
     FILES
-    guids.cpp
     Sound.cpp
     Sound.h
     SoundRender.h
     stdafx.cpp
     stdafx.h
 )
-
-set_source_files_properties(guids.cpp PROPERTIES SKIP_PRECOMPILE_HEADERS ON)
 
 target_sources_grouped(
     TARGET xrSound
