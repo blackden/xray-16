@@ -72,17 +72,11 @@
     <ClInclude Include="SoundRender_Effects.h">
       <Filter>Effects</Filter>
     </ClInclude>
-    <ClInclude Include="SoundRender_EffectsA_EAX.h">
-      <Filter>Effects\OpenAL</Filter>
-    </ClInclude>
     <ClInclude Include="SoundRender_Scene.h">
       <Filter>Scene</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="guids.cpp">
-      <Filter>Kernel</Filter>
-    </ClCompile>
     <ClCompile Include="Sound.cpp">
       <Filter>Kernel</Filter>
     </ClCompile>
@@ -127,9 +121,6 @@
     </ClCompile>
     <ClCompile Include="SoundRender_Environment.cpp">
       <Filter>Environment</Filter>
-    </ClCompile>
-    <ClCompile Include="SoundRender_EffectsA_EAX.cpp">
-      <Filter>Effects\OpenAL</Filter>
     </ClCompile>
     <ClCompile Include="SoundRender_Scene.cpp">
       <Filter>Scene</Filter>
