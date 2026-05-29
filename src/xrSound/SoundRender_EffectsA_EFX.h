@@ -33,6 +33,7 @@ public:
     void get_listener(CSoundRender_Environment& env) override;
 
     void commit() override;
+    void detach() override;
 
 public:
     auto get_slot() const { return slot; }
