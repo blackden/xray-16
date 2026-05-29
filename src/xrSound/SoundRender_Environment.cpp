@@ -14,29 +14,30 @@ CSoundRender_Environment::CSoundRender_Environment()
 CSoundRender_Environment::~CSoundRender_Environment() {}
 void CSoundRender_Environment::set_default()
 {
-#if defined(XR_HAS_EAX)
-    Environment = EAX_ENVIRONMENT_GENERIC;
-    Room = EAXLISTENER_DEFAULTROOM;
-    RoomHF = EAXLISTENER_DEFAULTROOMHF;
-    RoomRolloffFactor = EAXLISTENER_DEFAULTROOMROLLOFFFACTOR;
-    DecayTime = EAXLISTENER_DEFAULTDECAYTIME;
-    DecayHFRatio = EAXLISTENER_DEFAULTDECAYHFRATIO;
-    Reflections = EAXLISTENER_DEFAULTREFLECTIONS;
-    ReflectionsDelay = EAXLISTENER_DEFAULTREFLECTIONSDELAY;
-    Reverb = EAXLISTENER_DEFAULTREVERB;
-    ReverbDelay = EAXLISTENER_DEFAULTREVERBDELAY;
-    EnvironmentSize = EAXLISTENER_DEFAULTENVIRONMENTSIZE;
-    EnvironmentDiffusion = EAXLISTENER_DEFAULTENVIRONMENTDIFFUSION;
-    AirAbsorptionHF = EAXLISTENER_DEFAULTAIRABSORPTIONHF;
-#endif
+    // Numeric values are the EAX 2.0 «generic» listener preset. Hardcoded
+    // because the EAX-only constants live in <eax/eax.h> (Windows-only
+    // Externals), but the same values are equally valid for the EFX
+    // backend — reverb params are stored in millibels (mB) regardless of
+    // which backend ultimately consumes them.
+    Environment = 0;             // EAX_ENVIRONMENT_GENERIC
+    Room = -1000.0f;             // mB
+    RoomHF = -100.0f;            // mB
+    RoomRolloffFactor = 0.0f;
+    DecayTime = 1.49f;           // seconds
+    DecayHFRatio = 0.83f;
+    Reflections = -2602.0f;      // mB
+    ReflectionsDelay = 0.007f;   // seconds
+    Reverb = 200.0f;             // mB
+    ReverbDelay = 0.011f;        // seconds
+    EnvironmentSize = 7.5f;      // metres
+    EnvironmentDiffusion = 1.0f;
+    AirAbsorptionHF = -5.0f;     // mB per metre at 5 kHz
 }
 
 void CSoundRender_Environment::set_identity()
 {
     set_default();
-#if defined(XR_HAS_EAX)
-    Room = EAXLISTENER_MINROOM;
-#endif
+    Room = -10000.0f;            // EAXLISTENER_MINROOM — full reverb suppression
     clamp();
 }
 
@@ -81,20 +82,21 @@ void CSoundRender_Environment::get			(EAXLISTENERPROPERTIES& ep)
 */
 void CSoundRender_Environment::clamp()
 {
-#if defined(XR_HAS_EAX)
-    ::clamp(Room, (float)EAXLISTENER_MINROOM, (float)EAXLISTENER_MAXROOM);
-    ::clamp(RoomHF, (float)EAXLISTENER_MINROOMHF, (float)EAXLISTENER_MAXROOMHF);
-    ::clamp(RoomRolloffFactor, EAXLISTENER_MINROOMROLLOFFFACTOR, EAXLISTENER_MAXROOMROLLOFFFACTOR);
-    ::clamp(DecayTime, EAXLISTENER_MINDECAYTIME, EAXLISTENER_MAXDECAYTIME);
-    ::clamp(DecayHFRatio, EAXLISTENER_MINDECAYHFRATIO, EAXLISTENER_MAXDECAYHFRATIO);
-    ::clamp(Reflections, (float)EAXLISTENER_MINREFLECTIONS, (float)EAXLISTENER_MAXREFLECTIONS);
-    ::clamp(ReflectionsDelay, EAXLISTENER_MINREFLECTIONSDELAY, EAXLISTENER_MAXREFLECTIONSDELAY);
-    ::clamp(Reverb, (float)EAXLISTENER_MINREVERB, (float)EAXLISTENER_MAXREVERB);
-    ::clamp(ReverbDelay, EAXLISTENER_MINREVERBDELAY, EAXLISTENER_MAXREVERBDELAY);
-    ::clamp(EnvironmentSize, EAXLISTENER_MINENVIRONMENTSIZE, EAXLISTENER_MAXENVIRONMENTSIZE);
-    ::clamp(EnvironmentDiffusion, EAXLISTENER_MINENVIRONMENTDIFFUSION, EAXLISTENER_MAXENVIRONMENTDIFFUSION);
-    ::clamp(AirAbsorptionHF, EAXLISTENER_MINAIRABSORPTIONHF, EAXLISTENER_MAXAIRABSORPTIONHF);
-#endif
+    // EAX 2.0 listener property ranges. Same MIN/MAX numbers as <eax.h>
+    // would expose on Windows; hardcoded here so the EFX backend on Apple
+    // gets correct bounds without pulling in the Creative Externals.
+    ::clamp(Room, -10000.0f, 0.0f);
+    ::clamp(RoomHF, -10000.0f, 0.0f);
+    ::clamp(RoomRolloffFactor, 0.0f, 10.0f);
+    ::clamp(DecayTime, 0.1f, 20.0f);
+    ::clamp(DecayHFRatio, 0.1f, 2.0f);
+    ::clamp(Reflections, -10000.0f, 1000.0f);
+    ::clamp(ReflectionsDelay, 0.0f, 0.3f);
+    ::clamp(Reverb, -10000.0f, 2000.0f);
+    ::clamp(ReverbDelay, 0.0f, 0.1f);
+    ::clamp(EnvironmentSize, 1.0f, 100.0f);
+    ::clamp(EnvironmentDiffusion, 0.0f, 1.0f);
+    ::clamp(AirAbsorptionHF, -100.0f, 0.0f);
 }
 
 bool CSoundRender_Environment::load(IReader* fs)

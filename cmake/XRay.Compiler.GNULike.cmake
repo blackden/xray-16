@@ -157,6 +157,40 @@ endif()
 
 if (NOT WIN32)
     find_package(SDL2 2.0.18 REQUIRED)
+
+    if (APPLE)
+        # Use Homebrew openal-soft (keg-only) instead of the deprecated
+        # /System/Library/Frameworks/OpenAL.framework which has no EFX/HRTF
+        # support and is marked as deprecated since macOS 10.15. Brew formula
+        # installs at /opt/homebrew/opt/openal-soft on Apple Silicon and at
+        # /usr/local/opt/openal-soft on Intel. CMAKE_FIND_FRAMEWORK=NEVER
+        # ensures find_package(OpenAL) doesn't fall back to the system
+        # framework when both are present on PATH.
+        #
+        # CMP0144 (CMake 3.27+) made find_package case-sensitive on *_ROOT
+        # hints; FindOpenAL is `OpenAL`, so the canonical hint is
+        # `OpenAL_ROOT`. We set both names — uppercase for older CMake,
+        # mixed-case for new policy — and flip CMP0144 NEW explicitly so
+        # CMake honours the mixed-case form without warning.
+        if (POLICY CMP0144)
+            cmake_policy(SET CMP0144 NEW)
+        endif()
+        if (EXISTS "/opt/homebrew/opt/openal-soft")
+            set(_xr_openal_prefix "/opt/homebrew/opt/openal-soft")
+        elseif (EXISTS "/usr/local/opt/openal-soft")
+            set(_xr_openal_prefix "/usr/local/opt/openal-soft")
+        endif()
+        if (DEFINED _xr_openal_prefix)
+            if (NOT DEFINED OPENAL_ROOT)
+                set(OPENAL_ROOT "${_xr_openal_prefix}" CACHE PATH "openal-soft prefix")
+            endif()
+            if (NOT DEFINED OpenAL_ROOT)
+                set(OpenAL_ROOT "${_xr_openal_prefix}" CACHE PATH "openal-soft prefix (CMP0144)")
+            endif()
+        endif()
+        set(CMAKE_FIND_FRAMEWORK NEVER)
+    endif()
+
     find_package(OpenAL REQUIRED)
     find_package(JPEG)
     find_package(Ogg REQUIRED)

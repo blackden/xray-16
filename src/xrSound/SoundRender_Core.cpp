@@ -17,6 +17,7 @@ XRSOUND_API Flags32 psSoundFlags =
     ss_Hardware | ss_EFX | ss_UseFloat32
 };
 
+XRSOUND_API int psSoundEFXPreset = 0;
 XRSOUND_API int psSoundTargets = 32;
 XRSOUND_API float psSoundOcclusionScale = 0.5f;
 XRSOUND_API float psSoundTimeFactor = 1.0f;
@@ -192,8 +193,17 @@ void CSoundRender_Core::update_listener(const Fvector& P, const Fvector& D, cons
     Listener.orientation[1] = N;
     Listener.orientation[2] = R;
 
-    if (!psSoundFlags.test(ss_EFX) || !m_effects)
+    if (!m_effects)
         return;
+
+    if (!psSoundFlags.test(ss_EFX))
+    {
+        // Cvar toggled off → detach effect from slot so the wet path stops.
+        // Without this, the last-committed effect keeps playing because we
+        // simply stop refreshing it.
+        m_effects->detach();
+        return;
+    }
 
     // Update effects
     if (bListenerMoved)
