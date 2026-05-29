@@ -5,6 +5,7 @@
 #include "ITextInputBackend.h"
 #if defined(XR_PLATFORM_APPLE)
 #include "NativeTextInputBackend.h"
+#include "native_window.h"
 #endif
 #include "IInputReceiver.h"
 #include "GameFont.h"
@@ -1115,23 +1116,49 @@ bool CInput::iSetMousePos(const Ivector2& p, bool global /*= false*/) const
         // but report false
     }
 
+#if defined(XR_PLATFORM_APPLE)
+    if (Device.m_useNativeWindow)
+    {
+        OpenXRay_NativeWindow_WarpCursorInWindow(p.x, p.y);
+        return !global;
+    }
+#endif
     SDL_WarpMouseInWindow(Device.m_sdlWnd, p.x, p.y);
     return !global;
 }
 
 void CInput::GrabInput(const bool grab)
 {
-    A74P_INPUT_DLOG("entry grab=%d (prev inputGrabbed=%d exclusiveInput=%d sdlWnd=%p)",
-                    grab ? 1 : 0, inputGrabbed ? 1 : 0, exclusiveInput ? 1 : 0,
-                    (void*)Device.m_sdlWnd);
+#if defined(XR_PLATFORM_APPLE)
+    if (Device.m_useNativeWindow)
+        A74P_INPUT_DLOG("entry grab=%d (prev inputGrabbed=%d exclusiveInput=%d main_window=<native>)",
+                        grab ? 1 : 0, inputGrabbed ? 1 : 0, exclusiveInput ? 1 : 0);
+    else
+#endif
+        A74P_INPUT_DLOG("entry grab=%d (prev inputGrabbed=%d exclusiveInput=%d sdlWnd=%p)",
+                        grab ? 1 : 0, inputGrabbed ? 1 : 0, exclusiveInput ? 1 : 0,
+                        (void*)Device.m_sdlWnd);
 
     // Self descriptive
     ShowCursor(!grab);
 
     // Clip cursor to the current window
     // If SDL_HINT_GRAB_KEYBOARD is set then the keyboard will be grabbed too
-    SDL_SetWindowGrab(Device.m_sdlWnd, grab ? SDL_TRUE : SDL_FALSE);
-    A74P_INPUT_DLOG("after SDL_SetWindowGrab(%d)", grab ? 1 : 0);
+#if defined(XR_PLATFORM_APPLE)
+    if (Device.m_useNativeWindow)
+    {
+        // Native path: CGAssociateMouseAndMouseCursorPosition(!grab) — untether
+        // cursor от physical mouse в grab mode для relative mouse-look. SDL
+        // под капотом делает то же на macOS.
+        OpenXRay_NativeWindow_SetCursorAssociated(!grab);
+        A74P_INPUT_DLOG("after OpenXRay_NativeWindow_SetCursorAssociated(%d)", !grab ? 1 : 0);
+    }
+    else
+#endif
+    {
+        SDL_SetWindowGrab(Device.m_sdlWnd, grab ? SDL_TRUE : SDL_FALSE);
+        A74P_INPUT_DLOG("after SDL_SetWindowGrab(%d)", grab ? 1 : 0);
+    }
 
     // Grab the mouse
     if (exclusiveInput)

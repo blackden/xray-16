@@ -44,6 +44,55 @@
     (`GL_MAX_TEXTURE_SIZE` vs `GL_MAX_FRAMEBUFFER_*` — Apple 4.1 lacks
     the framebuffer-specific queries).
 
+### A.7.4 native render foundation (gotchas, 2026-05-29)
+
+- **Engine рисует в `pFB`, не в FBO 0**: `CHW::pFB` создаётся в
+  `UpdateViews()` через `glGenFramebuffers(1, &pFB)` (`glHW.cpp:387`),
+  затем `glBindFramebuffer(GL_FRAMEBUFFER, pFB)`. RT pool attach'ает
+  color/depth textures к pFB → pFB становится COMPLETE. На `CHW::Present`:
+  `glBindFramebuffer(GL_READ_FRAMEBUFFER, pFB)` + `glBindFramebuffer(GL_DRAW_FRAMEBUFFER, 0)` +
+  `glBlitFramebuffer` → копия pFB content в FBO 0, потом swap. **Любой
+  native swap path должен учитывать что engine не пишет в FBO 0
+  напрямую.** Reference: PR #187 step 3 red-clear probe screenshot.
+- **SDL_GL_MakeCurrent отвергает external NSOpenGLContext**: SDL2
+  поддерживает `SDL_VideoData::tracking` для context'ов созданных через
+  `SDL_GL_CreateContext`. Если в `SDL_GL_MakeCurrent(window, ourCtx)`
+  передать наш ctx — error «Invalid OpenGL context», engine fails в
+  `MakeContextCurrent()` (`glHW.cpp:368`) → CHW::CreateDevice early-return →
+  engine init fail. Решение — bypass через `[ourCtx makeCurrentContext]`
+  напрямую (`OpenXRay_NativeGL_MakeCurrentArg` в `native_gl_context.mm`).
+  `s_nativeGLOwned=true` ветвит lifecycle в `glHW.cpp`. История: PR #189
+  hotfix `3e7b4e5ce`.
+- **SDL Cocoa внутренности**: SDL2 на macOS создаёт **подклассы** NSWindow
+  (`SDLWindow`), NSView (`SDLView`), NSOpenGLContext (`SDLOpenGLContext`).
+  Голые NSWindow/NSView/NSOpenGLContext без них тоже работают (validated
+  на native_window.mm + native_gl_context.mm). Pixel format SDL ставит:
+  `Color=32 Alpha=8 Depth=32 Stencil=8 DoubleBuffer Accelerated`
+  (без NoRecovery, profile=`NSOpenGLProfileVersion3_2Core` — driver upgrade'ит
+  до 4.1). Наш native ctx используем те же значения. Reference:
+  `OpenXRay_NativeSDLInspect_Context` dump в PR #189 step B.1.
+- **NSWindowCollectionBehaviorFullScreenPrimary = 0x80**: SDL автоматически
+  ставит этот flag когда `SDL_HINT_VIDEO_MAC_FULLSCREEN_SPACES=1`
+  (`Device_Initialize.cpp:25-30`). Это что включает Cmd+Ctrl+F → отдельный
+  Space через `[NSWindow toggleFullScreen:]`. Native NSWindow в PR #191
+  делает это явно через `OpenXRay_NativeWindow_SetCollectionBehavior(0x80)`.
+- **SDL_HideWindow не работает для скрытия SDL_Window**: engine'овский
+  `UpdateWindowProps` / `SDL_SetWindowFullscreen` show'ит окно обратно
+  каждый vid_mode tick. SDL_SetWindowPosition(-10000,-10000) тоже не
+  надёжен — ragnar явно отверг как костыль. Единственный clean path —
+  skip `SDL_CreateWindow` вообще на Apple под `OPENXRAY_NATIVE_WINDOW=1`
+  (m_sdlWnd = nullptr + Apple-condition'ить consumers). Это A.7.4c step
+  C.4 / отдельный PR. История: PR #191 reverted attempts `b2e87f9a7` и
+  `324b638ef`.
+- **Native render env vars** (PR #187/#189/#191):
+  - `OPENXRAY_NATIVE_SWAP=1` → `[ctx flushBuffer]` вместо `SDL_GL_SwapWindow`
+  - `OPENXRAY_NATIVE_GL=1` → собственный NSOpenGLContext (attached к SDL'овскому view)
+  - `OPENXRAY_NATIVE_WINDOW=1` → собственный NSWindow visible (implicit
+    NATIVE_GL + NATIVE_SWAP, attached к нашему view)
+  - `OPENXRAY_RED_CLEAR_PROBE=1` → красный экран перед swap (validates
+    FBO 0 path)
+  - Full rationale: `notes/decisions/a7-4-native-render-series.md`.
+
 ## Shader compile (GL)
 
 - Core compile (template): `src/Layers/xrRender/ShaderResourceTraits.h:44-90`

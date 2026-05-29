@@ -56,6 +56,59 @@ void OpenXRay_NativeWindow_SetCollectionBehavior(unsigned long behavior);
 // после Create.
 void OpenXRay_NativeWindow_SetTitle(const char* utf8Title);
 
+// ---------------------------------------------------------------------------
+// A.7.4 C.4a (gitea #192): расширенный C-API. Под OPENXRAY_NATIVE_WINDOW=1
+// SDL_CreateWindow на Apple skip'ается, и engine-consumer'ы маршрутизируются
+// через эти helpers. Все null-safe (no-op если g_window нет).
+// ---------------------------------------------------------------------------
+
+// Установить минимальный размер contentView в points: `[g_window setContentMinSize:]`.
+void OpenXRay_NativeWindow_SetMinimumSize(int w, int h);
+
+// `[contentView bounds]` (origin всегда 0,0). Размеры в points.
+void OpenXRay_NativeWindow_GetClientRect(int* x, int* y, int* w, int* h);
+
+// `[window frame]` — позиция окна в screen-coordinates + frame size (с titlebar)
+// в points.
+void OpenXRay_NativeWindow_GetFrameRect(int* x, int* y, int* w, int* h);
+
+// `[window isKeyWindow]` — есть ли у нашего окна focus.
+bool OpenXRay_NativeWindow_IsKeyWindow(void);
+
+// `[window isMiniaturized]` — свёрнуто ли окно в Dock.
+bool OpenXRay_NativeWindow_IsMinimized(void);
+
+// Warp cursor в координаты point'ы относительно contentView. Конвертирует в
+// screen-global через `[window convertRectToScreen:]` и зовёт CGWarpMouseCursorPosition.
+void OpenXRay_NativeWindow_WarpCursorInWindow(int x, int y);
+
+// CGAssociateMouseAndMouseCursorPosition(associated ? 1 : 0). `associated=false`
+// untether'ит cursor для relative mouse-look (analog SDL_SetWindowGrab(true) +
+// SDL_SetRelativeMouseMode(true) на macOS).
+void OpenXRay_NativeWindow_SetCursorAssociated(bool associated);
+
+// ---------------------------------------------------------------------------
+// A.7.4 C.4a: per-frame event aggregator. NSWindowDelegate (windowDidResize:,
+// windowWillClose:, windowDidBecomeKey:, windowDidMiniaturize: и co.) НЕ
+// зовёт engine синхронно — события enqueue'ятся в last-wins slot per type,
+// drain'ятся через PollEvents из engine main loop (OpenXRay_RunPerFrameMacOSHooks).
+//
+// Все callback'и опциональны (nullptr = skip). Drain'ится at most один event
+// каждого типа за вызов: resize + move сворачиваются в один RESIZE callback
+// с текущим backing size; activate/minimize → последнее значение.
+// ---------------------------------------------------------------------------
+void OpenXRay_NativeWindow_PollEvents(
+    void (*on_resize)(int w, int h),
+    void (*on_close)(void),
+    void (*on_activate)(bool active),
+    void (*on_minimize)(bool minimized));
+
+// Признак того, что engine работает на native render path (NATIVE_WINDOW=1).
+// Установлен Device_Initialize при создании native окна и читается
+// renderer'ом (glHW.cpp) чтобы пропустить SDL-only operations.
+bool OpenXRay_IsNativeWindowRender(void);
+void OpenXRay_SetNativeWindowRender(bool enabled);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

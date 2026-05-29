@@ -56,6 +56,17 @@ void CRenderDevice::Initialize()
     TimerGlobal.Start();
     TimerMM.Start();
 
+#if defined(XR_PLATFORM_APPLE)
+    // A.7.4 C.4a (gitea #192): SINGLE source-of-truth для NATIVE_WINDOW gate.
+    // Все Apple-conditioned сайты в xrEngine читают этот field, НЕ getenv в
+    // hot-path. Render-layer (glHW.cpp) использует OpenXRay_IsNativeWindowRender()
+    // — то же значение, прокинутое ниже через OpenXRay_SetNativeWindowRender.
+    m_useNativeWindow = ::getenv("OPENXRAY_NATIVE_WINDOW") != nullptr;
+    OpenXRay_SetNativeWindowRender(m_useNativeWindow);
+    Msg("* A.7.4 C.4a: m_useNativeWindow=%d (gate read once from env)",
+        m_useNativeWindow ? 1 : 0);
+#endif
+
     {
         // ALLOW_HIGHDPI lets SDL_GL_GetDrawableSize report physical pixel
         // dimensions on Retina / scaled HiDPI displays. Without it macOS
@@ -98,13 +109,29 @@ void CRenderDevice::Initialize()
         xr_strcpy(Core.ApplicationTitle, title);
         SetSDLSettings(title);
 
-        m_sdlWnd = SDL_CreateWindow(title, 0, 0, 640, 480, flags);
-        R_ASSERT3(m_sdlWnd, "Unable to create SDL window", SDL_GetError());
+#if defined(XR_PLATFORM_APPLE)
+        if (!m_useNativeWindow)
+        {
+#endif
+            m_sdlWnd = SDL_CreateWindow(title, 0, 0, 640, 480, flags);
+            R_ASSERT3(m_sdlWnd, "Unable to create SDL window", SDL_GetError());
 
-        SDL_SetWindowHitTest(m_sdlWnd, WindowHitTest, nullptr);
-        SDL_SetWindowMinimumSize(m_sdlWnd, 256, 192);
-        xrDebug::SetWindowHandler(this);
-        ExtractAndSetWindowIcon(m_sdlWnd, icon);
+            SDL_SetWindowHitTest(m_sdlWnd, WindowHitTest, nullptr);
+            SDL_SetWindowMinimumSize(m_sdlWnd, 256, 192);
+            xrDebug::SetWindowHandler(this);
+            ExtractAndSetWindowIcon(m_sdlWnd, icon);
+#if defined(XR_PLATFORM_APPLE)
+        }
+        else
+        {
+            // A.7.4 C.4a (gitea #192): native path — SDL_CreateWindow полностью
+            // skip. m_sdlWnd остаётся nullptr; engine-consumer'ы Apple-conditioned
+            // на m_useNativeWindow. Окно создаём через native_window helpers,
+            // icon берётся из Info.plist (NSWindow не рисует window icon в
+            // titlebar — это macOS convention).
+            xrDebug::SetWindowHandler(this);
+        }
+#endif
 
         TracySetProgramName(title);
 
@@ -117,30 +144,22 @@ void CRenderDevice::Initialize()
         OpenXRay_NativeShellProbe();
 
         // A.7.4b Step B.1 (gitea #188): inspect SDL'овский NSWindow.
-        // Дампит class / styleMask / frame / contentView properties для
-        // сравнения с тем что наш native_window create. На step B.3 наш
-        // NSWindow должен воспроизвести этот setup.
-        OpenXRay_NativeSDLInspect_Window(m_sdlWnd);
+        // Skip когда m_sdlWnd == nullptr (NATIVE_WINDOW=1 path) — нечего
+        // inspect'ить.
+        if (m_sdlWnd)
+            OpenXRay_NativeSDLInspect_Window(m_sdlWnd);
 
-        // A.7.4c Step C.1 (gitea #190): под OPENXRAY_NATIVE_WINDOW=1
-        // создаём собственный visible NSWindow alongside SDL'овского.
-        // SDL window остаётся; на step C.2 мы attache native NSOpenGLContext
-        // к нашему contentView и render'им через наш window, на step C.3 —
-        // hide SDL window'а. Сейчас цель — подтвердить что Cocoa разрешает
-        // coexistence двух окон и наш window показывается с правильным
-        // styleMask=0xf + FullScreenPrimary collectionBehavior (SDL ставит
-        // autom., per inspect dump из B.1).
-        const bool useNativeWindow = ::getenv("OPENXRAY_NATIVE_WINDOW") != nullptr;
-        Msg("* A.7.4c: OPENXRAY_NATIVE_WINDOW=%d", useNativeWindow ? 1 : 0);
-        if (useNativeWindow)
+        // A.7.4c Step C.1 (gitea #190) → A.7.4 C.4a (gitea #192): под
+        // OPENXRAY_NATIVE_WINDOW=1 создаём собственный NSWindow вместо
+        // SDL'овского (раньше — alongside). Минимальный размер 256x192,
+        // NSWindowCollectionBehaviorFullScreenPrimary=0x80 — eligibility
+        // для Spaces fullscreen через Cmd+Ctrl+F / зелёную кнопку. Show
+        // также attach'ает NSWindowDelegate (resize/close/focus routing).
+        if (m_useNativeWindow)
         {
-            int initialW = 1280, initialH = 720;
-            if (m_sdlWnd)
-                SDL_GetWindowSize(m_sdlWnd, &initialW, &initialH);
+            const int initialW = 1280, initialH = 720;
             OpenXRay_NativeWindow_Create(initialW, initialH, title);
-            // NSWindowCollectionBehaviorFullScreenPrimary = 1 << 7 = 128 = 0x80
-            // (out of inspect dump на step B.1). CRITICAL для Spaces fullscreen
-            // работы через Cmd+Ctrl+F и зелёную кнопку.
+            OpenXRay_NativeWindow_SetMinimumSize(256, 192);
             OpenXRay_NativeWindow_SetCollectionBehavior(0x80);
             OpenXRay_NativeWindow_SetTitle(title);
             OpenXRay_NativeWindow_Show();
@@ -156,15 +175,28 @@ void CRenderDevice::Initialize()
         main_viewport->PlatformUserData = IM_NEW(ImGuiViewportData){ m_sdlWnd };
         main_viewport->PlatformHandle = m_sdlWnd;
         main_viewport->PlatformHandleRaw = nullptr;
-        SDL_SysWMinfo info;
-        SDL_VERSION(&info.version);
-        if (SDL_GetWindowWMInfo(m_sdlWnd, &info))
+#if defined(XR_PLATFORM_APPLE)
+        if (m_useNativeWindow)
         {
-#if defined(SDL_VIDEO_DRIVER_WINDOWS)
-            main_viewport->PlatformHandleRaw = (void*)info.info.win.window;
-#elif defined(__APPLE__) && defined(SDL_VIDEO_DRIVER_COCOA)
-            main_viewport->PlatformHandleRaw = (void*)info.info.cocoa.window;
+            // A.7.4 C.4a: under native path m_sdlWnd == nullptr — SDL_GetWindowWMInfo
+            // would no-op. Set PlatformHandleRaw из нашего NSWindow напрямую;
+            // PlatformHandle (vd->Window) остаётся nullptr — sentinel для
+            // main-viewport-on-native веток в Platform_* callback'ах.
+            main_viewport->PlatformHandleRaw = OpenXRay_NativeWindow_GetNSWindow();
+        }
+        else
 #endif
+        {
+            SDL_SysWMinfo info;
+            SDL_VERSION(&info.version);
+            if (SDL_GetWindowWMInfo(m_sdlWnd, &info))
+            {
+#if defined(SDL_VIDEO_DRIVER_WINDOWS)
+                main_viewport->PlatformHandleRaw = (void*)info.info.win.window;
+#elif defined(__APPLE__) && defined(SDL_VIDEO_DRIVER_COCOA)
+                main_viewport->PlatformHandleRaw = (void*)info.info.cocoa.window;
+#endif
+            }
         }
     }
 #endif
