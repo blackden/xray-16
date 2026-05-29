@@ -14,6 +14,7 @@
 #if defined(XR_PLATFORM_APPLE)
 #   include "native_shell_probe.h"
 #   include "native_sdl_inspect.h"
+#   include "native_window.h"
 #endif
 
 SDL_HitTestResult WindowHitTest(SDL_Window* win, const SDL_Point* area, void* data);
@@ -120,6 +121,30 @@ void CRenderDevice::Initialize()
         // сравнения с тем что наш native_window create. На step B.3 наш
         // NSWindow должен воспроизвести этот setup.
         OpenXRay_NativeSDLInspect_Window(m_sdlWnd);
+
+        // A.7.4c Step C.1 (gitea #190): под OPENXRAY_NATIVE_WINDOW=1
+        // создаём собственный visible NSWindow alongside SDL'овского.
+        // SDL window остаётся; на step C.2 мы attache native NSOpenGLContext
+        // к нашему contentView и render'им через наш window, на step C.3 —
+        // hide SDL window'а. Сейчас цель — подтвердить что Cocoa разрешает
+        // coexistence двух окон и наш window показывается с правильным
+        // styleMask=0xf + FullScreenPrimary collectionBehavior (SDL ставит
+        // autom., per inspect dump из B.1).
+        const bool useNativeWindow = ::getenv("OPENXRAY_NATIVE_WINDOW") != nullptr;
+        Msg("* A.7.4c: OPENXRAY_NATIVE_WINDOW=%d", useNativeWindow ? 1 : 0);
+        if (useNativeWindow)
+        {
+            int initialW = 1280, initialH = 720;
+            if (m_sdlWnd)
+                SDL_GetWindowSize(m_sdlWnd, &initialW, &initialH);
+            OpenXRay_NativeWindow_Create(initialW, initialH, title);
+            // NSWindowCollectionBehaviorFullScreenPrimary = 1 << 7 = 128 = 0x80
+            // (out of inspect dump на step B.1). CRITICAL для Spaces fullscreen
+            // работы через Cmd+Ctrl+F и зелёную кнопку.
+            OpenXRay_NativeWindow_SetCollectionBehavior(0x80);
+            OpenXRay_NativeWindow_SetTitle(title);
+            OpenXRay_NativeWindow_Show();
+        }
 #endif
     }
 
