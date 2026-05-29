@@ -165,6 +165,36 @@ extern "C" void OpenXRay_NativeSDLInspect_Window(SDL_Window* sdlWnd)
     }
 }
 
+extern "C" void* OpenXRay_NativeSDLInspect_GetContentView(SDL_Window* sdlWnd)
+{
+    if (!sdlWnd)
+    {
+        DLOG("GetContentView: sdlWnd is null, return nullptr");
+        return nullptr;
+    }
+    SDL_SysWMinfo info;
+    SDL_VERSION(&info.version);
+    if (!SDL_GetWindowWMInfo(sdlWnd, &info))
+    {
+        DLOG("GetContentView: SDL_GetWindowWMInfo failed: %s", SDL_GetError());
+        return nullptr;
+    }
+    if (info.subsystem != SDL_SYSWM_COCOA)
+    {
+        DLOG("GetContentView: subsystem != COCOA (%d)", (int)info.subsystem);
+        return nullptr;
+    }
+    NSWindow* nsWnd = info.info.cocoa.window;
+    if (!nsWnd)
+    {
+        DLOG("GetContentView: cocoa.window is nil");
+        return nullptr;
+    }
+    NSView* view = [nsWnd contentView];
+    DLOG("GetContentView: returning %p", (__bridge void*)view);
+    return (__bridge void*)view;
+}
+
 extern "C" void OpenXRay_NativeSDLInspect_Context(void* sdl_gl_context)
 {
     DLOG("entry sdl_gl_context=%p", sdl_gl_context);
