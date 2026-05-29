@@ -126,6 +126,7 @@ void CSoundRender_CoreA::_initialize()
 
     supports_float_pcm &= psSoundFlags.test(ss_UseFloat32);
 
+    ALuint auxSlot = 0;
 #if defined(XR_HAS_EAX)
     // Check for EAX extension (Windows path — Creative legacy GUIDs)
     if (deviceDesc.props.eax && !m_effects)
@@ -146,7 +147,9 @@ void CSoundRender_CoreA::_initialize()
     if (deviceDesc.props.efx && !m_effects)
     {
         m_effects = xr_new<CSoundRender_EffectsA_EFX>();
-        if (!m_effects->initialized())
+        if (m_effects->initialized())
+            auxSlot = static_cast<CSoundRender_EffectsA_EFX*>(m_effects)->get_slot();
+        else
         {
             Log("SOUND: OpenAL: Failed to initialize EFX.");
             xr_delete(m_effects);
@@ -169,7 +172,7 @@ void CSoundRender_CoreA::_initialize()
     CSoundRender_Target* T = nullptr;
     for (u32 tit = 0; tit < u32(psSoundTargets); tit++)
     {
-        T = xr_new<CSoundRender_TargetA>();
+        T = xr_new<CSoundRender_TargetA>(auxSlot);
         if (T->_initialize())
         {
             s_targets.emplace_back(T);

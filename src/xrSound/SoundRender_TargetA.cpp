@@ -4,8 +4,13 @@
 #include "SoundRender_Emitter.h"
 #include "SoundRender_Source.h"
 
-CSoundRender_TargetA::CSoundRender_TargetA()
+#if __has_include(<efx.h>)
+#   include <efx.h>
+#endif
+
+CSoundRender_TargetA::CSoundRender_TargetA(ALuint slot)
 {
+    pAuxSlot = slot;
 }
 
 bool CSoundRender_TargetA::_initialize()
@@ -20,6 +25,13 @@ bool CSoundRender_TargetA::_initialize()
         A_CHK(alSourcef(pSource, AL_MAX_GAIN, 1.f));
         A_CHK(alSourcef(pSource, AL_GAIN, cache_gain));
         A_CHK(alSourcef(pSource, AL_PITCH, cache_pitch));
+#if __has_include(<efx.h>)
+        // Route this source through the EFX aux slot so it contributes to
+        // (and is wet-reverbed by) the global reverb effect. Without this
+        // bind the slot stays silent regardless of effect parameters.
+        if (pAuxSlot != 0)
+            A_CHK(alSource3i(pSource, AL_AUXILIARY_SEND_FILTER, pAuxSlot, 0, AL_FILTER_NULL));
+#endif
         return true;
     }
     Msg("! sound: OpenAL: Can't create source. Error: %s.", static_cast<pcstr>(alGetString(error)));
