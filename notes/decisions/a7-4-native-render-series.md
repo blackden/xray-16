@@ -71,11 +71,60 @@ Smoke session не мог diagnose root cause каждого по отдельн
 
 **Revisit if.** Никогда — это process learning который мы расширяем в `feedback_delegate_to_specialists` memory. C.4 пойдёт правильно: apple-platform premise audit → enumerate consumers → implementation pass.
 
+## C.4a — skip SDL_CreateWindow on Apple под NATIVE_WINDOW=1 (PR #193, master `f82a51abc`)
+
+Structural fix вместо C.3 SDL_HideWindow hack'а. Под `OPENXRAY_NATIVE_WINDOW=1` `SDL_CreateWindow` skip'ается полностью; `m_sdlWnd = nullptr`; всё переводится на наш NSWindow + NSOpenGLContext + NSWindowDelegate. Default mode не задет — всё за gate `Device.m_useNativeWindow`.
+
+### GLAD proc-loader hotfix — dlsym vs SDL_GL_GetProcAddress (landmine)
+
+**Decision.** На Apple+native (s_nativeGLOwned) GLAD загружается через `dlsym(RTLD_DEFAULT, name)` против OpenGL.framework. На non-native path остаётся `SDL_GL_GetProcAddress`.
+
+**Why.** Audit C.4a пропустил **implicit dependency**: gladLoadGL получает proc-loader, и engine на boot вызывал `gladLoadGL(SDL_GL_GetProcAddress)`. Без `SDL_CreateWindow` нет `SDL_GL_CreateContext` → SDL не загружало драйвер → `SDL_GL_GetProcAddress` возвращает «No GL driver has been loaded» → GLAD получает nullptr loader → все gl* указатели null → segfault на первом draw. Smoke поймал (exit=139). OpenGL.framework на macOS статически линкуется в процесс, gl* символы уже в loader'е — `dlsym(RTLD_DEFAULT, name)` находит их напрямую без SDL intermediate.
+
+**Trade-off.** Дополнительная ветка в `glHW.cpp:gladLoadGL` под `#if XR_PLATFORM_APPLE && s_nativeGLOwned`. Минимальная — два include'а (`<dlfcn.h>`) + static функция-обёртка + if-branch.
+
+**Revisit if.** Уходим на GLAD2 / другую loader-схему — или на Vulkan/Metal, где gl* irrelevant.
+
+**Landmine class.** Pre-implementation audit должен спрашивать «что **неявно** зависит от состояния которое мы убираем?» — не только direct call sites через grep. GLAD ↔ SDL ctx implicit link не вылез через grep на `SDL_*Window*`. Урок зафиксирован в feedback memory.
+
+### NSWindowDelegate enqueue-only + engine-tick drain (ownership-style mitigation)
+
+**Decision.** `OXRayNativeWindowDelegate` (`native_window.mm`) — Obj-C класс с методами `windowDidBecomeKey/ResignKey`, `windowDidResize/Move`, `windowDidMiniaturize/Deminiaturize`, `windowWillClose:`. Каждый метод **только enqueue'ит** в single-slot last-wins aggregator. Никаких прямых вызовов в engine. Drain через existing `OpenXRay_RunPerFrameMacOSHooks` engine-tick. C-trampolines (`OpenXRay_NativeWindow_PollEvents`) подцепляются в `Engine.cpp` к engine consumers (Reset, OnWindowActivate, RequestGracefulShutdown).
+
+**Why.** Cocoa fundamentally owns window event dispatch — driver-style API для resize/close/focus отсутствует. Если бы delegate method'ы вызывали engine state directly (как A.7.2 attempt с `NSTextInputContext.activate` + ручной `handleEvent:`), AppKit dispatch ran бы параллельно с engine tick → double-fire / race / unpredictable order. Pattern enqueue-only + explicit-tick drain — это тот же подход что отработал в `g_pendingLifecycleEvent` (A.1 NSApplicationDelegate).
+
+**Trade-off.** Лишний indirection слой: delegate → queue → trampoline → engine. ~30 LOC C-ABI + ~50 LOC Obj-C. Один frame latency на propagation event'а в engine (acceptable — Cocoa events идут с 60+ Hz, engine tick на той же частоте).
+
+**Revisit if.** Нужны events с sub-frame latency (например, key down/up в input pipeline — но те уже идут через `NSEvent` local monitor, не window delegate).
+
+### OnWindowActivate signature refactor (sentinel-collision fix)
+
+**Decision.** Сигнатура `OnWindowActivate(SDL_Window* window, bool active)` → `OnWindowActivate(bool isMainWindow, bool active)`. Все callers обновлены: `device.cpp` event-loop, `x_ray.cpp:457,469,489`, `Engine.cpp:244-250`, новый trampoline для delegate `on_activate`.
+
+**Why.** Старая сигнатура использовала `window == m_sdlWnd` как «это main window» check. Когда `m_sdlWnd == nullptr` на Apple+native И event приходит с `window == nullptr` (например, secondary viewport WMEvent demux) — equality `nullptr == nullptr` → branch flips на «main», edit-mode activation мисроутится. Subtle bug, audit §4.5 поймал. Refactor устраняет sentinel collision полностью.
+
+**Trade-off.** Touches ~5 файлов signature-wise; commit отдельно для clean bisect (behavior-neutral на default mode).
+
+**Revisit if.** Никогда — это чистый improvement, замены не нужно.
+
+### Single source of truth via `Device.m_useNativeWindow` field
+
+**Decision.** Env var `OPENXRAY_NATIVE_WINDOW` читается **один раз** в `Device_Initialize.cpp` при boot, сохраняется как `bool Device.m_useNativeWindow`. Все consumers (12 файлов на Apple-conditioned путях) читают через C-ABI getter `OpenXRay_IsNativeWindowRender()`. **Никаких `getenv` re-reads в hot path** или branch checks.
+
+**Why.** Craft-check принцип 1 (single source of truth). Repeated `getenv("OPENXRAY_NATIVE_WINDOW") != nullptr` на 7+ call sites — рискованно: один сайт может опустить gate, или env var может «измениться» в runtime (юзер вряд ли, но дальше rabbit hole). Field + getter — единая правда.
+
+**Trade-off.** Лишний CHW header include / forward decl где `OpenXRay_IsNativeWindowRender()` нужен. Linker дешёв.
+
+**Revisit if.** Уходим на runtime cvar (e.g. `r_native_window` через console) — тогда reads должны идти через cvar субсистему, не env var snapshot. Но это уже после A.7.5 SDL strip.
+
 ## Links
 
 - PR #187 (gitea #186) — foundation, master `5d1109f5e`
 - PR #189 (gitea #188) — native NSOpenGLContext, master `723eca5f6`
 - PR #191 (gitea #190) — native NSWindow visible coexistence, master `685f35bea`
+- PR #193 (gitea #192) — C.4a skip SDL_CreateWindow, master `f82a51abc`
 - Parked PR #185 (gitea #166) — single-shot rewrite, original A.7.4 attempt
-- `notes/reference/engine-map.md` Apple gotchas — see SDL Cocoa internals + pFB pipeline bullets
+- Follow-ups: gitea #195 (C.4b — UpdateWindowProps + ImGui + gamma), gitea #194 (pre-existing water_sbumpvolume.dds 0x500)
+- `notes/reference/engine-map.md` Apple gotchas — see SDL Cocoa internals + pFB pipeline + GLAD-dlsym bullets
 - `feedback_delegate_to_specialists` memory — updated с C-series cautionary tale
+- `feedback_premise_audit_roadmap_steps` memory — updated с implicit-dependency check
