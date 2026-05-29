@@ -144,6 +144,18 @@ void CRenderDevice::Initialize()
             OpenXRay_NativeWindow_SetCollectionBehavior(0x80);
             OpenXRay_NativeWindow_SetTitle(title);
             OpenXRay_NativeWindow_Show();
+
+            // A.7.4c Step C.3 (gitea #190): hide SDL'овское окно сразу
+            // после Show нашего. Так AppKit перестаёт make SDL'овское
+            // key window, и наше становится key естественно (без
+            // perpetual force-activate в Show). Input events (NSEvent)
+            // начинают идти к нашему окну — NSEvent shim из A.3 их
+            // перехватывает и доставляет в xrEngine ring buffer.
+            if (m_sdlWnd)
+            {
+                Msg("* A.7.4c: hiding SDL'овское окно (NATIVE_WINDOW=1)");
+                SDL_HideWindow(m_sdlWnd);
+            }
         }
 #endif
     }
