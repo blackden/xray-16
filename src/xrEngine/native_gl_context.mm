@@ -314,6 +314,22 @@ extern "C" void* OpenXRay_NativeGL_CreatePersistent(void* contentViewVoid)
     return result;
 }
 
+extern "C" bool OpenXRay_NativeGL_MakeCurrentArg(void* nsContextVoid)
+{
+    if (!nsContextVoid)
+    {
+        DLOG("[persistent] makeCurrentArg: nil → clearCurrentContext");
+        [NSOpenGLContext clearCurrentContext];
+        return true;
+    }
+    NSOpenGLContext* ctx = (__bridge NSOpenGLContext*)nsContextVoid;
+    DLOG("[persistent] makeCurrentArg ctx=%p", nsContextVoid);
+    [ctx makeCurrentContext];
+    const bool ok = ([NSOpenGLContext currentContext] == ctx);
+    DLOG("[persistent] makeCurrentArg result: isCurrent=%d", ok ? 1 : 0);
+    return ok;
+}
+
 extern "C" void OpenXRay_NativeGL_DestroyPersistent(void* nsContextVoid)
 {
     DLOG("[persistent] destroy entry ctx=%p", nsContextVoid);
