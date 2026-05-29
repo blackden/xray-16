@@ -182,10 +182,19 @@ extern "C" void OpenXRay_NativeWindow_Show(void)
     }
     @autoreleasepool
     {
-        DLOG("Show: makeKeyAndOrderFront ptr=%p", (__bridge void*)g_window);
+        // SDL_CreateWindow создаёт SDL'овское окно с focus раньше нашего
+        // вызова — без force-activate makeKeyAndOrderFront не делает наше
+        // окно key, потому что AppKit держит SDL'овское как key. Force
+        // activate + makeKeyWindow:
+        DLOG("Show: activateIgnoringOtherApps + makeKeyAndOrderFront ptr=%p",
+             (__bridge void*)g_window);
+        [NSApp activateIgnoringOtherApps:YES];
         [g_window makeKeyAndOrderFront:nil];
-        DLOG("Show: post — isVisible=%d isKeyWindow=%d isMainWindow=%d",
-             [g_window isVisible], [g_window isKeyWindow], [g_window isMainWindow]);
+        [g_window makeKeyWindow];
+        [g_window makeMainWindow];
+        DLOG("Show: post — isVisible=%d isKeyWindow=%d isMainWindow=%d isActive=%d",
+             [g_window isVisible], [g_window isKeyWindow], [g_window isMainWindow],
+             [NSApp isActive]);
     }
 }
 
