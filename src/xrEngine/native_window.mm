@@ -167,3 +167,55 @@ extern "C" void OpenXRay_NativeWindow_GetBackingSize(int* out_w, int* out_h)
          (int)logical.width, (int)logical.height,
          (int)backing.width, (int)backing.height);
 }
+
+// ---------------------------------------------------------------------------
+// A.7.4c Step C.1 (gitea #190): make the dormant window visible + apply
+// SDL-matching collection behavior. Build на existing Create flow.
+// ---------------------------------------------------------------------------
+
+extern "C" void OpenXRay_NativeWindow_Show(void)
+{
+    if (!g_window)
+    {
+        DLOG("Show: no window, nothing to show");
+        return;
+    }
+    @autoreleasepool
+    {
+        DLOG("Show: makeKeyAndOrderFront ptr=%p", (__bridge void*)g_window);
+        [g_window makeKeyAndOrderFront:nil];
+        DLOG("Show: post — isVisible=%d isKeyWindow=%d isMainWindow=%d",
+             [g_window isVisible], [g_window isKeyWindow], [g_window isMainWindow]);
+    }
+}
+
+extern "C" void OpenXRay_NativeWindow_SetCollectionBehavior(unsigned long behavior)
+{
+    if (!g_window)
+    {
+        DLOG("SetCollectionBehavior: no window, ignore (behavior=0x%lx)", behavior);
+        return;
+    }
+    @autoreleasepool
+    {
+        const NSWindowCollectionBehavior current = [g_window collectionBehavior];
+        const NSWindowCollectionBehavior next = current | (NSWindowCollectionBehavior)behavior;
+        DLOG("SetCollectionBehavior: 0x%lx |= 0x%lx → 0x%lx",
+             (unsigned long)current, behavior, (unsigned long)next);
+        [g_window setCollectionBehavior:next];
+    }
+}
+
+extern "C" void OpenXRay_NativeWindow_SetTitle(const char* utf8Title)
+{
+    if (!g_window || !utf8Title)
+    {
+        DLOG("SetTitle: no window or null title, ignore");
+        return;
+    }
+    @autoreleasepool
+    {
+        DLOG("SetTitle '%s'", utf8Title);
+        [g_window setTitle:[NSString stringWithUTF8String:utf8Title]];
+    }
+}
