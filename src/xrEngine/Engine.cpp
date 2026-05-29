@@ -242,12 +242,12 @@ void OpenXRay_ApplyPendingLifecycleEvent()
         // Idempotency: SDL's own focus dispatch (x_ray.cpp:452) may have
         // already activated us before this Cocoa-originated event drains.
         if (Device.m_sdlWnd && !Device.b_is_Active)
-            Device.OnWindowActivate(Device.m_sdlWnd, true);
+            Device.OnWindowActivate(/*isMainWindow*/ true, true);
         break;
 
     case PendingLifecycleEvent::AppDeactivated:
         if (Device.m_sdlWnd && Device.b_is_Active)
-            Device.OnWindowActivate(Device.m_sdlWnd, false);
+            Device.OnWindowActivate(/*isMainWindow*/ true, false);
         break;
     }
 }

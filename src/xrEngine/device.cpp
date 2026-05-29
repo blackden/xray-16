@@ -15,6 +15,10 @@
 
 #include <SDL.h>
 
+#if defined(XR_PLATFORM_APPLE)
+#   include "native_window.h"
+#endif
+
 ENGINE_API CRenderDevice Device;
 ENGINE_API CLoadScreenRenderer load_screen_renderer;
 
@@ -87,8 +91,14 @@ void CRenderDevice::RenderEnd(void)
             FIND_CHUNK_COUNTER_FLUSH();
             if (g_pGamePersistent->GameType() == 1 && !psDeviceFlags.test(rsAlwaysActive)) // haCk
             {
-                const Uint32 flags = SDL_GetWindowFlags(m_sdlWnd);
-                if ((flags & SDL_WINDOW_INPUT_FOCUS) == 0)
+                bool hasFocus = false;
+#if defined(XR_PLATFORM_APPLE)
+                if (m_useNativeWindow)
+                    hasFocus = OpenXRay_NativeWindow_IsKeyWindow();
+                else
+#endif
+                    hasFocus = (SDL_GetWindowFlags(m_sdlWnd) & SDL_WINDOW_INPUT_FOCUS) != 0;
+                if (!hasFocus)
                     Pause(true, true, true, "application start");
             }
         }
@@ -439,10 +449,22 @@ void CRenderDevice::Run()
         Timer_MM_Delta = time_system - time_local;
     }
 
-    SDL_HideWindow(m_sdlWnd); // workaround for SDL bug
-    UpdateWindowProps();
-    SDL_ShowWindow(m_sdlWnd);
-    SDL_RaiseWindow(m_sdlWnd);
+#if defined(XR_PLATFORM_APPLE)
+    if (m_useNativeWindow)
+    {
+        // A.7.4 C.4a (gitea #192): native path — окно уже visible через
+        // OpenXRay_NativeWindow_Show() в Device_Initialize. Workaround
+        // SDL_HideWindow/Show/Raise здесь не нужен (SDL bug only).
+        UpdateWindowProps();
+    }
+    else
+#endif
+    {
+        SDL_HideWindow(m_sdlWnd); // workaround for SDL bug
+        UpdateWindowProps();
+        SDL_ShowWindow(m_sdlWnd);
+        SDL_RaiseWindow(m_sdlWnd);
+    }
 }
 
 void CRenderDevice::Shutdown()
@@ -571,13 +593,16 @@ void CRenderDevice::Pause(bool bOn, bool bTimer, bool bSound, [[maybe_unused]] p
 
 bool CRenderDevice::Paused() { return g_pauseMngr().Paused(); }
 
-void CRenderDevice::OnWindowActivate(SDL_Window* window, bool activated)
+void CRenderDevice::OnWindowActivate(bool isMainWindow, bool activated)
 {
     ZoneScoped;
 
     if (editor().GetState() == editor::ide::visible_state::full)
     {
-        if (window != m_sdlWnd)
+        // Editor active-routing раньше keyed off `window != m_sdlWnd` —
+        // т.е. срабатывал для secondary viewport'ов. Сохраняем семантику:
+        // isMainWindow=false (secondary viewport activate) → editor reacts.
+        if (!isMainWindow)
         {
             if (activated)
                 editor().OnAppActivate();
