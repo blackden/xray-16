@@ -56,6 +56,15 @@ void* OpenXRay_NativeGL_CreatePersistent(void* contentView);
 // A.7.4b Step B.2: destroy persistent context. Зеркало для CreatePersistent.
 void OpenXRay_NativeGL_DestroyPersistent(void* nsContextVoid);
 
+// A.7.4b Step B.2: makeCurrent на произвольный NSOpenGLContext (не только
+// global g_ctx). Используется в glHW.cpp::MakeContextCurrent под native
+// path — SDL_GL_MakeCurrent на macOS внутренне проверяет SDL'овский
+// context tracking и отвергает наш ctx, поэтому обходим SDL.
+//
+// Возвращает true если successfully сделали makeCurrent (или ctx был nil
+// и clearCurrent сделан).
+bool OpenXRay_NativeGL_MakeCurrentArg(void* nsContextVoid);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

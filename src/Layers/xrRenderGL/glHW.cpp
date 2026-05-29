@@ -300,22 +300,27 @@ void CHW::DestroyDevice()
     CHK_GL(glDeleteFramebuffers(1, &pFB));
     pFB = 0;
 
-    const auto context = SDL_GL_GetCurrentContext();
-    if (context == m_context)
-        SDL_GL_MakeCurrent(nullptr, nullptr);
-
 #if defined(XR_PLATFORM_APPLE)
     if (s_nativeGLOwned)
     {
+        // Под native path SDL'у наш ctx неизвестен — clearCurrent через
+        // нашу helper'ю, потом destroy.
+        OpenXRay_NativeGL_MakeCurrentArg(nullptr);
         Msg("* A.7.4b: destroying native NSOpenGLContext m_context=%p", m_context);
         OpenXRay_NativeGL_DestroyPersistent(m_context);
         s_nativeGLOwned = false;
     }
     else
     {
+        const auto context = SDL_GL_GetCurrentContext();
+        if (context == m_context)
+            SDL_GL_MakeCurrent(nullptr, nullptr);
         SDL_GL_DeleteContext(m_context);
     }
 #else
+    const auto context = SDL_GL_GetCurrentContext();
+    if (context == m_context)
+        SDL_GL_MakeCurrent(nullptr, nullptr);
     SDL_GL_DeleteContext(m_context);
 #endif
     m_context = nullptr;
@@ -359,6 +364,18 @@ void CHW::SetPrimaryAttributes(u32& windowFlags)
 
 IRender::RenderContext CHW::GetCurrentContext() const
 {
+#if defined(XR_PLATFORM_APPLE)
+    if (s_nativeGLOwned)
+    {
+        // Обходим SDL'овский tracking — наш ctx ему неизвестен, ответ
+        // SDL_GL_GetCurrentContext был бы nullptr. Сравниваем через
+        // Cocoa API: ctx == [NSOpenGLContext currentContext].
+        return (OpenXRay_NativeGL_GetNSContext() != nullptr &&
+                m_context != nullptr)
+            ? IRender::PrimaryContext
+            : IRender::NoContext;
+    }
+#endif
     const auto context = SDL_GL_GetCurrentContext();
     if (context == m_context)
         return IRender::PrimaryContext;
@@ -367,6 +384,28 @@ IRender::RenderContext CHW::GetCurrentContext() const
 
 int CHW::MakeContextCurrent(IRender::RenderContext context) const
 {
+#if defined(XR_PLATFORM_APPLE)
+    if (s_nativeGLOwned)
+    {
+        // A.7.4b Step B.2 (gitea #188): SDL_GL_MakeCurrent на macOS делает
+        // internal tracking, рассчитывая что SDL_GLContext был создан
+        // через SDL_GL_CreateContext. Наш ctx ему неизвестен — SDL_GL_
+        // MakeCurrent вернёт ошибку «Invalid OpenGL context». Обходим SDL
+        // и зовём [ctx makeCurrentContext] напрямую.
+        switch (context)
+        {
+        case IRender::NoContext:
+            return OpenXRay_NativeGL_MakeCurrentArg(nullptr) ? 0 : -1;
+
+        case IRender::PrimaryContext:
+            return OpenXRay_NativeGL_MakeCurrentArg(m_context) ? 0 : -1;
+
+        default:
+            NODEFAULT;
+        }
+        return -1;
+    }
+#endif
     switch (context)
     {
     case IRender::NoContext:
