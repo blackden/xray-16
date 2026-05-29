@@ -12,6 +12,7 @@ class CSoundRender_TargetA : public CSoundRender_Target
     ALuint pBuffers[sdef_target_count_submit]{};
     ALuint dataFormat;
     ALsizei sampleRate;
+    ALuint pAuxSlot{}; // EFX aux effect slot; 0 = no reverb wired to this source
 
     float cache_gain{};
     float cache_pitch{ 1.0f };
@@ -20,7 +21,7 @@ class CSoundRender_TargetA : public CSoundRender_Target
     void submit_all_buffers() const;
 
 public:
-    CSoundRender_TargetA();
+    CSoundRender_TargetA(ALuint slot = 0);
 
     bool _initialize() override;
     void _destroy() override;
