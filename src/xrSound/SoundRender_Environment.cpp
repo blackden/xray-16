@@ -3,8 +3,6 @@
 #include "SoundRender.h"
 #include "SoundRender_Environment.h"
 
-#include "SoundRender_EffectsA_EAX.h"
-
 CSoundRender_Environment::CSoundRender_Environment()
 {
     version = sdef_env_version;
@@ -14,11 +12,8 @@ CSoundRender_Environment::CSoundRender_Environment()
 CSoundRender_Environment::~CSoundRender_Environment() {}
 void CSoundRender_Environment::set_default()
 {
-    // Numeric values are the EAX 2.0 «generic» listener preset. Hardcoded
-    // because the EAX-only constants live in <eax/eax.h> (Windows-only
-    // Externals), but the same values are equally valid for the EFX
-    // backend — reverb params are stored in millibels (mB) regardless of
-    // which backend ultimately consumes them.
+    // EAX 2.0 «generic» listener preset values. Reverb params are stored
+    // in millibels (mB); EFX backend converts to linear gain on commit.
     Environment = 0;             // EAX_ENVIRONMENT_GENERIC
     Room = -1000.0f;             // mB
     RoomHF = -100.0f;            // mB

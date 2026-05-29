@@ -4,7 +4,6 @@
 #include "SoundRender_CoreA.h"
 #include "SoundRender_TargetA.h"
 #include "OpenALDeviceList.h"
-#include "SoundRender_EffectsA_EAX.h"
 #include "SoundRender_EffectsA_EFX.h"
 
 #if __has_include(<alext.h>)
@@ -127,23 +126,7 @@ void CSoundRender_CoreA::_initialize()
     supports_float_pcm &= psSoundFlags.test(ss_UseFloat32);
 
     ALuint auxSlot = 0;
-#if defined(XR_HAS_EAX)
-    // Check for EAX extension (Windows path — Creative legacy GUIDs)
-    if (deviceDesc.props.eax && !m_effects)
-    {
-        m_effects = xr_new<CSoundRender_EffectsA_EAX>();
-        if (!m_effects->initialized())
-        {
-            Log("SOUND: OpenAL: Failed to initialize EAX.");
-            xr_delete(m_effects);
-        }
-    }
-#endif
-
 #if defined(XR_HAS_EFX)
-    // Check for standard EFX extension (openal-soft on Apple/Linux). On
-    // Windows with both EAX and EFX present, the !m_effects short-circuit
-    // gives EAX priority — matches upstream intent.
     if (deviceDesc.props.efx && !m_effects)
     {
         m_effects = xr_new<CSoundRender_EffectsA_EFX>();
@@ -155,15 +138,13 @@ void CSoundRender_CoreA::_initialize()
             xr_delete(m_effects);
         }
     }
-#endif
 
-#if !defined(XR_HAS_EAX) && !defined(XR_HAS_EFX)
-    Msg("* SOUND: no reverb backend compiled - snd_efx cvar has no effect");
-#else
     if (!m_effects)
-        Msg("* SOUND: device lacks ALC_EXT_EFX/EAX - snd_efx cvar has no effect");
+        Msg("* SOUND: device lacks ALC_EXT_EFX - snd_efx cvar has no effect");
     else
         Msg("* SOUND: reverb backend active (snd_efx cvar drives env effects)");
+#else
+    Msg("* SOUND: no reverb backend compiled - snd_efx cvar has no effect");
 #endif
 
     inherited::_initialize();

@@ -6,12 +6,6 @@
 #include "SoundRender_Source.h"
 #include "SoundRender_Emitter.h"
 
-// XXX: old SDK functionality
-//#if defined(XR_PLATFORM_WINDOWS)
-//#define OPENAL
-//#include <eax/eax.h>
-//#endif
-
 XRSOUND_API Flags32 psSoundFlags =
 {
     ss_Hardware | ss_EFX | ss_UseFloat32
