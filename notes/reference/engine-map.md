@@ -776,6 +776,39 @@ window events продолжают идти через SDL.
   [`notes/decisions/a7-2-native-text-input.md`](../decisions/a7-2-native-text-input.md)
   «Final architecture». History: gitea #165 iterations 1-3.
 
+- **NSTextInputContext detached client view → control byte fallback в
+  insertText: (A.7.2 landmine, обнаружен в #196 2026-05-30)**:
+  `OpenXRayTextInputView` создаётся с `NSZeroRect` и **не добавляется**
+  в window's content view / responder chain
+  (`NativeTextInputBackend.mm:344` — `sTextInputView = [[OpenXRayTextInputView
+  alloc] initWithFrame:NSZeroRect]`). На detached view AppKit'у нет full
+  text-editing client context (no field editor, no document) — поэтому
+  `doCommandBySelector:` **никогда не вызывается** для command keys.
+  Вместо этого AppKit fallback'ит control codepoint напрямую в
+  `insertText:`: 0x08 (backspace), 0x1b (escape), 0x09 (tab), 0x0d
+  (return). Эти байты приходят как «текст» через `IR_OnTextInput` →
+  `line_edit_control::on_text_input` → `insert_character`. Параллельно
+  A.3 ring доставляет тот же scancode → `IR_OnKeyboardPress` → key
+  callback (например `delete_selected_back`). Net: для consumer'ов
+  игнорирующих control bytes (console / ImGui) — работает. Для
+  consumer'ов принимающих их буквально (line_edit_control в save-name
+  dialog) — backspace «не работает» (буфер шринкает на 1, потом
+  растёт на 0x08, цикл).
+  **Существующий комментарий в bullet'е выше («doCommandBySelector:
+  no-op → не fires insertText: → fall through») был incorrect для
+  detached view — refined здесь.** Fix варианты: (A) filter control
+  bytes в `insertText:` (маскировка, отвергнуто); (C) attach view к
+  NSWindow content view / responder chain — proper text-editing client,
+  AppKit будет маршрутизировать через `doCommandBySelector:`. Выбран
+  Option C, отложен в рамках A.7.4 NSWindow plumbing. См.
+  [`notes/decisions/a7-4-native-render-series.md`](../decisions/a7-4-native-render-series.md)
+  «#196 backspace deferred — Option C» + memory entry
+  `project-nstextinput-detached-fallback`. Branch
+  `issue-196-backspace-savename-diag` на gitea содержит BS-TRACE probes
+  ([1..7]/[TI]/[SE]) готовые к re-pickup для verification.
+  Console `save <name>` через `~` toggle — workaround (другой input
+  pipeline через XR_IOConsole + ImGui InputText, не страдает).
+
 - **NSTextInputContext caches current input source at activate-time
   (A.7.2 known limitation, fix in A.7.4 #166)**: после `[activate]`
   context фиксирует текущую раскладку. Cmd+Space смена раскладки
