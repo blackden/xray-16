@@ -754,6 +754,40 @@ window events продолжают идти через SDL.
   `OPENAL_ROOT` injection) и в packaging script; xrSound видит правильные
   capabilities (`props.efx`, `XR_HAS_EFX`, `ALC_HRTF_SOFT`) и сам решает
   какой backend подключить.
+- **EFX backend использует `AL_EFFECT_EAXREVERB`** (не initial
+  `AL_EFFECT_REVERB`). Тот же env-data layout (mB → linear gain через
+  `mB_to_gain` лямбду в `set_listener`), но расширенная reverb model
+  даёт recognizable character. Параметры которые env-data не несёт
+  (DECAY_LFRATIO, ECHO_*, MODULATION_*, *REFERENCE, DECAY_HFLIMIT)
+  seeded в constructor'е с `AL_EAXREVERB_DEFAULT_*` и не трогаются.
+- **Sound source → aux slot binding** (`SoundRender_TargetA.{h,cpp}`).
+  Каждый `CSoundRender_TargetA` принимает `ALuint slot` в ctor и в
+  `_initialize()` делает
+  `alSource3i(pSource, AL_AUXILIARY_SEND_FILTER, pAuxSlot, 0, AL_FILTER_NULL)`.
+  Без этого slot живёт пустой — effect attached через `commit()`, но
+  ни один source не подаёт сигнал в wet path. Landmine first PR
+  version — backend «active» в логе, но реверба нет.
+  `SoundRender_CoreA.cpp::_initialize()` достаёт slot из EFX backend
+  через `get_slot()` и передаёт в каждый Target.
+- **`CSoundRender_Environment` defaults НЕ зависят от EAX.**
+  `set_default()`, `set_identity()`, `clamp()` в `SoundRender_Environment.cpp`
+  раньше были полностью обёрнуты в `#if defined(XR_HAS_EAX)`. На маке
+  → no-op → default-constructed env с zero fields → `set_listener`
+  подаёт нули в `AL_EAXREVERB_*` → metallic ringing. После A.7.3 —
+  hardcoded numeric EAXLISTENER_DEFAULT_* и EAXLISTENER_MIN/MAX_*
+  значения (EAX 2.0 spec).
+- **`snd_efx` cvar теперь真 работает** через virtual `detach()` в
+  `CSoundRender_Effects` (default no-op, EFX override делает
+  `alAuxiliaryEffectSloti(slot, AL_EFFECTSLOT_EFFECT, AL_EFFECT_NULL)`).
+  `SoundRender_Core::update_listener` при `ss_EFX` off вызывает
+  `detach()`, не просто early-return — иначе previously-committed
+  effect оставался прикреплён к slot'у.
+- **Debug `snd_efx_preset` cvar** (`xr_ioc_cmd.cpp:870-ish`, range 0..5).
+  `0` = env-data driven (default, vanilla CoP). `1..5` = hardcoded
+  preset из `<efx-presets.h>` (BATHROOM, AUDITORIUM, HANGAR,
+  STONECORRIDOR, CAVE). Переключается live в консоли для A/B reverb
+  comparison без rebuild'а. Использован во время A.7.3 smoke сессии
+  для proof что EFX pipeline работает end-to-end.
 - **Sound shutdown order:** `Engine.Sound.Destroy()` в `x_ray.cpp:361`
   идёт **до** `Device.Destroy()` (`:363`) — инверсия spatial-DB hazard'а.
   Sound не держит spatial-DB ref'ов, safe.
