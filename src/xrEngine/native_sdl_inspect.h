@@ -27,6 +27,12 @@ void OpenXRay_NativeSDLInspect_Window(SDL_Window* sdlWnd);
 // pixelFormat attributes, currentVirtualScreen.
 void OpenXRay_NativeSDLInspect_Context(void* sdl_gl_context);
 
+// A.7.4b Step B.2 (gitea #188): достать NSView* contentView из SDL_Window
+// без mutate state, для последующего setView: на нашем NSOpenGLContext.
+// Возвращает NSView* как void* (caller __bridge cast'ает). nullptr при
+// невалидном SDL_Window / не-Cocoa subsystem.
+void* OpenXRay_NativeSDLInspect_GetContentView(SDL_Window* sdlWnd);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif
