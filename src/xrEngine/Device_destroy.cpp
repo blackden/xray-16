@@ -3,6 +3,10 @@
 #include "Render.h"
 #include "xr_input.h"
 
+#if defined(XR_PLATFORM_APPLE)
+#   include "native_window.h"
+#endif
+
 void CRenderDevice::Destroy()
 {
     if (!b_is_Ready)
@@ -32,7 +36,18 @@ void CRenderDevice::Destroy()
     seqParallel.clear();
     xr_delete(Statistic);
 
-    SDL_DestroyWindow(m_sdlWnd);
+#if defined(XR_PLATFORM_APPLE)
+    if (m_useNativeWindow)
+    {
+        // A.7.4 C.4a (gitea #192): native path — нет SDL window'а, наш
+        // NSWindow tear down через native helper (idempotent).
+        OpenXRay_NativeWindow_Destroy();
+    }
+    else
+#endif
+    {
+        SDL_DestroyWindow(m_sdlWnd);
+    }
     Log("Render destroyed.");
 }
 
@@ -62,7 +77,12 @@ void CRenderDevice::Reset(bool precache /*= true*/)
 
     const auto tm_end = TimerAsync();
     int drawableW = 0, drawableH = 0;
-    SDL_GL_GetDrawableSize(m_sdlWnd, &drawableW, &drawableH);
+#if defined(XR_PLATFORM_APPLE)
+    if (m_useNativeWindow)
+        OpenXRay_NativeWindow_GetBackingSize(&drawableW, &drawableH);
+    else
+#endif
+        SDL_GL_GetDrawableSize(m_sdlWnd, &drawableW, &drawableH);
     Msg("*** RESET [%d ms] mode=%ux%u points=%dx%d drawable=%dx%d engine=%ux%u",
         tm_end - tm_start,
         psDeviceMode.Width, psDeviceMode.Height,

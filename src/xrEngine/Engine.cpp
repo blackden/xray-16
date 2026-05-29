@@ -9,6 +9,11 @@
 #include "XR_IOConsole.h"
 #include "xr_ioc_cmd.h"
 
+#if defined(XR_PLATFORM_APPLE)
+#   include "native_window.h"
+#   include "Render.h"
+#endif
+
 struct SoundProcessor final : public pureFrame
 {
     void OnFrame() override
@@ -241,13 +246,16 @@ void OpenXRay_ApplyPendingLifecycleEvent()
     case PendingLifecycleEvent::AppActivated:
         // Idempotency: SDL's own focus dispatch (x_ray.cpp:452) may have
         // already activated us before this Cocoa-originated event drains.
-        if (Device.m_sdlWnd && !Device.b_is_Active)
-            Device.OnWindowActivate(Device.m_sdlWnd, true);
+        // A.7.4 C.4a (gitea #192): m_sdlWnd guard removed -- under NATIVE_WINDOW=1
+        // it is nullptr, which made activate silently no-op. The new
+        // OnWindowActivate signature takes an explicit isMainWindow=true.
+        if (!Device.b_is_Active)
+            Device.OnWindowActivate(/*isMainWindow*/ true, true);
         break;
 
     case PendingLifecycleEvent::AppDeactivated:
-        if (Device.m_sdlWnd && Device.b_is_Active)
-            Device.OnWindowActivate(Device.m_sdlWnd, false);
+        if (Device.b_is_Active)
+            Device.OnWindowActivate(/*isMainWindow*/ true, false);
         break;
     }
 }
@@ -299,10 +307,76 @@ void OpenXRay_DrainPendingReleaseAllKeys()
     OpenXRay_ApplyReleaseAllKeys();
 }
 
+// ---------------------------------------------------------------------------
+// A.7.4 C.4a (gitea #192): NSWindowDelegate event trampolines. The delegate
+// (defined in native_window.mm) enqueues events into atomic slots on the
+// AppKit main thread; engine drains them here on the render thread (start of
+// ProcessFrame via OpenXRay_RunPerFrameMacOSHooks). Same shape as the
+// PendingLifecycleEvent path above — no engine state touched from AppKit.
+//
+// Only relevant under m_useNativeWindow. Guard at the drain site so the
+// non-native path pays nothing (PollEvents would no-op anyway since the
+// delegate is never attached).
+// ---------------------------------------------------------------------------
+namespace
+{
+void OnNativeWindowResize(int w, int h)
+{
+    if (w <= 0 || h <= 0)
+        return;
+    // Mirror SDL_WINDOWEVENT_SIZE_CHANGED path in device.cpp:386-403.
+    // Backing-pixel size from the delegate; if it matches psDeviceMode, the
+    // Reset() short-circuits via the RESET guard inside CRenderDevice::Reset.
+    if (static_cast<int>(psDeviceMode.Width) == w &&
+        static_cast<int>(psDeviceMode.Height) == h)
+    {
+        Device.UpdateWindowRects();
+        return;
+    }
+    psDeviceMode.Width = static_cast<u32>(w);
+    psDeviceMode.Height = static_cast<u32>(h);
+    Device.UpdateWindowRects();
+    Device.Reset();
+}
+
+void OnNativeWindowClose()
+{
+    POSTLOG_MARK("native window close → RequestGracefulShutdown");
+    Engine.RequestGracefulShutdown();
+}
+
+void OnNativeWindowActivate(bool active)
+{
+    // Same idempotency rule as PendingLifecycleEvent::AppActivated: skip if
+    // engine state already matches (SDL focus dispatch on the SDL splash
+    // window or NSWorkspace observer may have already moved us).
+    if (active && Device.b_is_Active)
+        return;
+    if (!active && !Device.b_is_Active)
+        return;
+    Device.OnWindowActivate(/*isMainWindow*/ true, active);
+}
+
+void OnNativeWindowMinimize(bool minimized)
+{
+    // Treat minimize as deactivation for pause purposes — same shape SDL
+    // would have taken via SDL_WINDOWEVENT_MINIMIZED → focus-loss cascade.
+    OnNativeWindowActivate(!minimized);
+}
+} // namespace
+
 void OpenXRay_RunPerFrameMacOSHooks()
 {
     OpenXRay_DrainPendingReleaseAllKeys();
     OpenXRay_ApplyPendingLifecycleEvent();
+    if (Device.m_useNativeWindow)
+    {
+        OpenXRay_NativeWindow_PollEvents(
+            &OnNativeWindowResize,
+            &OnNativeWindowClose,
+            &OnNativeWindowActivate,
+            &OnNativeWindowMinimize);
+    }
     if (auto* hook = g_ghttpDrainHook.load(std::memory_order_acquire))
         hook();
 }
