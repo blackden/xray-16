@@ -192,6 +192,31 @@
   reading from `user.ltx` at boot (via console `Execute`) or by
   invoking `Console->Execute("r2_ssao", "off")` at runtime.
 
+## Cvars (engine console) — gotchas
+
+Engine-level cvar classes live in `src/xrEngine/xr_ioc_cmd.h`. Two
+non-obvious traps surfaced during issue #201 (DBG_* macro family):
+
+- **`CCC_Integer` (`xr_ioc_cmd.h:398-412`) parses args via `atoi()`** —
+  which stops at the first non-digit. `dbg_mask 0x7F` silently sets the
+  mask to 0 instead of 127. If your cvar is conceptually a bitmask
+  (anyone naturally types `0x...`), don't reuse `CCC_Integer`. Pattern
+  to follow: `CCC_DbgMask` in `xr_ioc_cmd.cpp:856-880` — uses
+  `std::strtol(args, &endp, 0)` so base auto-detects (`0x` hex / `0`
+  octal / decimal), with explicit range validation.
+- **`IConsole_Command::Save` persists cvars whose `GetStatus` returns
+  non-empty** — the base `Save` (`xr_ioc_cmd.h` near IConsole_Command)
+  calls `GetStatus(S)` and writes `cName S` to user.ltx if `S[0]`. So
+  any cvar that overrides GetStatus is implicitly opt-in to persistence
+  across launches via `cfg_save`. If your cvar should reset every
+  session (debug toggles, dev-only flags), **leave GetStatus default
+  (returns empty)** — let inspection happen through a dedicated
+  `*_status` command instead. Pattern: `CCC_DbgMask` deliberately omits
+  GetStatus; `CCC_DbgStatus` is the inspection command.
+
+История: PR #202 added both pattern + gotchas during #201 smoke; full
+rationale in `notes/decisions/dbg-macro-family.md`.
+
 ## FS / paths / launch
 
 - Apple appdata override (`-overlaypath`): `src/xrCore/LocatorAPI.cpp:1041-1090`
@@ -535,6 +560,22 @@ One-stop reference for instrumentation and diagnostic tools.
   No xrCore dependencies, safe to include from `.mm` files.
   Don't use when Msg/Log are working — Msg has timestamps + level
   filtering + remote-debug visibility.
+- **`src/Common/DbgTrace.hpp`** — `DBG_TRACE(cat, fmt, ...)` /
+  `DBG_TRACE_POST(cat, fmt, ...)` / `DBG_ONCE(cat, fmt, ...)`. Gated
+  debug-trace macro family: under `MASTER_GOLD` all expand to `((void)0)`
+  (zero runtime cost in ship), otherwise gate on `g_dbg_mask` bitmask
+  (cvar `dbg_mask`, default 0). 7 categories: INPUT/RENDER/LIFECYCLE/
+  FS/ALIFE/AUDIO/NET. Sub-categorization via format-string prefix,
+  not via per-feature macro explosion. `g_dbg_mask` lives in
+  `xrCore/log.cpp` (not next to `g_dev_tools` in xr_ioc_cmd.cpp —
+  XRCORE_API linkage for cross-module reach). Console UX: `dbg_on input`,
+  `dbg_off input`, `dbg_mask 0x7F`, `dbg_status`. **Pilot probes parked
+  with `XXX [author] DBG-PARKED-<issueN>: rationale`** above each call
+  site — strip-on-close is default, parking is the exception. **In
+  MasterGold the macros are stripped but cvars/commands still register**
+  — flip a Mixed build (`make build`) to actually see traces. Convention
+  + anti-patterns: `notes/conventions/debug-tracing.md`. History: gitea
+  #201, PR #202. Architectural decisions: `notes/decisions/dbg-macro-family.md`.
 - **Dual log paths (don't confuse them):**
   - Engine log: `~/.openxray-data/logs/openxray_ragnar.log` —
     driven by `Msg`/`Log`. Closes at `Core._destroy()`.
