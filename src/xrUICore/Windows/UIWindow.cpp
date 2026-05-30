@@ -1,6 +1,8 @@
 #include "pch.hpp"
+#include "Common/DbgTrace.hpp"
 
 #include "UIWindow.h"
+#include <SDL_scancode.h>
 
 #include "Cursor/UICursor.h"
 #include "xrEngine/editor_helper.h"
@@ -283,11 +285,22 @@ bool CUIWindow::OnKeyboardAction(int dik, EUIMessages keyboard_action)
 {
     bool result;
 
+    // XXX [foreground] DBG-PARKED-196: backspace pipeline trace
+    if (dik == SDL_SCANCODE_BACKSPACE)
+        DBG_TRACE(DBG_CAT_INPUT,
+            "[4/6] CUIWindow::OnKeyboardAction this=%p name=%s capturer=%p childList=%zu",
+            (void*)this, WindowName().c_str(), (void*)m_pKeyboardCapturer, m_ChildWndList.size());
+
     //если есть дочернее окно,захватившее клавиатуру, то
     //сообщение направляем ему сразу
     if (NULL != m_pKeyboardCapturer)
     {
         result = m_pKeyboardCapturer->OnKeyboardAction(dik, keyboard_action);
+
+        // XXX [foreground] DBG-PARKED-196: backspace pipeline trace
+        if (dik == SDL_SCANCODE_BACKSPACE)
+            DBG_TRACE(DBG_CAT_INPUT, "[4/6] CUIWindow capturer=%p returned=%d",
+                (void*)m_pKeyboardCapturer, (int)result);
 
         if (result)
             return true;

@@ -6,6 +6,7 @@
 ////////////////////////////////////////////////////////////////////////////
 
 #include "stdafx.h"
+#include "Common/DbgTrace.hpp"
 #include "line_edit_control.h"
 
 #include "xrCore/os_clipboard.h"
@@ -275,6 +276,10 @@ void line_edit_control::clear_inserted() { m_inserted[0] = m_inserted[1] = 0; m_
 bool line_edit_control::empty_inserted() const { return m_inserted_pos == 0; }
 void line_edit_control::set_edit(pcstr str)
 {
+    // XXX [foreground] DBG-PARKED-196: backspace pipeline trace
+    DBG_TRACE(DBG_CAT_INPUT, "[SE] set_edit str=[%s] str_len=%zu prev_edit_len=%zu prev_cur_pos=%zu",
+        str ? str : "(null)", str ? xr_strlen(str) : (size_t)0, xr_strlen(m_edit_str), m_cur_pos);
+
     size_t str_size = xr_strlen(str);
     clamp<size_t>(str_size, 0, m_buffer_size - 1);
     strncpy_s(m_edit_str, m_buffer_size, str, str_size);
@@ -336,9 +341,33 @@ void line_edit_control::on_key_press(int dik)
     clear_inserted();
     compute_positions();
 
+    // XXX [foreground] DBG-PARKED-196: backspace pipeline trace
+    const size_t bs_pre_edit_len = (dik == SDL_SCANCODE_BACKSPACE) ? xr_strlen(m_edit_str) : 0;
+    const size_t bs_pre_cur_pos  = m_cur_pos;
+    if (dik == SDL_SCANCODE_BACKSPACE)
+    {
+        DBG_TRACE(DBG_CAT_INPUT,
+            "[6/6] PRE line_edit_control::on_key_press dik=%d action=%p "
+            "cur_pos=%zu p1=%zu p2=%zu edit_len=%zu mods[LSh=%d,RSh=%d,Sh=%d,LCt=%d,RCt=%d,Ct=%d,Alt=%d,Caps=%d]",
+            dik, (void*)m_actions[dik], m_cur_pos, m_p1, m_p2, bs_pre_edit_len,
+            (int)get_key_state(ks_LShift), (int)get_key_state(ks_RShift), (int)get_key_state(ks_Shift),
+            (int)get_key_state(ks_LCtrl), (int)get_key_state(ks_RCtrl), (int)get_key_state(ks_Ctrl),
+            (int)get_key_state(ks_Alt), (int)get_key_state(ks_CapsLock));
+    }
+
     if (m_actions[dik])
     {
         m_actions[dik]->on_key_press(this);
+    }
+
+    // XXX [foreground] DBG-PARKED-196: backspace pipeline trace
+    if (dik == SDL_SCANCODE_BACKSPACE)
+    {
+        const size_t post_len = xr_strlen(m_edit_str);
+        DBG_TRACE(DBG_CAT_INPUT,
+            "[7/6] POST line_edit_control::on_key_press cur_pos=%zu (was %zu) edit_len=%zu (was %zu) %s",
+            m_cur_pos, bs_pre_cur_pos, post_len, bs_pre_edit_len,
+            (post_len < bs_pre_edit_len) ? "DELETED" : "NO-OP");
     }
     // ===========
     if (dik == SDL_SCANCODE_LCTRL || dik == SDL_SCANCODE_RCTRL)
@@ -367,6 +396,25 @@ void line_edit_control::on_key_press(int dik)
 
 void line_edit_control::on_text_input(const char *text)
 {
+    // XXX [foreground] DBG-PARKED-196: backspace pipeline trace
+    if (g_dbg_mask & DBG_CAT_INPUT)
+    {
+        const size_t pre = xr_strlen(m_edit_str);
+        char hex[64];
+        hex[0] = 0;
+        if (text)
+        {
+            size_t hi = 0;
+            for (const unsigned char* p = (const unsigned char*)text; *p && hi + 4 < sizeof(hex); ++p)
+            {
+                xr_sprintf(hex + hi, sizeof(hex) - hi, "%02x ", (unsigned)*p);
+                hi += 3;
+            }
+        }
+        DBG_TRACE(DBG_CAT_INPUT, "[TI] on_text_input bytes=[%s] text=[%s] pre_edit_len=%zu pre_cur_pos=%zu",
+            hex, text ? text : "(null)", pre, m_cur_pos);
+    }
+
     clamp_cur_pos();
     clear_inserted();
     compute_positions();

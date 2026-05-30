@@ -1,4 +1,5 @@
 #include "StdAfx.h"
+#include "Common/DbgTrace.hpp"
 #include "MainMenu.h"
 #include "ui/UIDialogWnd.h"
 #include "ui/UIMessageBoxEx.h"
@@ -393,6 +394,10 @@ void CMainMenu::IR_OnKeyboardPress(int dik)
 {
     if (!IsActive())
         return;
+
+    // XXX [foreground] DBG-PARKED-196: backspace pipeline trace
+    if (dik == SDL_SCANCODE_BACKSPACE)
+        DBG_TRACE(DBG_CAT_INPUT, "[1/6] CMainMenu::IR_OnKeyboardPress dik=%d active=%d", dik, IsActive());
 
     if ((pInput->iGetAsyncKeyState(SDL_SCANCODE_LALT) || pInput->iGetAsyncKeyState(SDL_SCANCODE_RALT))
         && (pInput->iGetAsyncKeyState(SDL_SCANCODE_LGUI) || pInput->iGetAsyncKeyState(SDL_SCANCODE_RGUI)))
