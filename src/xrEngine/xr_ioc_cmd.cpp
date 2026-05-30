@@ -890,7 +890,11 @@ public:
         g_dbg_mask = static_cast<int>(v);
         Msg("dbg_mask = 0x%02x", g_dbg_mask);
     }
-    void GetStatus(TStatus& S) override { xr_sprintf(S, sizeof(S), "0x%02x", g_dbg_mask); }
+    // GetStatus deliberately not overridden — default returns empty string,
+    // which makes IConsole_Command::Save skip the cvar. dbg_mask is opt-in
+    // per session by design (see notes/conventions/debug-tracing.md); we do
+    // NOT want cfg_save to persist a debug bitmask to user.ltx across
+    // launches. Inspection path is the `dbg_status` command.
     void Info(TInfo& I) override
     {
         xr_strcpy(I, "bitmask [0x00..0xFF], decimal or 0x-prefixed hex");
