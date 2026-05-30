@@ -281,3 +281,9 @@ void CloseLog(void)
 
     LogFile.clear();
 }
+
+// Debug-trace bitmask backing Common/DbgTrace.hpp. Defined in xrCore so the
+// header stays usable from every module without pulling xrEngine — cvar
+// `dbg_mask` and helpers `dbg_on`/`dbg_off`/`dbg_status` live in xrEngine
+// (xr_ioc_cmd.cpp) and mutate this var directly. Default 0 in every config.
+XRCORE_API int g_dbg_mask = 0;

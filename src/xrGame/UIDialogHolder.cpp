@@ -1,4 +1,5 @@
 #include "StdAfx.h"
+#include "Common/DbgTrace.hpp"
 #include "UIDialogHolder.h"
 #include "ui/UIDialogWnd.h"
 #include "UIGameCustom.h"
@@ -301,10 +302,18 @@ void CDialogHolder::UpdateCursorVisibility()
 bool CDialogHolder::IR_UIOnKeyboardPress(int dik)
 {
     CUIDialogWnd* TIR = TopInputReceiver();
+    // XXX [foreground] DBG-PARKED-196: backspace pipeline trace
+    if (dik == SDL_SCANCODE_BACKSPACE)
+        DBG_TRACE(DBG_CAT_INPUT, "[2/6] entry CDialogHolder::IR_UIOnKeyboardPress dik=%d TIR=%p", dik, (void*)TIR);
     if (!TIR)
         return false;
     if (!TIR->IR_process())
+    {
+        // XXX [foreground] DBG-PARKED-196: backspace pipeline trace
+        if (dik == SDL_SCANCODE_BACKSPACE)
+            DBG_TRACE(DBG_CAT_INPUT, "[2/6] bail CDialogHolder — TIR->IR_process() false dik=%d", dik);
         return false;
+    }
 
     // mouse click
     if (dik == MOUSE_1 || dik == MOUSE_2 || dik == MOUSE_3)
@@ -316,7 +325,11 @@ bool CDialogHolder::IR_UIOnKeyboardPress(int dik)
             return true;
     }
 
-    if (TIR->OnKeyboardAction(dik, WINDOW_KEY_PRESSED))
+    const bool okact = TIR->OnKeyboardAction(dik, WINDOW_KEY_PRESSED);
+    // XXX [foreground] DBG-PARKED-196: backspace pipeline trace
+    if (dik == SDL_SCANCODE_BACKSPACE)
+        DBG_TRACE(DBG_CAT_INPUT, "[2/6] result CDialogHolder TIR->OnKeyboardAction returned=%d", (int)okact);
+    if (okact)
         return true;
 
     if (UI().GetUICursor().IsVisible() && dik > XR_CONTROLLER_BUTTON_INVALID && dik < XR_CONTROLLER_BUTTON_MAX)

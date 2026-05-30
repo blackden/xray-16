@@ -1,5 +1,7 @@
 #include "StdAfx.h"
+#include "Common/DbgTrace.hpp"
 #include "UIDialogWnd.h"
+#include <SDL_scancode.h>
 
 CUIDialogWnd::CUIDialogWnd(pcstr window_name) : CUIWindow(window_name)
 {
@@ -19,10 +21,26 @@ void CUIDialogWnd::Show(bool status)
 
 bool CUIDialogWnd::OnKeyboardAction(int dik, EUIMessages keyboard_action)
 {
+    // XXX [foreground] DBG-PARKED-196: backspace pipeline trace
+    if (dik == SDL_SCANCODE_BACKSPACE)
+    {
+        const bool en = IsEnabled();
+        const bool wip = WorkInPause();
+        const bool ignp = GetHolder() && GetHolder()->IgnorePause();
+        const bool pau = Device.Paused();
+        const bool irp = IR_process();
+        DBG_TRACE(DBG_CAT_INPUT,
+            "[3/6] entry CUIDialogWnd::OnKeyboardAction dik=%d action=%d IsEnabled=%d WorkInPause=%d "
+            "GetHolder=%p IgnorePause=%d Device.Paused=%d IR_process=%d",
+            dik, (int)keyboard_action, (int)en, (int)wip, (void*)GetHolder(), (int)ignp, (int)pau, (int)irp);
+    }
     if (!IR_process())
         return false;
     if (inherited::OnKeyboardAction(dik, keyboard_action))
         return true;
+    // XXX [foreground] DBG-PARKED-196: backspace pipeline trace
+    if (dik == SDL_SCANCODE_BACKSPACE)
+        DBG_TRACE(DBG_CAT_INPUT, "[3/6] fail CUIDialogWnd inherited::OnKeyboardAction returned false dik=%d", dik);
     return false;
 }
 

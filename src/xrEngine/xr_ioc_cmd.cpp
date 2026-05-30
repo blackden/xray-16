@@ -1,5 +1,6 @@
 #include "stdafx.h"
 #include "Common/PostLogMark.hpp"
+#include "Common/DbgTrace.hpp"
 #include "IGame_Level.h"
 
 #include "XR_IOConsole.h"
@@ -750,6 +751,18 @@ ENGINE_API int g_dev_tools = 0;
 ENGINE_API int g_dev_tools = 1;
 #endif
 
+// dbg_mask cvar — bitmask gate for the DBG_TRACE macro family
+// (Common/DbgTrace.hpp). Each bit corresponds to a DbgCategory enum
+// value (INPUT=0x01, RENDER=0x02, LIFECYCLE=0x04, FS=0x08, ALIFE=0x10,
+// AUDIO=0x20, NET=0x40, ALL=0x7F). Default 0 in EVERY config — debug
+// traces are opt-in per session, regardless of build flavour. Set via
+// `dbg_mask <int>` directly, or the symbolic helpers `dbg_on <cat>` /
+// `dbg_off <cat>` / `dbg_status`. Under MASTER_GOLD the macros expand
+// to ((void)0) so this var has no runtime effect in shipped builds —
+// it stays declared for ABI/extern compatibility with Common/DbgTrace.hpp.
+// Definition lives in xrCore/log.cpp (XRCORE_API linkage) so consumers
+// outside xrEngine can include DbgTrace.hpp without an ENGINE_API anchor.
+
 // dev_watchdog_seconds cvar — main-thread stall detector (gitea #61).
 // Watchdog thread polls g_mainHeartbeat; if it doesn't advance for N
 // seconds the process _exits(128+SIGKILL). Default 30 in MasterGold so
@@ -766,6 +779,129 @@ ENGINE_API int g_dev_watchdog_seconds = 0;
 extern int ps_fps_limit;
 extern int ps_fps_limit_in_menu;
 
+// --- dbg_mask symbolic helpers (`dbg_on <cat>` / `dbg_off <cat>` /
+//     `dbg_status`). Thin UX layer over g_dbg_mask — the bitmask is the
+//     opaque storage; these classes just translate category names.
+namespace
+{
+struct DbgCategoryEntry
+{
+    pcstr name;
+    int bit;
+};
+
+static const DbgCategoryEntry s_dbg_categories[] = {
+    {"input",     DBG_CAT_INPUT    },
+    {"render",    DBG_CAT_RENDER   },
+    {"lifecycle", DBG_CAT_LIFECYCLE},
+    {"fs",        DBG_CAT_FS       },
+    {"alife",     DBG_CAT_ALIFE    },
+    {"audio",     DBG_CAT_AUDIO    },
+    {"net",       DBG_CAT_NET      },
+    {"all",       DBG_CAT_ALL      },
+};
+
+static int dbg_category_bit(pcstr name)
+{
+    for (const auto& e : s_dbg_categories)
+    {
+        if (xr_stricmp(e.name, name) == 0)
+            return e.bit;
+    }
+    return 0;
+}
+
+class CCC_DbgOn : public IConsole_Command
+{
+public:
+    CCC_DbgOn(pcstr N) : IConsole_Command(N) {}
+    void Execute(pcstr args) override
+    {
+        const int bit = dbg_category_bit(args);
+        if (bit == 0)
+        {
+            InvalidSyntax();
+            return;
+        }
+        g_dbg_mask |= bit;
+        Msg("dbg_mask = 0x%02x (set %s)", g_dbg_mask, args);
+    }
+    void Info(TInfo& I) override
+    {
+        xr_strcpy(I, "category name: input/render/lifecycle/fs/alife/audio/net/all");
+    }
+};
+
+class CCC_DbgOff : public IConsole_Command
+{
+public:
+    CCC_DbgOff(pcstr N) : IConsole_Command(N) {}
+    void Execute(pcstr args) override
+    {
+        const int bit = dbg_category_bit(args);
+        if (bit == 0)
+        {
+            InvalidSyntax();
+            return;
+        }
+        g_dbg_mask &= ~bit;
+        Msg("dbg_mask = 0x%02x (cleared %s)", g_dbg_mask, args);
+    }
+    void Info(TInfo& I) override
+    {
+        xr_strcpy(I, "category name: input/render/lifecycle/fs/alife/audio/net/all");
+    }
+};
+
+class CCC_DbgStatus : public IConsole_Command
+{
+public:
+    CCC_DbgStatus(pcstr N) : IConsole_Command(N) { bEmptyArgsHandled = true; }
+    void Execute(pcstr /*args*/) override
+    {
+        Msg("dbg_mask = 0x%02x", g_dbg_mask);
+        for (const auto& e : s_dbg_categories)
+        {
+            if (e.bit == DBG_CAT_ALL)
+                continue;
+            Msg("  %-10s : %s", e.name, (g_dbg_mask & e.bit) ? "on" : "off");
+        }
+    }
+    void Info(TInfo& I) override { xr_strcpy(I, "(no arguments) print current dbg_mask state"); }
+};
+
+// Direct mask setter — accepts both decimal (`dbg_mask 127`) and hex
+// (`dbg_mask 0x7F`). CCC_Integer uses atoi() which stops at the 'x' in
+// "0x7F" and yields 0 — surprising for a bitmask cvar. strtol with base=0
+// auto-detects 0x / 0 (octal) / decimal so the natural notation works.
+class CCC_DbgMask : public IConsole_Command
+{
+public:
+    CCC_DbgMask(pcstr N) : IConsole_Command(N) {}
+    void Execute(pcstr args) override
+    {
+        char* endp = nullptr;
+        const long v = std::strtol(args, &endp, 0);
+        if (endp == args || v < 0 || v > 0xFF)
+        {
+            InvalidSyntax();
+            return;
+        }
+        g_dbg_mask = static_cast<int>(v);
+        Msg("dbg_mask = 0x%02x", g_dbg_mask);
+    }
+    // GetStatus deliberately not overridden — default returns empty string,
+    // which makes IConsole_Command::Save skip the cvar. dbg_mask is opt-in
+    // per session by design (see notes/conventions/debug-tracing.md); we do
+    // NOT want cfg_save to persist a debug bitmask to user.ltx across
+    // launches. Inspection path is the `dbg_status` command.
+    void Info(TInfo& I) override
+    {
+        xr_strcpy(I, "bitmask [0x00..0xFF], decimal or 0x-prefixed hex");
+    }
+};
+} // namespace
+
 void CCC_Register()
 {
     // General
@@ -778,6 +914,14 @@ void CCC_Register()
 
     // Developer-only hotkeys gate (F11 playground, F12 ALife inspector).
     CMD4(CCC_Integer, "dev_tools", &g_dev_tools, 0, 1);
+
+    // Debug-trace bitmask (DBG_TRACE family in Common/DbgTrace.hpp).
+    // Custom setter accepts decimal AND 0x-prefixed hex; plus symbolic
+    // helpers for daily use.
+    CMD1(CCC_DbgMask, "dbg_mask");
+    CMD1(CCC_DbgOn,     "dbg_on");
+    CMD1(CCC_DbgOff,    "dbg_off");
+    CMD1(CCC_DbgStatus, "dbg_status");
 
 #if defined(XR_PLATFORM_APPLE)
     // Dev-only NSEvent keyCode -> SDL_Scancode table verifier (#120 A.3).

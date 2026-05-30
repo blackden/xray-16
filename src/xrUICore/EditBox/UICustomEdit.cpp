@@ -1,8 +1,10 @@
 #include "pch.hpp"
+#include "Common/DbgTrace.hpp"
 #include "UICustomEdit.h"
 #include "Lines/UILines.h"
 #include "xrEngine/line_edit_control.h"
 #include "xrEngine/xr_input.h"
+#include <SDL_scancode.h>
 
 // XXX: replace u32 and int with size_t
 
@@ -123,6 +125,10 @@ bool CUICustomEdit::OnMouseAction(float x, float y, EUIMessages mouse_action)
 
 bool CUICustomEdit::OnKeyboardAction(int dik, EUIMessages keyboard_action)
 {
+    // XXX [foreground] DBG-PARKED-196: backspace pipeline trace
+    if (dik == SDL_SCANCODE_BACKSPACE)
+        DBG_TRACE(DBG_CAT_INPUT, "[5/6] CUICustomEdit::OnKeyboardAction dik=%d action=%d m_bInputFocus=%d",
+            dik, (int)keyboard_action, (int)m_bInputFocus);
     if (!m_bInputFocus)
         return false;
 
