@@ -49,8 +49,11 @@ enum DbgCategory : int
     DBG_CAT_ALL       = 0x7F,
 };
 
-// g_dbg_mask lives in xrEngine (xr_ioc_cmd.cpp), bound to cvar `dbg_mask`.
-extern ENGINE_API int g_dbg_mask;
+// g_dbg_mask lives in xrCore (log.cpp), bound to cvar `dbg_mask` registered
+// from xrEngine (xr_ioc_cmd.cpp). XRCORE_API linkage so every module that
+// includes this header — xrGame, xrUICore, xrRender, .mm shims, future
+// xrCore consumers — can read the mask without extra extern juggling.
+extern XRCORE_API int g_dbg_mask;
 
 #if defined(MASTER_GOLD)
 

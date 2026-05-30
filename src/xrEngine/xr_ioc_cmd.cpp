@@ -760,7 +760,8 @@ ENGINE_API int g_dev_tools = 1;
 // `dbg_off <cat>` / `dbg_status`. Under MASTER_GOLD the macros expand
 // to ((void)0) so this var has no runtime effect in shipped builds —
 // it stays declared for ABI/extern compatibility with Common/DbgTrace.hpp.
-ENGINE_API int g_dbg_mask = 0;
+// Definition lives in xrCore/log.cpp (XRCORE_API linkage) so consumers
+// outside xrEngine can include DbgTrace.hpp without an ENGINE_API anchor.
 
 // dev_watchdog_seconds cvar — main-thread stall detector (gitea #61).
 // Watchdog thread polls g_mainHeartbeat; if it doesn't advance for N
