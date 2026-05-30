@@ -869,6 +869,33 @@ public:
     }
     void Info(TInfo& I) override { xr_strcpy(I, "(no arguments) print current dbg_mask state"); }
 };
+
+// Direct mask setter — accepts both decimal (`dbg_mask 127`) and hex
+// (`dbg_mask 0x7F`). CCC_Integer uses atoi() which stops at the 'x' in
+// "0x7F" and yields 0 — surprising for a bitmask cvar. strtol with base=0
+// auto-detects 0x / 0 (octal) / decimal so the natural notation works.
+class CCC_DbgMask : public IConsole_Command
+{
+public:
+    CCC_DbgMask(pcstr N) : IConsole_Command(N) {}
+    void Execute(pcstr args) override
+    {
+        char* endp = nullptr;
+        const long v = std::strtol(args, &endp, 0);
+        if (endp == args || v < 0 || v > 0xFF)
+        {
+            InvalidSyntax();
+            return;
+        }
+        g_dbg_mask = static_cast<int>(v);
+        Msg("dbg_mask = 0x%02x", g_dbg_mask);
+    }
+    void GetStatus(TStatus& S) override { xr_sprintf(S, sizeof(S), "0x%02x", g_dbg_mask); }
+    void Info(TInfo& I) override
+    {
+        xr_strcpy(I, "bitmask [0x00..0xFF], decimal or 0x-prefixed hex");
+    }
+};
 } // namespace
 
 void CCC_Register()
@@ -885,8 +912,9 @@ void CCC_Register()
     CMD4(CCC_Integer, "dev_tools", &g_dev_tools, 0, 1);
 
     // Debug-trace bitmask (DBG_TRACE family in Common/DbgTrace.hpp).
-    // Direct integer set, plus symbolic helpers for daily use.
-    CMD4(CCC_Integer, "dbg_mask", &g_dbg_mask, 0, 0xFF);
+    // Custom setter accepts decimal AND 0x-prefixed hex; plus symbolic
+    // helpers for daily use.
+    CMD1(CCC_DbgMask, "dbg_mask");
     CMD1(CCC_DbgOn,     "dbg_on");
     CMD1(CCC_DbgOff,    "dbg_off");
     CMD1(CCC_DbgStatus, "dbg_status");
